@@ -7,11 +7,11 @@
   <br>
 </h1>
 
-<h4 align="center">A Small Anime Streamer using Aniworld.to without AD <a href="http://electron.atom.io" target="_blank">Electron</a>.</h4>
+<h4 align="center">A Small Anime Streamer using Aniworld.to without AD by Using <a href="http://electron.atom.io" target="_blank">Electron</a>.</h4>
 
 <p align="center">
-  <a href="https://badge.fury.io/js/electron-markdownify">
-    <img src="https://badge.fury.io/js/electron-markdownify.svg"
+  <a href="https://badge.fury.io/js/npm">
+    <img src="https://badge.fury.io/js/npm.svg"
          alt="Gitter">
   </a>
   <a href="https://gitter.im/amitmerchant1990/electron-markdownify"><img src="https://badges.gitter.im/amitmerchant1990/electron-markdownify.svg"></a>
