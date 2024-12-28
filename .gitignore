@@ -1,0 +1,4 @@
+# Files that should be Ignored
+
+.dist
+node_modules
