@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "ayoto",
+        "title": "Ayoto",
         "width": 800,
         "height": 600
       }
