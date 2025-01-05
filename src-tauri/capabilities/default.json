@@ -9,6 +9,7 @@
     "core:default",
     "opener:default",
     "cors-fetch:default",
+    "store:default",
     {
       "identifier": "http:default",
       "allow": [
@@ -28,5 +29,8 @@
     "urls": [
       "http://127.0.0.1:*"
     ]
-  }
+  },
+  "capabilities": [
+    
+  ]
 }

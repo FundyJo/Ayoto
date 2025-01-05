@@ -14,6 +14,15 @@ import {
   Episode,
   fetchPopularAnime,
 } from '../index.ts';
+import { load } from "@tauri-apps/plugin-store";
+
+const CACHE_KEYS = {
+  TRENDING: "trendingAnime",
+  POPULAR: "popularAnime",
+  TOP_RATED: "topAnime",
+  TOP_AIRING: "topAiring",
+  UPCOMING: "Upcoming",
+};
 
 const SimpleLayout = styled.div`
   gap: 1rem;
@@ -165,34 +174,64 @@ const Home = () => {
   useEffect(() => {
     const fetchCount = Math.ceil(itemsCount * 1.4);
     const fetchData = async () => {
+      const store = await load("store.json", { autoSave: false });
+
       try {
         setState((prevState) => ({ ...prevState, error: null }));
+
+        // Gecachte Daten laden und sicherstellen, dass sie Arrays sind
+        const cachedData = {
+          trending: ((await store.get(CACHE_KEYS.TRENDING)) as Anime[]) || [],
+          popular: ((await store.get(CACHE_KEYS.POPULAR)) as Anime[]) || [],
+          topRated: ((await store.get(CACHE_KEYS.TOP_RATED)) as Anime[]) || [],
+          topAiring: ((await store.get(CACHE_KEYS.TOP_AIRING)) as Anime[]) || [],
+          upcoming: ((await store.get(CACHE_KEYS.UPCOMING)) as Anime[]) || [],
+        };
+
+        // State mit gecachten Daten aktualisieren
+        setState((prevState) => ({
+          ...prevState,
+          trendingAnime: cachedData.trending,
+          popularAnime: cachedData.popular,
+          topAnime: cachedData.topRated,
+          topAiring: cachedData.topAiring,
+          Upcoming: cachedData.upcoming,
+        }));
+
+        // Daten aus der API abrufen
         const test_1 = fetchPopularAnime(1, fetchCount);
         const test_2 = fetchPopularAnime(1, 6);
         const [trending, popular, topRated, topAiring, Upcoming] =
-          await Promise.all([
-            test_1,
-            test_1,
-            //fetchTopAnime(1, fetchCount),
-            test_2,
-            //fetchTopAiringAnime(1, 6),
-            test_2,
-            //fetchUpcomingSeasons(1, 6),
-            test_2,
-          ]);
-        console.log(popular)
+            await Promise.all([test_1, test_1, test_2, test_2, test_2]);
+
+        // Daten filtern und aktualisieren
+        const newData = {
+          trending: filterAndTrimAnime(trending),
+          popular: filterAndTrimAnime(popular),
+          topRated: filterAndTrimAnime(topRated),
+          topAiring: filterAndTrimAnime(topAiring),
+          upcoming: filterAndTrimAnime(Upcoming),
+        };
+
+        // Gecachte Daten speichern
+        await Promise.all([
+          store.set(CACHE_KEYS.TRENDING, newData.trending),
+          store.set(CACHE_KEYS.POPULAR, newData.popular),
+          store.set(CACHE_KEYS.TOP_RATED, newData.topRated),
+          store.set(CACHE_KEYS.TOP_AIRING, newData.topAiring),
+          store.set(CACHE_KEYS.UPCOMING, newData.upcoming),
+        ]);
+        await store.save();
+
+        // State mit neuen Daten aktualisieren
         setState((prevState) => ({
           ...prevState,
-          trendingAnime: filterAndTrimAnime(trending),
-          popularAnime: filterAndTrimAnime(popular),
-          topAnime: filterAndTrimAnime(topRated),
-          topAiring: filterAndTrimAnime(topAiring),
-          Upcoming: filterAndTrimAnime(Upcoming),
+          ...newData,
         }));
       } catch (fetchError) {
         setState((prevState) => ({
           ...prevState,
-          error: 'An unexpected error occurred',
+          error: "An unexpected error occurred",
         }));
       } finally {
         setState((prevState) => ({
@@ -210,6 +249,7 @@ const Home = () => {
 
     fetchData();
   }, [itemsCount]);
+
 
   useEffect(() => {
     document.title = `TEST APP`;

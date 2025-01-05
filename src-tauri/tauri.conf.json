@@ -13,6 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "fullscreen": true,
         "title": "Ayoto",
         "width": 800,
         "height": 600

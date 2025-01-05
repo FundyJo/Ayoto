@@ -27,6 +27,7 @@ tauri-plugin-http = { version = "2", features = ["unsafe-headers"] }
 tauri-plugin-cors-fetch = "3.1.0"
 tauri-plugin-notification = { version = "2.0.0", features = [ "windows7-compat" ] }
 tauri-plugin-os = "2"
+tauri-plugin-store = "2.2.0"
 
 [profile.release]
 panic = "abort"
@@ -35,6 +36,6 @@ lto = true
 opt-level = "s"
 strip = true
 
-[profile.release.package.wry]
-debug = true
-debug-assertions = true
+#[profile.release.package.wry]
+#debug = true
+#debug-assertions = true

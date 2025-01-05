@@ -14,6 +14,7 @@ import { IoIosSearch } from 'react-icons/io';
 import { CgProfile } from 'react-icons/cg';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPuzzlePiece } from '@fortawesome/free-solid-svg-icons';
+import {faHome} from "@fortawesome/free-solid-svg-icons/faHome";
 
 
 const StyledNavbar = styled.div<{ $isExtended?: boolean }>`
@@ -487,6 +488,13 @@ export const Navbar = () => {
     }
   };
 
+  const navigateToHome = () => {
+    // Check if the current location's pathname is not '/profile' before navigating
+    if (location.pathname !== '/home') {
+      navigate('/home');
+    }
+  };
+
   return (
     <>
       <StyledNavbar $isExtended={isPaddingExtended} ref={navbarRef}>
@@ -557,6 +565,9 @@ export const Navbar = () => {
                   <IoIosSearch />
                 </StyledButton>
               )}
+              <StyledButton onClick={navigateToHome}>
+                <FontAwesomeIcon icon={faHome} />
+              </StyledButton>
               <StyledButton onClick={navigateToAddons}>
                 <FontAwesomeIcon icon={faPuzzlePiece} />
               </StyledButton>

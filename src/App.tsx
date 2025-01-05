@@ -31,28 +31,6 @@ register();
 function App() {
   usePreserveScrollOnReload();
 
-  useEffect(() => {
-
-    // Disable drag-and-drop globally
-    const preventDrag = (event: DragEvent) => {
-      event.preventDefault();
-    };
-
-    // Attach event listeners to prevent drag-and-drop
-    window.addEventListener('dragstart', preventDrag);
-    window.addEventListener('dragover', preventDrag);
-    window.addEventListener('dragenter', preventDrag);
-    window.addEventListener('drop', preventDrag);
-
-    // Cleanup event listeners on component unmount
-    return () => {
-      window.removeEventListener('dragstart', preventDrag);
-      window.removeEventListener('dragover', preventDrag);
-      window.removeEventListener('dragenter', preventDrag);
-      window.removeEventListener('drop', preventDrag);
-    };
-  });
-
   return (
     <ApolloClientProvider>
       <Router> {/* Verwende HashRouter hier */}
