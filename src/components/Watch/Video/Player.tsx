@@ -1,29 +1,23 @@
 import {useEffect, useRef, useState} from 'react';
 import './PlayerStyles.css';
 import {
-  isHLSProvider, MediaFullscreenChangeEvent, MediaFullscreenErrorEvent,
-  MediaPlayer,
-  type MediaPlayerInstance,
-  MediaProvider,
-  type MediaProviderAdapter,
-  type MediaProviderChangeEvent,
-  Poster,
+    isHLSProvider,
+    MediaFullscreenChangeEvent,
+    MediaFullscreenErrorEvent,
+    MediaPlayer,
+    type MediaPlayerInstance,
+    MediaProvider,
+    type MediaProviderAdapter,
+    type MediaProviderChangeEvent,
+    Poster,
 } from '@vidstack/react';
 import styled from 'styled-components';
-import {
-    fetchEpisodeLink,
-    useSettings,
-} from '../../../index.ts';
-import {
-    DefaultAudioLayout,
-    defaultLayoutIcons,
-    DefaultVideoLayout,
-} from '@vidstack/react/player/layouts/default';
+import {fetchEpisodeLink, useSettings,} from '../../../index.ts';
+import {DefaultAudioLayout, defaultLayoutIcons, DefaultVideoLayout,} from '@vidstack/react/player/layouts/default';
 import {TbPlayerTrackNext, TbPlayerTrackPrev} from 'react-icons/tb';
 import {FaCheck} from 'react-icons/fa6';
 import {RiCheckboxBlankFill} from 'react-icons/ri';
 //import {platform} from '@tauri-apps/plugin-os';
-import Hls from "hls.js";
 
 //const currentPlatform = platform();
 
@@ -118,36 +112,6 @@ export function Player({
     const {settings, setSettings} = useSettings();
     const {autoPlay, autoNext, autoSkip} = settings;
 
-    //const isMobile = currentPlatform == "android" || currentPlatform == "ios";
-
-    //const location = useLocation(); // Überwacht die aktuelle URL
-
-    //useEffect(() => {
-    //  const fetchData = async () => {
-    //    try {
-    //      let result: string = ''; // Hier wird das Resultat als string gespeichert
-//
-    //      if (
-    //        location.pathname.startsWith('/watch/') &&
-    //        location.pathname.split('/').length === 4
-    //      ) {
-    //        result = await fetchEpisodeLink(animeId, season, episode,"VOE",language); // Stelle sicher, dass es ein string ist
-    //        setSrc(result);
-    //      } else if (
-    //        location.pathname.startsWith('/watch/') &&
-    //        location.pathname.split('/').length === 3
-    //      ) {
-    //        result = await fetchEpisodeLink(animeId, '1', '1',"VOE",language); // Stelle sicher, dass es ein string ist
-    //        setSrc(result);
-    //      }
-    //    } catch (error) {
-    //      console.error('Fehler beim Abrufen der Episodenlinks:', error);
-    //    }
-    //  };
-//
-    //  fetchData();
-    //}, [location.pathname, animeId, season, episode]);
-
     useEffect(() => {
         console.log('RERENDER FROM PLAYER');
     }, []);
@@ -211,83 +175,8 @@ export function Player({
                 'all_episode_times',
                 JSON.stringify(allPlaybackInfo),
             );
-
-            //if (autoSkip && skipTimes.length) {
-            //  const skipInterval = skipTimes.find(
-            //    ({ interval }) =>
-            //      currentTime >= interval.startTime && currentTime < interval.endTime,
-            //  );
-            //  if (skipInterval) {
-            //    player.current.currentTime = skipInterval.interval.endTime;
-            //  }
-            //}
         }
     }
-
-    //function generateWebVTTFromSkipTimes(
-    //  skipTimes: FetchSkipTimesResponse,
-    //  totalDuration: number,
-    //): string {
-    //  let vttString = 'WEBVTT\n\n';
-    //  let previousEndTime = 0;
-//
-    //  const sortedSkipTimes = skipTimes.results.sort(
-    //    (a, b) => a.interval.startTime - b.interval.startTime,
-    //  );
-//
-    //  sortedSkipTimes.forEach((skipTime, index) => {
-    //    const { startTime, endTime } = skipTime.interval;
-    //    const skipType =
-    //      skipTime.skipType.toUpperCase() === 'OP' ? 'Opening' : 'Outro';
-//
-    //    // Insert default title chapter before this skip time if there's a gap
-    //    if (previousEndTime < startTime) {
-    //      vttString += `${formatTime(previousEndTime)} --> ${formatTime(startTime)}`;
-    //      vttString += `${animeVideoTitle} - Episode ${episodeNumber}`;
-    //    }
-//
-    //    // Insert this skip time
-    //    vttString += `${formatTime(startTime)} --> ${formatTime(endTime)}`;
-    //    vttString += `${skipType}`;
-    //    previousEndTime = endTime;
-//
-    //    // Insert default title chapter after the last skip time
-    //    if (index === sortedSkipTimes.length - 1 && endTime < totalDuration) {
-    //      vttString += `${formatTime(endTime)} --> ${formatTime(totalDuration)}`;
-    //      vttString += `${animeVideoTitle} - Episode ${episodeNumber}`;
-    //    }
-    //  });
-//
-    //  return vttString;
-    //}
-
-    //async function fetchAndProcessSkipTimes() {
-    //  if (episodeId) {
-    //    const episodeNumber = getEpisodeNumber(episodeId);
-    //    try {
-    //      const response: FetchSkipTimesResponse = await fetchSkipTimes({
-    //        malId: malId.toString(),
-    //        episodeNumber,
-    //      });
-    //      const filteredSkipTimes = response.results.filter(
-    //        ({ skipType }) => skipType === 'op' || skipType === 'ed',
-    //      );
-    //      if (!vttGenerated) {
-    //        const vttContent = generateWebVTTFromSkipTimes(
-    //          { results: filteredSkipTimes },
-    //          totalDuration,
-    //        );
-    //        const blob = new Blob([vttContent], { type: 'text/vtt' });
-    //        const vttBlobUrl = URL.createObjectURL(blob);
-    //        setVttUrl(vttBlobUrl);
-    //        setSkipTimes(filteredSkipTimes);
-    //        setVttGenerated(true);
-    //      }
-    //    } catch (error) {
-    //      console.error('Failed to fetch skip times', error);
-    //    }
-    //  }
-    //}
 
     async function fetchAndSetAnimeSource() {
         try {
@@ -295,36 +184,10 @@ export function Player({
             console.log("TESTS")
             console.log(response);
             setSrc(response);
-
-            // Sicherstellen, dass wir auf das erste verfügbare Quellen-URL zugreifen
-            //const sources = response.data.sources;  // Korrektur: Zugriff auf data.sources
-            //
-            //// Finde den 'default'-Link, falls vorhanden
-            //const backupSource = sources.find((source: StreamingSource) => source.quality === 'default');
-            //
-            //if (backupSource) {
-            //  // Wenn der 'default'-Link existiert, setzen wir diesen als Quelle
-            //  setSrc(backupSource.url);
-            //  console.log(backupSource.url)
-            //  updateDownloadLink(response.data.download); // Update des Download-Links
-            //} else if (sources.length > 0) {
-            //  // Wenn kein 'default'-Link vorhanden ist, setzen wir den ersten Link als Backup
-            //  const firstSource = sources[0]; // Erstes Quellen-URL verwenden
-            //  setSrc(firstSource.url);
-            //  updateDownloadLink(response.data.download); // Update des Download-Links
-            //} else {
-            //  console.error('No valid streaming sources found');
-            //}
         } catch (error) {
             console.error('Failed to fetch anime streaming links', error);
         }
     }
-
-    //function formatTime(seconds: number): string {
-    //  const minutes = Math.floor(seconds / 60);
-    //  const remainingSeconds = Math.floor(seconds % 60);
-    //  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-    //}
 
     function getEpisodeNumber(id: string): string {
         const parts = id.split('-');
@@ -354,36 +217,6 @@ export function Player({
             console.error('Error moving to the next episode:', error);
         }
     };
-
-    const videoRef = useRef<HTMLVideoElement>(null);
-
-    useEffect(() => {
-        const video = videoRef.current;
-
-        if (video) {
-            if (Hls.isSupported() && src.includes('.m3u8')) {
-                const hls = new Hls();
-                hls.loadSource(src);
-                hls.attachMedia(video);
-
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    if (autoPlay) {
-                        video.play();
-                    }
-                });
-
-                return () => {
-                    hls.destroy();
-                };
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                // Native Unterstützung für Safari oder andere kompatible Browser
-                video.src = src;
-                if (autoPlay) {
-                    video.play();
-                }
-            }
-        }
-    }, [src, autoPlay]);
 
     // UNDER BANNER
     //{vttUrl && (
@@ -474,5 +307,5 @@ export function Player({
                 </div>
             </>
         </div>
-    );
+  );
 }
