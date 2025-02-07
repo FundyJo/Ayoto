@@ -6,6 +6,7 @@
     "main"
   ],
   "permissions": [
+    "deep-link:default",
     "core:default",
     "opener:default",
     "cors-fetch:default",

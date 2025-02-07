@@ -32,42 +32,42 @@ function App() {
   usePreserveScrollOnReload();
 
   return (
-    <ApolloClientProvider>
-      <Router> {/* Verwende HashRouter hier */}
-        <AuthProvider>
-          <ThemeProvider>
-            <SettingsProvider>
-              <Navbar />
-              <ShortcutsPopup />
-              <ScrollToTop />
-              <TrackPageViews />
-              <div style={{ minHeight: '35rem' }}>
-                <Routes>
-                  <Route path='/' element={<Home />} />
-                  <Route path='/home' element={<Home />} />
-                  <Route path='/search' element={<Search />} />
-                  <Route path='/watch/:animeId' element={<Watch />} />
-                  <Route
-                    path='/watch/:animeId/:seasonNumber/:episodeNumber'
-                    element={<Watch />}
-                  />
-                  <Route path='/addons' element={<Addons />} />
-                  <Route path='/profile' element={<Profile />} />
-                  <Route path='/profile/settings' element={<Settings />} />
-                  <Route path='/about' element={<About />} />
-                  <Route path='/pptos' element={<PolicyTerms />} />
-                  <Route path='/callback' element={<Callback />} />
-                  <Route path='*' element={<Page404 />} />
-                </Routes>
-              </div>
-              <Footer />
-              <NotificationTray /> {/* Das Notification Tray hinzufügen */}
-            </SettingsProvider>
-          </ThemeProvider>
-        </AuthProvider>
-      </Router>
-      <Analytics />
-    </ApolloClientProvider>
+      <ApolloClientProvider>
+        <Router> {/* Verwende HashRouter hier */}
+          <AuthProvider>
+            <ThemeProvider>
+              <SettingsProvider>
+                <Navbar />
+                <ShortcutsPopup />
+                <ScrollToTop />
+                <TrackPageViews />
+                <div style={{ minHeight: '35rem' }}>
+                  <Routes>
+                    <Route path='/' element={<Home />} />
+                    <Route path='/home' element={<Home />} />
+                    <Route path='/search' element={<Search />} />
+                    <Route path='/watch/:animeId' element={<Watch />} />
+                    <Route
+                        path='/watch/:animeId/:seasonNumber/:episodeNumber'
+                        element={<Watch />}
+                    />
+                    <Route path='/addons' element={<Addons />} />
+                    <Route path='/profile' element={<Profile />} />
+                    <Route path='/profile/settings' element={<Settings />} />
+                    <Route path='/about' element={<About />} />
+                    <Route path='/pptos' element={<PolicyTerms />} />
+                    <Route path='/callback' element={<Callback />} />
+                    <Route path='*' element={<Page404 />} />
+                  </Routes>
+                </div>
+                <Footer />
+                <NotificationTray /> {/* Das Notification Tray hinzufügen */}
+              </SettingsProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </Router>
+        <Analytics />
+      </ApolloClientProvider>
   );
 }
 

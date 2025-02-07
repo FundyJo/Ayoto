@@ -11,48 +11,41 @@ import {
     type MediaProviderChangeEvent,
     Poster,
 } from '@vidstack/react';
-import styled from 'styled-components';
 import {fetchEpisodeLink, useSettings,} from '../../../index.ts';
 import {DefaultAudioLayout, defaultLayoutIcons, DefaultVideoLayout,} from '@vidstack/react/player/layouts/default';
-import {TbPlayerTrackNext, TbPlayerTrackPrev} from 'react-icons/tb';
-import {FaCheck} from 'react-icons/fa6';
-import {RiCheckboxBlankFill} from 'react-icons/ri';
-//import {platform} from '@tauri-apps/plugin-os';
 
-//const currentPlatform = platform();
-
-const Button = styled.button<{ $autoskip?: boolean }>`
-    padding: 0.25rem;
-    font-size: 0.8rem;
-    border: none;
-    margin-right: 0.25rem;
-    border-radius: var(--global-border-radius);
-    cursor: pointer;
-    background-color: var(--global-div);
-    color: var(--global-text);
-
-    svg {
-        margin-bottom: -0.1rem;
-        color: grey;
-    }
-
-    @media (max-width: 500px) {
-        font-size: 0.7rem;
-    }
-
-    &.active {
-        background-color: var(--primary-accent);
-    }
-
-    ${({$autoskip}) =>
-            $autoskip &&
-            `
-      color: #d69e00;
-      svg {
-        color: #d69e00;
-      }
-    `}
-`;
+//const Button = styled.button<{ $autoskip?: boolean }>`
+//    padding: 0.25rem;
+//    font-size: 0.8rem;
+//    border: none;
+//    margin-right: 0.25rem;
+//    border-radius: var(--global-border-radius);
+//    cursor: pointer;
+//    background-color: var(--global-div);
+//    color: var(--global-text);
+//
+//    svg {
+//        margin-bottom: -0.1rem;
+//        color: grey;
+//    }
+//
+//    @media (max-width: 500px) {
+//        font-size: 0.7rem;
+//    }
+//
+//    &.active {
+//        background-color: var(--primary-accent);
+//    }
+//
+//    ${({$autoskip}) =>
+//    $autoskip &&
+//    `
+//      color: #d69e00;
+//      svg {
+//        color: #d69e00;
+//      }
+//    `}
+//`;
 
 type PlayerProps = {
     animeId: string;
@@ -68,23 +61,6 @@ type PlayerProps = {
     animeTitle?: string;
 };
 
-//type StreamingSource = {
-//  url: string;
-//  quality: string;
-//};
-
-//type SkipTime = {
-//  interval: {
-//    startTime: number;
-//    endTime: number;
-//  };
-//  skipType: string;
-//};
-
-//type FetchSkipTimesResponse = {
-//  results: SkipTime[];
-//};
-
 export function Player({
                            animeId,
                            season,
@@ -94,23 +70,18 @@ export function Player({
                            banner,
                            updateDownloadLink,
                            onEpisodeEnd,
-                           onPrevEpisode,
-                           onNextEpisode,
                            animeTitle,
                        }: PlayerProps) {
     const player = useRef<MediaPlayerInstance>(null);
     const [src, setSrc] = useState<string>('');
-    //const [vttUrl, setVttUrl] = useState<string>('');
     const [currentTime, setCurrentTime] = useState<number>(0);
-    //const [skipTimes, setSkipTimes] = useState<SkipTime[]>([]);
     const [totalDuration, setTotalDuration] = useState<number>(0);
-    //const [vttGenerated, setVttGenerated] = useState<boolean>(false);
     const episodeId = animeId + '-' + season + '-' + episode;
     const episodeNumber = getEpisodeNumber(episodeId);
     const animeVideoTitle = animeTitle;
 
-    const {settings, setSettings} = useSettings();
-    const {autoPlay, autoNext, autoSkip} = settings;
+    const {settings} = useSettings();
+    const {autoPlay, autoNext} = settings;
 
     useEffect(() => {
         console.log('RERENDER FROM PLAYER');
@@ -120,10 +91,12 @@ export function Player({
         setCurrentTime(parseFloat(localStorage.getItem('currentTime') || '0'));
 
         fetchAndSetAnimeSource();
-        //fetchAndProcessSkipTimes();
         console.log(totalDuration);
         return () => {
-            //if (vttUrl) URL.revokeObjectURL(vttUrl);
+            if (player.current) {
+                const currentTime = player.current.currentTime;
+                localStorage.setItem('currentTime', currentTime.toString());
+            }
         };
     }, [episodeId, updateDownloadLink]);
 
@@ -142,6 +115,21 @@ export function Player({
             player.current.currentTime = currentTime;
         }
     }, [currentTime]);
+
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (player.current) {
+                const currentTime = player.current.currentTime;
+                localStorage.setItem('currentTime', currentTime.toString());
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
 
     function onProviderChange(
         provider: MediaProviderAdapter | null,
@@ -175,6 +163,7 @@ export function Player({
                 'all_episode_times',
                 JSON.stringify(allPlaybackInfo),
             );
+            localStorage.setItem('currentTime', currentTime.toString());
         }
     }
 
@@ -194,16 +183,16 @@ export function Player({
         return parts[parts.length - 1];
     }
 
-    const toggleAutoPlay = () =>
-        setSettings({...settings, autoPlay: !autoPlay});
-    const toggleAutoNext = () =>
-        setSettings({...settings, autoNext: !autoNext});
-    const toggleAutoSkip = () =>
-        setSettings({...settings, autoSkip: !autoSkip});
-    const toggleFullscreen = () => {
-        player.current?.enterFullscreen();
-        player.current?.controls.show()
-    };
+    //const toggleAutoPlay = () =>
+    //    setSettings({...settings, autoPlay: !autoPlay});
+    //const toggleAutoNext = () =>
+    //    setSettings({...settings, autoNext: !autoNext});
+    //const toggleAutoSkip = () =>
+    //    setSettings({...settings, autoSkip: !autoSkip});
+    //const toggleFullscreen = () => {
+    //    player.current?.enterFullscreen();
+    //    player.current?.controls.show()
+    //};
 
     const handlePlaybackEnded = async () => {
         if (!autoNext) return;
@@ -218,11 +207,6 @@ export function Player({
         }
     };
 
-    // UNDER BANNER
-    //{vttUrl && (
-    //    <Track kind='chapters' src={vttUrl} default label='Skip Times' />
-    //)}
-
     function onFullscreenChange(isFullscreen: boolean, nativeEvent: MediaFullscreenChangeEvent) {
         console.log('Fullscreen state changed:', isFullscreen);
         console.log('Native event:', nativeEvent);
@@ -230,7 +214,6 @@ export function Player({
         const requestEvent = nativeEvent.request;
         console.log('Request event:', requestEvent);
 
-        // Falls du die Eigenschaften von `requestEvent` untersuchen möchtest:
         if (requestEvent) {
             console.log('Request event type:', requestEvent.type);
             console.log('Request event details:', requestEvent);
@@ -239,16 +222,15 @@ export function Player({
         }
     }
 
+    function onFullscreenError(error: unknown, nativeEvent: MediaFullscreenErrorEvent) {
+        console.error('Fullscreen error occurred:', error);
+        console.log('Native event:', nativeEvent);
 
-  function onFullscreenError(error: unknown, nativeEvent: MediaFullscreenErrorEvent) {
-    console.error('Fullscreen error occurred:', error);
-    console.log('Native event:', nativeEvent);
-
-    const requestEvent = nativeEvent.request;
-    console.log('Request event:', requestEvent);
-  }
-
-  return (
+        const requestEvent = nativeEvent.request;
+        console.log('Request event:', requestEvent);
+    }
+    
+    return (
         <div style={{animation: 'popIn 0.25s ease-in-out'}} className="media-player">
             <>
                 <MediaPlayer
@@ -279,33 +261,7 @@ export function Player({
                     <DefaultAudioLayout icons={defaultLayoutIcons}/>
                     <DefaultVideoLayout icons={defaultLayoutIcons}/>
                 </MediaPlayer>
-                <div
-                    className="player-menu"
-                    style={{
-                        backgroundColor: 'var(--global-div-tr)',
-                        borderRadius: 'var(--global-border-radius)',
-                    }}
-                >
-                    <Button onClick={toggleAutoPlay}>
-                        {autoPlay ? <FaCheck/> : <RiCheckboxBlankFill/>} Autoplay
-                    </Button>
-                    <Button $autoskip onClick={toggleAutoSkip}>
-                        {autoSkip ? <FaCheck/> : <RiCheckboxBlankFill/>} Auto Skip
-                    </Button>
-                    <Button onClick={onPrevEpisode}>
-                        <TbPlayerTrackPrev/> Prev
-                    </Button>
-                    <Button onClick={onNextEpisode}>
-                        <TbPlayerTrackNext/> Next
-                    </Button>
-                    <Button onClick={toggleAutoNext}>
-                        {autoNext ? <FaCheck/> : <RiCheckboxBlankFill/>} Auto Next
-                    </Button>
-                    <Button onClick={toggleFullscreen}>
-                        <RiCheckboxBlankFill/> Fullscreen
-                    </Button>
-                </div>
             </>
         </div>
-  );
+    );
 }

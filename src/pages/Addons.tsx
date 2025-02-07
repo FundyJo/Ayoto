@@ -1,221 +1,171 @@
 import { useState } from 'react';
 import styled from 'styled-components';
-import { FaUser, FaBook, FaInfoCircle, FaLifeRing, FaPuzzlePiece, FaFlask, FaDiscord, FaBell, FaLanguage } from 'react-icons/fa';
+import {
+    FaUser, FaPuzzlePiece, FaPlug, FaLanguage, FaFilm, FaGamepad, FaVideo,
+} from 'react-icons/fa';
 
 const PageContainer = styled.div`
-  display: flex;
-  max-width: 80rem;
-  margin: 0 auto;
-  padding: 1rem;
-  gap: 1rem;
-  flex-wrap: wrap;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #121212, #1e1e1e);
+    color: #f5f5f5;
+    padding: 2rem;
+`;
+
+const Wrapper = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 650px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
 `;
 
 const Sidebar = styled.nav`
-  width: 18rem;
-  padding: 1rem;
-  flex-shrink: 0;
-
-  @media (max-width: 768px) {
+    display: flex;
     width: 100%;
-    margin-bottom: 1rem;
-  }
-`;
-
-const Content = styled.div`
-  flex: 1;
-  padding: 1.5rem;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  width: 100%;
-`;
-
-const Card = styled.div`
-  width: 100%;
-  max-width: 60rem;
-  padding: 2rem;
-  background-color: #3331;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-
-  @media (max-width: 768px) {
-    max-width: 100%;
-    padding: 1rem;
-  }
+    gap: 1rem;
+    margin-bottom: 1.5rem;
 `;
 
 const SidebarItem = styled.button<{ active: boolean }>`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  background: none;
-  border: none;
-  padding: 0.8rem;
-  font-size: 1rem;
-  cursor: pointer;
-  text-align: left;
-  color: ${(props) => (props.active ? '#fff' : '#333')};
-  background-color: ${(props) => (props.active ? '#744aff' : 'transparent')};
-  border-radius: 8px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: ${(props) => (props.active ? '#7d5fff' : 'rgba(255, 255, 255, 0.1)')};
+    color: ${(props) => (props.active ? '#fff' : '#ddd')};
+    border: none;
+    padding: 0.8rem;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
 
-  &:hover {
-    background-color: ${(props) => (props.active ? '#744aff' : '#f4f4f4')};
-  }
+    &:hover {
+        background: #7d5fff;
+        color: #fff;
+    }
+`;
+
+const Card = styled.div`
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
 `;
 
 const SectionTitle = styled.h2`
-  margin: 0 0 1rem;
-  font-size: 1.5rem;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-align: center;
 `;
 
-const Switch = styled.button<{ isOn: boolean }>`
-  width: 40px;
-  height: 20px;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  background-color: ${(props) => (props.isOn ? '#5865F2' : '#72767d')};
-  position: relative;
-  transition: background-color 0.3s ease;
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 3px;
-    left: ${(props) => (props.isOn ? '22px' : '3px')};
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background-color: white;
-    transition: left 0.3s ease;
-  }
-`;
-
-const ExperimentalWrapper = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-`;
-
-const ExperimentalLabel = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  span {
-    font-family: 'Roboto', sans-serif;
-    font-size: 1rem;
-    font-weight: 500;
-    color: #555;
-  }
-
-  .tag {
-    background-color: #744aff;
+const Dropdown = styled.select`
+    width: 100%;
+    padding: 0.7rem;
+    border-radius: 10px;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
     color: #fff;
-    font-size: 0.8rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 8px;
-    font-weight: bold;
-  }
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+`;
+
+const PluginList = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    width: 100%;
+`;
+
+const PluginItem = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 `;
 
 const SettingsSection = () => {
-  const [fastCache, setFastCache] = useState(false);
-  const [discordRPC, setDiscordRPC] = useState(false);
-  const [notifications, setNotifications] = useState(true);
-  const [language, setLanguage] = useState('en');
+    const [language, setLanguage] = useState('en');
 
-  return (
-      <>
-        <SectionTitle>Einstellungen</SectionTitle>
+    return (
+        <>
+            <SectionTitle>⚙️ Einstellungen</SectionTitle>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                <FaLanguage size={20} />
+                <Dropdown value={language} onChange={(e) => setLanguage(e.target.value)}>
+                    <option value="en">🇬🇧 Englisch</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="fr">🇫🇷 Französisch</option>
+                    <option value="es">🇪🇸 Spanisch</option>
+                </Dropdown>
+            </div>
+        </>
+    );
+};
 
-        <ExperimentalWrapper>
-          <ExperimentalLabel>
-            <FaFlask />
-            <span>Fast Cache</span>
-            <span className="tag">experimental</span>
-          </ExperimentalLabel>
-          <Switch isOn={fastCache} onClick={() => setFastCache((prev) => !prev)} aria-label="Toggle Fast Cache" />
-        </ExperimentalWrapper>
+const PluginsSection = () => {
+    const plugins = [
+        { name: 'AniWorld', version: '1.2.0', icon: <FaVideo size={28} /> },
+        { name: 'CrunchyRoll+', version: '3.0.5', icon: <FaFilm size={28} /> },
+        { name: 'Twitch Helper', version: '2.1.3', icon: <FaGamepad size={28} /> },
+    ];
 
-        <ExperimentalWrapper>
-          <ExperimentalLabel>
-            <FaDiscord />
-            <span>Discord RPC</span>
-          </ExperimentalLabel>
-          <Switch isOn={discordRPC} onClick={() => setDiscordRPC((prev) => !prev)} aria-label="Toggle Discord RPC" />
-        </ExperimentalWrapper>
-
-        <ExperimentalWrapper>
-          <ExperimentalLabel>
-            <FaBell />
-            <span>Benachrichtigungen</span>
-          </ExperimentalLabel>
-          <Switch isOn={notifications} onClick={() => setNotifications((prev) => !prev)} aria-label="Toggle Notifications" />
-        </ExperimentalWrapper>
-
-        <ExperimentalWrapper>
-          <ExperimentalLabel>
-            <FaLanguage />
-            <span>Sprache</span>
-          </ExperimentalLabel>
-          <select value={language} onChange={(e) => setLanguage(e.target.value)} aria-label="Change Language">
-            <option value="en">Englisch</option>
-            <option value="de">Deutsch</option>
-            <option value="fr">Französisch</option>
-            <option value="es">Spanisch</option>
-          </select>
-        </ExperimentalWrapper>
-      </>
-  );
+    return (
+        <>
+            <SectionTitle>🔌 Plugins</SectionTitle>
+            <PluginList>
+                {plugins.map((plugin, index) => (
+                    <PluginItem key={index}>
+                        {plugin.icon}
+                        <div>
+                            <strong>{plugin.name}</strong>
+                            <p style={{ fontSize: '0.9rem', color: '#bbb' }}>Version {plugin.version}</p>
+                        </div>
+                    </PluginItem>
+                ))}
+            </PluginList>
+        </>
+    );
 };
 
 const SettingsPage = () => {
-  const [activeSection, setActiveSection] = useState<string>('settings');
+    const [activeSection, setActiveSection] = useState('settings');
 
-  const sections: Record<string, { label: string; icon: JSX.Element }> = {
-    settings: { label: 'Einstellungen', icon: <FaPuzzlePiece /> },
-    account: { label: 'Konto', icon: <FaUser /> },
-    library: { label: 'Library', icon: <FaBook /> },
-    about: { label: 'About Us', icon: <FaInfoCircle /> },
-    support: { label: 'Support', icon: <FaLifeRing /> },
-  };
-
-  const renderSection = () => {
-    switch (activeSection) {
-      case 'settings':
-        return <SettingsSection />;
-      case 'account':
-        return <SectionTitle>Konto-Einstellungen</SectionTitle>;
-      case 'library':
-        return <SectionTitle>Library-Management</SectionTitle>;
-      case 'about':
-        return <SectionTitle>Über uns</SectionTitle>;
-      case 'support':
-        return <SectionTitle>Support & Hilfe</SectionTitle>;
-      default:
-        return null;
-    }
-  };
-
-  return (
-      <PageContainer>
-        <Sidebar>
-          {Object.entries(sections).map(([key, { label, icon }]) => (
-              <SidebarItem key={key} active={activeSection === key} onClick={() => setActiveSection(key)}>
-                {icon}
-                {label}
-              </SidebarItem>
-          ))}
-        </Sidebar>
-        <Content>
-          <Card>{renderSection()}</Card>
-        </Content>
-      </PageContainer>
-  );
+    return (
+        <PageContainer>
+            <Wrapper>
+                <Sidebar>
+                    <SidebarItem active={activeSection === 'settings'} onClick={() => setActiveSection('settings')}>
+                        <FaPuzzlePiece /> Einstellungen
+                    </SidebarItem>
+                    <SidebarItem active={activeSection === 'plugins'} onClick={() => setActiveSection('plugins')}>
+                        <FaPlug /> Plugins
+                    </SidebarItem>
+                </Sidebar>
+                <Card>{activeSection === 'settings' ? <SettingsSection /> : <PluginsSection />}</Card>
+            </Wrapper>
+        </PageContainer>
+    );
 };
 
 export default SettingsPage;
