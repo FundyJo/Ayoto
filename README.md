@@ -1,8 +1,8 @@
 # 🚀 Entwickler gesucht!
 
-> [!INFO]
+> **INFO**  
 > **Wir suchen engagierte Entwickler, um Ayoto auf das nächste Level zu bringen!**  
-> Falls du Interesse hast, melde dich bei uns. 😃  
+> Falls du Interesse hast, melde dich bei uns. 😃
 
 ## 🎨 Über Ayoto
 Ayoto ist eine leistungsstarke Plattform für Anime-Streaming und -Downloads. Unser Ziel ist es, die bestmögliche Nutzererfahrung zu bieten – mit schnellem Streaming, umfangreichen Features und einer modernen, intuitiven Benutzeroberfläche.
