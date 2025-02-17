@@ -1,6 +1,6 @@
 # 🚀 Entwickler gesucht!
 
-> **INFO**  
+> [!NOTE] 
 > **Wir suchen engagierte Entwickler, um Ayoto auf das nächste Level zu bringen!**  
 > Falls du Interesse hast, melde dich bei uns. 😃
 
