@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
-import Voe from '../parser/voe.js';
-import Vidoza from '../parser/vidoza.js';
-import {getRequest, getTest, postRequest} from "./bypass/cors.js";
+import Voe from '../parser/voe.ts';
+import Vidoza from '../parser/vidoza.ts';
+import {getRequest, getTest, postRequest} from "./bypass/cors.ts";
 
 const baseURL = 'https://aniworld.to';
 //const searchCache = new NodeCache({ stdTTL: 2 * 60 * 60 });
@@ -99,68 +99,26 @@ export class Aniworld {
     }
 
     static async getPopularAnimes(page, perPage) {
-        //const cacheKey = 'popular_animes';
+        // You can later add caching logic here (e.g. popularCache.get(cacheKey))
         let cachedResults = [];
 
-        //if (!cachedResults) {
         console.log('Cache miss: Scraping popular animes...');
         try {
-            const {data: html} = await getRequest(`${baseURL}/beliebte-animes`, {headers});
-
+            // Fetch the popular anime listing page
+            const { data: html } = await getRequest(`${baseURL}/beliebte-animes`, { headers });
             const $ = cheerio.load(html);
+
+            // Extract all hrefs from the anime listing
             const hrefs = $('div.col-md-15.col-sm-3.col-xs-6 a')
-                .map((_, element) => $(element).attr('href'))
+                .map((_, el) => $(el).attr('href'))
                 .get()
                 .filter(Boolean);
 
+            // Process each anime detail page concurrently
             const results = await Promise.allSettled(
                 hrefs.map(async (href) => {
                     try {
-                        const animePageUrl = `${baseURL}${href}`;
-                        const {data: animeHtml} = await getRequest(animePageUrl, {headers});
-
-                        const $ = cheerio.load(animeHtml);
-
-                        const title = $("h1[itemprop='name'] span").text().trim();
-                        const description = $('p.seri_des').attr('data-full-description');
-                        const ratingValue = Number($("span[itemprop='ratingValue']").text()) * 10;
-                        const image = `${baseURL}${$('div.seriesCoverBox img').attr('data-src')}`;
-
-                        const seasons = $('.hosterSiteDirectNav ul:first-child li a');
-                        const seasonPromises = seasons
-                            .map(async (_, seasonElement) => {
-                                const seasonNumber = $(seasonElement).text().trim();
-                                const seasonUrl = `${baseURL}${href}/staffel-${seasonNumber}`;
-                                const {data: seasonHtml} = await getRequest(seasonUrl, {headers});
-                                const episodeLinks = cheerio.load(seasonHtml)("ul:contains('Episoden')").last().find('li a');
-                                return episodeLinks.length;
-                            })
-                            .get();
-
-                        const totalEpisodes = await Promise.all(seasonPromises).then((results) => results.reduce((a, b) => a + b, 0));
-                        const id = href.split('/').pop() || '';
-                        const coverImage = await this.fetchCoverImage(id);
-
-                        return {
-                            id,
-                            title: {
-                                romaji: title,
-                                english: title,
-                                native: title,
-                                userPreferred: title,
-                            },
-                            description,
-                            genres: ['Action', 'Comedy', 'Drama', 'Romance', 'Sci-Fi', 'Supernatural'],
-                            releaseDate: 2024,
-                            status: 'Ongoing',
-                            type: 'TV',
-                            rating: isNaN(ratingValue) ? 0 : ratingValue,
-                            cover: coverImage,
-                            totalEpisodes,
-                            duration: 24,
-                            color: '#e47850',
-                            image,
-                        };
+                        return await this.parseAnimeDetails(href);
                     } catch (error) {
                         console.error(`Error fetching anime data (${href}): ${error.message}`);
                         return null;
@@ -168,8 +126,11 @@ export class Aniworld {
                 })
             );
 
-            cachedResults = results.filter((result) => result.status === 'fulfilled').map((result) => result.value);
-            //popularCache.set(cacheKey, cachedResults);
+            // Filter out unsuccessful results and null values
+            cachedResults = results
+                .filter(result => result.status === 'fulfilled' && result.value)
+                .map(result => result.value);
+
             console.log('Results cached');
         } catch (error) {
             console.error(`Scraping error: ${error.message}`);
@@ -181,17 +142,13 @@ export class Aniworld {
                 results: [],
             };
         }
-        //} else {
-        //    console.log('Cache hit: Using cached results');
-        //}
 
+        // Pagination logic
         const totalResults = cachedResults.length;
         const totalPages = Math.ceil(totalResults / perPage);
         const startIndex = (page - 1) * perPage;
-        const endIndex = page * perPage;
-        const paginatedResults = cachedResults.slice(startIndex, endIndex);
+        const paginatedResults = cachedResults.slice(startIndex, page * perPage);
         const hasNextPage = page < totalPages;
-
 
         console.log({
             currentPage: page,
@@ -209,6 +166,69 @@ export class Aniworld {
             results: paginatedResults,
         };
     }
+
+    /**
+     * Fetches and parses the details of a single anime.
+     *
+     * @param {string} href - The relative URL for the anime detail page.
+     * @returns {Promise<Object>} - An object containing the parsed anime details.
+     */
+    static async parseAnimeDetails(href) {
+        // Construct the full URL for the anime detail page
+        const animePageUrl = `${baseURL}${href}`;
+        const { data: animeHtml } = await getRequest(animePageUrl, { headers });
+        const $ = cheerio.load(animeHtml);
+
+        // Extract the main details from the page
+        const title = $("h1[itemprop='name'] span").text().trim();
+        const description = $('p.seri_des').attr('data-full-description') || '';
+        const ratingValue = Number($("span[itemprop='ratingValue']").text()) * 10;
+        const imagePath = $('div.seriesCoverBox img').attr('data-src');
+        const image = imagePath ? `${baseURL}${imagePath}` : '';
+
+        // Retrieve episode counts by iterating over seasons
+        const seasons = $('.hosterSiteDirectNav ul:first-child li a');
+        const seasonEpisodeCounts = await Promise.all(
+            seasons.map(async (_, seasonElement) => {
+                const seasonNumber = $(seasonElement).text().trim();
+                const seasonUrl = `${baseURL}${href}/staffel-${seasonNumber}`;
+                const { data: seasonHtml } = await getRequest(seasonUrl, { headers });
+                const $$ = cheerio.load(seasonHtml);
+                // Find the last <ul> element containing "Episoden" and count its <li> children
+                const episodeLinks = $$("ul:contains('Episoden')").last().find('li a');
+                return episodeLinks.length;
+            }).get() // Convert cheerio object to a regular array
+        );
+        const totalEpisodes = seasonEpisodeCounts.reduce((total, count) => total + count, 0);
+
+        // Generate a unique ID based on the href
+        const id = href.split('/').pop() || '';
+        // Optionally fetch an alternative cover image
+        const coverImage = await this.fetchCoverImage(id);
+
+        // Return a consistent anime data object
+        return {
+            id,
+            title: {
+                romaji: title,
+                english: title,
+                native: title,
+                userPreferred: title,
+            },
+            description,
+            genres: ['Action', 'Comedy', 'Drama', 'Romance', 'Sci-Fi', 'Supernatural'],
+            releaseDate: 2024,
+            status: 'Ongoing',
+            type: 'TV',
+            rating: isNaN(ratingValue) ? 0 : ratingValue,
+            cover: coverImage,
+            totalEpisodes,
+            duration: 24,
+            color: '#e47850',
+            image,
+        };
+    }
+
 
     static async fetchEpisodeLinks(animeId, season, episode) {
         try {

@@ -2,73 +2,6 @@ import {Anime} from '../index.ts';
 // @ts-ignore
 import {Aniworld} from './scraper/aniworld.js';
 
-// Utility function to ensure URL ends with a slash
-//function ensureUrlEndsWithSlash(url: string): string {
-//  return url.endsWith('/') ? url : `${url}/`;
-//}
-
-// Adjusting environment variables to ensure they end with a slash
-//const BASE_URL = ensureUrlEndsWithSlash(
-//  import.meta.env.VITE_BACKEND_URL as string,
-//);
-//const SKIP_TIMES = ensureUrlEndsWithSlash(
-//  import.meta.env.VITE_SKIP_TIMES as string,
-//);
-//let PROXY_URL = import.meta.env.VITE_PROXY_URL; // Default to an empty string if no proxy URL is provided
-// Check if the proxy URL is provided and ensure it ends with a slash
-//if (PROXY_URL) {
-//  PROXY_URL = ensureUrlEndsWithSlash(import.meta.env.VITE_PROXY_URL || '');
-//}
-
-//const API_KEY = import.meta.env.VITE_API_KEY || '';
-//
-// Axios instance
-//const axiosInstance = axios.create({
-//  baseURL: PROXY_URL ?? '',
-//  timeout: 100000,
-//  headers: {
-//    'X-API-Key': API_KEY, // Assuming your API expects the key in this header
-//  },
-//});
-
-// Error handling function
-// Function to handle errors and throw appropriately
-//function handleError(error: any, context: string) {
-//  let errorMessage = 'An error occurred';
-//
-//  // Handling CORS errors (Note: This is a simplification. Real CORS errors are hard to catch in JS)
-//  if (error.message && error.message.includes('Access-Control-Allow-Origin')) {
-//    errorMessage = 'A CORS error occurred';
-//  }
-//
-//  switch (context) {
-//    case 'data':
-//      errorMessage = 'Error fetching data';
-//      break;
-//    case 'anime episodes':
-//      errorMessage = 'Error fetching anime episodes';
-//      break;
-//    // Extend with other cases as needed
-//  }
-//
-//  if (error.response) {
-//    // Extend with more nuanced handling based on HTTP status codes
-//    const status = error.response.status;
-//    if (status >= 500) {
-//      errorMessage += ': Server error';
-//    } else if (status >= 400) {
-//      errorMessage += ': Client error';
-//    }
-//    // Include server-provided error message if available
-//    errorMessage += `: ${error.response.data.message || 'Unknown error'}`;
-//  } else if (error.message) {
-//    errorMessage += `: ${error.message}`;
-//  }
-//
-//  console.error(`${errorMessage}`, error);
-//  throw new Error(errorMessage);
-//}
-
 // Cache key generator
 // Function to generate cache key from arguments
 function generateCacheKey(...args: string[]) {
@@ -157,59 +90,6 @@ interface FetchOptions {
     year?: string;
     status?: string;
 }
-
-// Individual caches for different types of data
-// Creating caches for anime data, anime info, and video sources
-//const advancedSearchCache = createCache('Advanced Search');
-//const animeDataCache = createCache('Data');
-//const animeInfoCache = createCache('Info');
-//const animeEpisodesCache = createCache('Episodes');
-//const fetchAnimeEmbeddedEpisodesCache = createCache('Video Embedded Sources');
-//const videoSourcesCache = createCache('Video Sources');
-
-// Fetch data from proxy with caching
-// Function to fetch data from proxy with caching
-//async function fetchFromProxy(url: string, cache: any, cacheKey: string) {
-//  try {
-//    // Attempt to retrieve the cached response using the cacheKey
-//    const cachedResponse = cache.get(cacheKey);
-//    if (cachedResponse) {
-//      return cachedResponse; // Return the cached response if available
-//    }
-//
-//    // Adjust request parameters based on PROXY_URL's availability
-//    const requestConfig = PROXY_URL
-//      ? { params: { url } } // If PROXY_URL is defined, send the original URL as a parameter
-//      : {}; // If PROXY_URL is not defined, make a direct request
-//
-//    // Proceed with the network request
-//    const response = await axiosInstance.get(
-//      PROXY_URL ? '' : url,
-//      requestConfig,
-//    );
-//
-//    // After obtaining the response, verify it for errors or empty data
-//    if (
-//      response.status !== 200 ||
-//      (response.data.statusCode && response.data.statusCode >= 400)
-//    ) {
-//      const errorMessage = response.data.message || 'Unknown server error';
-//      throw new Error(
-//        `Server error: ${
-//          response.data.statusCode || response.status
-//        } ${errorMessage}`,
-//      );
-//    }
-//
-//    // Assuming response data is valid, store it in the cache
-//    cache.set(cacheKey, response.data);
-//
-//    return response.data; // Return the newly fetched data
-//  } catch (error) {
-//    handleError(error, 'data');
-//    throw error; // Rethrow the error for the caller to handle
-//  }
-//}
 
 export async function fetchNavbarSearch(searchQuery = '') {
     if (!searchQuery) {
