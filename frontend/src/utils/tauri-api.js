@@ -1,7 +1,7 @@
 // Tauri API wrapper to replace Electron API
 // This provides compatibility with the existing Electron-based code
 
-const { invoke } = window.__TAURI__.core;
+import { invoke } from '@tauri-apps/api/core';
 
 export const api = {
   minimize: () => invoke('minimize_window'),
@@ -20,7 +20,7 @@ export const api = {
   broadcastDiscordRpc: (value) => invoke('broadcast_discord_rpc', { value })
 };
 
-// For backward compatibility
+// For backward compatibility - make API available on window
 if (typeof window !== 'undefined') {
   window.api = api;
 }

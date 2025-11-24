@@ -63,20 +63,19 @@ export default function Header() {
   const [anilistToken, setAnilistToken] = useState(localStorage.getItem('anilist_token') || '')
 
   useEffect(() => {
-    window.electron.receiveDeeplink((deeplink) => {
-      // console.log('Deeplink received in React app:', link)
-      const arr = deeplink.split('#')
-      const hash = arr[1]
-      const params = new URLSearchParams(hash)
-      const accessToken = params.get('access_token')
-
-      if (accessToken) {
-        // Store the access token in local storage
-        localStorage.setItem('anilist_token', accessToken)
-        // refresh the page
-        window.location.reload()
-      }
-    })
+    // TODO: Implement Tauri deep link handling
+    // Tauri v2 uses tauri-plugin-deep-link which needs to be configured
+    // For now, deep links will be handled through the Rust backend
+    // window.electron.receiveDeeplink((deeplink) => {
+    //   const arr = deeplink.split('#')
+    //   const hash = arr[1]
+    //   const params = new URLSearchParams(hash)
+    //   const accessToken = params.get('access_token')
+    //   if (accessToken) {
+    //     localStorage.setItem('anilist_token', accessToken)
+    //     window.location.reload()
+    //   }
+    // })
   }, [])
 
   const {
