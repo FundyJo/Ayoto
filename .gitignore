@@ -7,10 +7,24 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build outputs
 dist
 dist-ssr
 *.local
+out
+
+# Tauri build artifacts
+target/
+WixTools/
+.tauri-build/
+
+# Rust
+Cargo.lock
+**/*.rs.bk
+*.pdb
 
 # Editor directories and files
 .vscode/*
@@ -23,6 +37,13 @@ dist-ssr
 *.sln
 *.sw?
 
+# Application specific
 downloads
 BACKEND/server2.js
 BACKEND/server3.js
+
+# Archive and old Electron structure
+Archive/
+Electron/
+README_OLD.md
+
