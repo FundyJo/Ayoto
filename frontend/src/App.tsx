@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { Theme, Button, TextField } from '@radix-ui/themes'
+import { MagnifyingGlassIcon, VideoIcon, ArrowLeftIcon } from '@radix-ui/react-icons'
+import '@radix-ui/themes/styles.css'
 import './App.css'
 
 interface Episode {
@@ -136,121 +139,181 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <header className="header">
-        <h1>🎌 Ayoto - Anime Streaming</h1>
-        <div className="provider-info">
-          {providers.length > 0 && (
-            <span>Provider: {providers.join(', ')}</span>
-          )}
-        </div>
-      </header>
-
-      <div className="search-section">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search for anime..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-        />
-        <button className="search-button" onClick={handleSearch} disabled={isLoading}>
-          {isLoading ? 'Searching...' : 'Search'}
-        </button>
-        
-        <button 
-          className="cast-button" 
-          onClick={castState?.is_casting ? handleStopCast : scanCastDevices}
-          title="Cast to device"
-        >
-          {castState?.is_casting ? '📡 Stop Cast' : '📱 Cast'}
-        </button>
-      </div>
-
-      {showCastMenu && (
-        <div className="cast-menu">
-          <h3>Select Cast Device</h3>
-          {miracastDevices.length === 0 ? (
-            <p>No devices found. Make sure your casting device is on the same network.</p>
-          ) : (
-            <div className="device-list">
-              {miracastDevices.map((device) => (
-                <button
-                  key={device.id}
-                  className="device-item"
-                  onClick={() => handleCast(device.id)}
-                  disabled={!device.is_available}
-                >
-                  <strong>{device.name}</strong>
-                  <small>{device.ip_address}</small>
-                </button>
-              ))}
-            </div>
-          )}
-          <button onClick={() => setShowCastMenu(false)}>Close</button>
-        </div>
-      )}
-
-      <div className="content">
-        {selectedAnime ? (
-          <div className="anime-detail">
-            <button className="back-button" onClick={() => setSelectedAnime(null)}>
-              ← Back to Results
-            </button>
-            <div className="anime-info">
-              <img src={selectedAnime.thumbnail_url} alt={selectedAnime.title} />
-              <div>
-                <h2>{selectedAnime.title}</h2>
-                <p>{selectedAnime.description}</p>
+    <Theme appearance="dark" accentColor="purple">
+      <div className="min-h-screen bg-[#0f0f0f] text-white font-inter">
+        {/* Header */}
+        <header className="sticky top-0 z-50 bg-[#1a1a1d] border-b border-[#2a2a2d]">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h1 className="text-2xl font-bold tracking-tight">🎌 Ayoto</h1>
+                {providers.length > 0 && (
+                  <span className="text-sm text-gray-400">Provider: {providers.join(', ')}</span>
+                )}
               </div>
-            </div>
-            <div className="episodes">
-              <h3>Episodes</h3>
-              <div className="episode-list">
-                {selectedAnime.episodes.map((episode) => (
-                  <div key={episode.number} className="episode-card">
-                    {episode.thumbnail_url && (
-                      <img src={episode.thumbnail_url} alt={episode.title} />
-                    )}
-                    <div className="episode-info">
-                      <h4>Episode {episode.number}</h4>
-                      <p>{episode.title}</p>
-                      <button onClick={() => handlePlayEpisode(episode)}>
-                        ▶ Play
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              
+              <div className="flex items-center gap-4">
+                {/* Search Bar */}
+                <div className="flex items-center gap-2">
+                  <TextField.Root
+                    placeholder="Search anime..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    size="2"
+                    style={{ width: '300px' }}
+                  >
+                    <TextField.Slot>
+                      <MagnifyingGlassIcon height="16" width="16" />
+                    </TextField.Slot>
+                  </TextField.Root>
+                  
+                  <Button onClick={handleSearch} disabled={isLoading} size="2">
+                    {isLoading ? 'Searching...' : 'Search'}
+                  </Button>
+                </div>
+
+                {/* Cast Button */}
+                <Button
+                  onClick={castState?.is_casting ? handleStopCast : scanCastDevices}
+                  variant="soft"
+                  size="2"
+                >
+                  <VideoIcon />
+                  {castState?.is_casting ? 'Stop Cast' : 'Cast'}
+                </Button>
               </div>
             </div>
           </div>
-        ) : (
-          <div className="search-results">
-            {searchResults.length > 0 ? (
-              <div className="anime-grid">
-                {searchResults.map((anime) => (
-                  <div
-                    key={anime.id}
-                    className="anime-card"
-                    onClick={() => handleAnimeSelect(anime)}
-                  >
-                    <img src={anime.thumbnail_url} alt={anime.title} />
-                    <h3>{anime.title}</h3>
-                    <p>{anime.description.substring(0, 100)}...</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state">
-                <h2>Search for your favorite anime</h2>
-                <p>Use the search bar above to find anime to watch</p>
-              </div>
-            )}
+        </header>
+
+        {/* Cast Menu Modal */}
+        {showCastMenu && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+            <div className="bg-[#1a1a1d] rounded-lg p-6 w-96 border border-[#2a2a2d]">
+              <h3 className="text-xl font-bold mb-4">Select Cast Device</h3>
+              {miracastDevices.length === 0 ? (
+                <p className="text-gray-400 mb-4">No devices found. Make sure your casting device is on the same network.</p>
+              ) : (
+                <div className="flex flex-col gap-2 mb-4">
+                  {miracastDevices.map((device) => (
+                    <button
+                      key={device.id}
+                      className="text-left p-3 bg-[#2a2a2d] hover:bg-[#3a3a3d] rounded transition-colors disabled:opacity-50"
+                      onClick={() => handleCast(device.id)}
+                      disabled={!device.is_available}
+                    >
+                      <strong className="block">{device.name}</strong>
+                      <small className="text-gray-400">{device.ip_address}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <Button onClick={() => setShowCastMenu(false)} variant="soft" className="w-full">
+                Close
+              </Button>
+            </div>
           </div>
         )}
+
+        {/* Main Content */}
+        <main className="container mx-auto px-6 py-8">
+          {selectedAnime ? (
+            /* Anime Detail View */
+            <div className="animate-fade">
+              <Button
+                onClick={() => setSelectedAnime(null)}
+                variant="soft"
+                size="2"
+                className="mb-6"
+              >
+                <ArrowLeftIcon />
+                Back to Results
+              </Button>
+
+              <div className="grid md:grid-cols-[300px_1fr] gap-6 mb-8">
+                <img
+                  src={selectedAnime.thumbnail_url}
+                  alt={selectedAnime.title}
+                  className="w-full h-[400px] object-cover rounded-lg"
+                />
+                <div>
+                  <h2 className="text-3xl font-bold mb-4">{selectedAnime.title}</h2>
+                  <p className="text-gray-300 leading-relaxed">{selectedAnime.description}</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-2xl font-bold mb-4">Episodes</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {selectedAnime.episodes.map((episode) => (
+                    <div
+                      key={episode.number}
+                      className="bg-[#1a1a1d] rounded-lg overflow-hidden hover:bg-[#2a2a2d] transition-all hover:scale-105"
+                    >
+                      {episode.thumbnail_url && (
+                        <img
+                          src={episode.thumbnail_url}
+                          alt={episode.title}
+                          className="w-full h-32 object-cover"
+                        />
+                      )}
+                      <div className="p-4">
+                        <h4 className="font-semibold mb-2">Episode {episode.number}</h4>
+                        <p className="text-sm text-gray-400 mb-3">{episode.title}</p>
+                        <Button
+                          onClick={() => handlePlayEpisode(episode)}
+                          size="2"
+                          className="w-full"
+                        >
+                          ▶ Play
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : searchResults.length > 0 ? (
+            /* Search Results Grid */
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-fade">
+              {searchResults.map((anime) => (
+                <div
+                  key={anime.id}
+                  onClick={() => handleAnimeSelect(anime)}
+                  className="group cursor-pointer animate-fade"
+                >
+                  <div className="relative overflow-hidden rounded-lg transition-transform hover:scale-110">
+                    <img
+                      src={anime.thumbnail_url}
+                      alt={anime.title}
+                      className="w-full h-60 object-cover"
+                    />
+                    {/* Glow effect on hover */}
+                    <img
+                      src={anime.thumbnail_url}
+                      alt=""
+                      className="absolute top-0 w-full h-60 object-cover opacity-0 blur-2xl contrast-200 saturate-200 transition-opacity duration-500 group-hover:opacity-70 -z-10"
+                    />
+                  </div>
+                  <div className="mt-2">
+                    <h3 className="text-sm font-medium line-clamp-2 h-11" title={anime.title}>
+                      {anime.title}
+                    </h3>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Empty State */
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <h2 className="text-3xl font-bold mb-4">Search for your favorite anime</h2>
+              <p className="text-gray-400 text-lg">Use the search bar above to find anime to watch</p>
+            </div>
+          )}
+        </main>
       </div>
-    </div>
+    </Theme>
   )
 }
 
