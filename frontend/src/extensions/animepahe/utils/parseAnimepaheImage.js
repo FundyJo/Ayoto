@@ -17,6 +17,8 @@ async function getBaseUrl() {
 }
 
 // convert the image URL to the localhost animepahe image URL
+// This synchronous version uses the default port (64621) for simplicity
+// since it's used in many places where async isn't practical
 export const parseAnimepaheImage = (url) => {
   // if the url is a poster image
   if (url && url.includes('poster')) {
@@ -29,6 +31,9 @@ export const parseAnimepaheImage = (url) => {
     const id = url.split('/').pop()
     return `${BASE_URL}/image/snapshot/${id}`
   }
+  
+  // Return undefined for non-matching URLs (consistent with previous behavior)
+  return undefined
 }
 
 // Async version for when we need to ensure correct port
@@ -46,4 +51,7 @@ export const parseAnimepaheImageAsync = async (url) => {
     const id = url.split('/').pop()
     return `${baseUrl}/image/snapshot/${id}`
   }
+  
+  // Return undefined for non-matching URLs
+  return undefined
 }
