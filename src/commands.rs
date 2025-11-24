@@ -29,24 +29,17 @@ pub struct AppState {
 
 /// Creates a new Discord IPC client and connects to Discord
 fn create_discord_client() -> Option<DiscordIpcClient> {
-    match DiscordIpcClient::new(DISCORD_CLIENT_ID) {
-        Ok(mut client) => {
-            if client.connect().is_ok() {
-                Some(client)
-            } else {
-                log::warn!("Failed to connect to Discord");
-                None
-            }
-        }
-        Err(e) => {
-            log::warn!("Failed to create Discord client: {:?}", e);
-            None
-        }
+    let mut client = DiscordIpcClient::new(DISCORD_CLIENT_ID);
+    if client.connect().is_ok() {
+        Some(client)
+    } else {
+        log::warn!("Failed to connect to Discord");
+        None
     }
 }
 
 /// Creates the default Discord activity with optional custom details and state
-fn create_activity(details: &str, state: &str) -> activity::Activity {
+fn create_activity<'a>(details: &'a str, state: &'a str) -> activity::Activity<'a> {
     activity::Activity::new()
         .details(details)
         .state(state)
