@@ -1,4 +1,4 @@
-import encUrls from '../../../../common/utils.js'
+import encUrls from '../../../common/utils.js'
 const BASE_URL_JIKAN = 'https://api.jikan.moe/v4'
 const BASE_URL_NYAA = encUrls.nyaaApi
 export const BASE_URL_ANILIST = 'https://graphql.anilist.co'

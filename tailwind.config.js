@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+export default {
+  content: ['./frontend/index.html', './frontend/src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     fontFamily: {
       sans: ['ui-sans-serif', 'system-ui'],
@@ -34,5 +34,5 @@ module.exports = {
     },
     extend: {}
   },
-  plugins: [require('tailwindcss-animated', '@tailwindcss/line-clamp')]
+  plugins: [require('tailwindcss-animated'), require('@tailwindcss/line-clamp')]
 }
