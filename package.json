@@ -1,0 +1,19 @@
+{
+  "name": "ayoto",
+  "version": "0.1.0",
+  "description": "Anime streaming app with Miracast support and plugin system",
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "keywords": [
+    "anime",
+    "streaming",
+    "tauri",
+    "miracast",
+    "plugins"
+  ]
+}
