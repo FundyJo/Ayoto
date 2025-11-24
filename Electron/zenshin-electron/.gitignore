@@ -5,3 +5,6 @@ out
 *.log*
 downloads
 test
+
+# Tauri build artifacts
+src-tauri/target
