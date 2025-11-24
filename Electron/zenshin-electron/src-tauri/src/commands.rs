@@ -15,22 +15,22 @@ pub struct AppState {
 }
 
 #[tauri::command]
-pub fn minimize_window(window: Window) {
-    window.minimize().unwrap();
+pub fn minimize_window(window: Window) -> Result<(), String> {
+    window.minimize().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn maximize_window(window: Window) {
-    if window.is_maximized().unwrap() {
-        window.unmaximize().unwrap();
+pub fn maximize_window(window: Window) -> Result<(), String> {
+    if window.is_maximized().unwrap_or(false) {
+        window.unmaximize().map_err(|e| e.to_string())
     } else {
-        window.maximize().unwrap();
+        window.maximize().map_err(|e| e.to_string())
     }
 }
 
 #[tauri::command]
-pub fn close_window(window: Window) {
-    window.close().unwrap();
+pub fn close_window(window: Window) -> Result<(), String> {
+    window.close().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -142,8 +142,11 @@ pub async fn get_settings_json(state: State<'_, AppState>) -> Result<Settings, S
 
 #[tauri::command]
 pub async fn change_downloads_folder(state: State<'_, AppState>) -> Result<Settings, String> {
-    // This would typically open a dialog to select a folder
-    // For now, we'll just return the current settings
+    // TODO: Implement folder selection dialog using tauri-plugin-dialog
+    // For now, returning current settings as placeholder
+    // Future implementation should use:
+    // use tauri_plugin_dialog::DialogExt;
+    // let folder = app.dialog().file().pick_folder().await;
     let settings = state.settings.lock().unwrap();
     Ok(settings.clone())
 }
@@ -157,15 +160,21 @@ pub async fn change_backend_port(port: u16, state: State<'_, AppState>) -> Resul
 
 #[tauri::command]
 pub async fn set_discord_rpc(activity_details: serde_json::Value) -> Result<(), String> {
-    // Discord RPC implementation would go here
-    // This is a placeholder
-    log::info!("Discord RPC activity: {:?}", activity_details);
+    // TODO: Implement Discord RPC using discord-rich-presence crate
+    // Placeholder implementation for now
+    // Future implementation should use:
+    // use discord_rich_presence::{DiscordIpc, DiscordIpcClient};
+    // let mut client = DiscordIpcClient::new(CLIENT_ID)?;
+    // client.connect()?;
+    // client.set_activity(activity)?;
+    log::info!("Discord RPC activity (not yet implemented): {:?}", activity_details);
     Ok(())
 }
 
 #[tauri::command]
 pub async fn broadcast_discord_rpc(value: bool) -> Result<(), String> {
-    // Discord RPC broadcast implementation would go here
-    log::info!("Discord RPC broadcast: {}", value);
+    // TODO: Implement Discord RPC broadcast toggle
+    // Placeholder implementation for now
+    log::info!("Discord RPC broadcast (not yet implemented): {}", value);
     Ok(())
 }

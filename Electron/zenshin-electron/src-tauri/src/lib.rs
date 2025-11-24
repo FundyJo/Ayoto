@@ -49,13 +49,20 @@ pub fn run() {
       broadcast_discord_rpc,
     ])
     .setup(|app| {
-      if cfg!(debug_assertions) {
-        app.handle().plugin(
-          tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build(),
-        )?;
-      }
+      // Enable logging in both debug and production builds
+      // Debug: Info level for detailed debugging
+      // Production: Warn level for errors and warnings only
+      let log_level = if cfg!(debug_assertions) {
+        log::LevelFilter::Info
+      } else {
+        log::LevelFilter::Warn
+      };
+      
+      app.handle().plugin(
+        tauri_plugin_log::Builder::default()
+          .level(log_level)
+          .build(),
+      )?;
       Ok(())
     })
     .run(tauri::generate_context!())
