@@ -21,7 +21,10 @@ pub fn minimize_window(window: Window) -> Result<(), String> {
 
 #[tauri::command]
 pub fn maximize_window(window: Window) -> Result<(), String> {
-    if window.is_maximized().unwrap_or(false) {
+    let is_maximized = window.is_maximized()
+        .map_err(|e| format!("Failed to query window state: {}", e))?;
+    
+    if is_maximized {
         window.unmaximize().map_err(|e| e.to_string())
     } else {
         window.maximize().map_err(|e| e.to_string())
@@ -105,7 +108,8 @@ pub async fn save_to_settings(
     value: serde_json::Value,
     state: State<'_, AppState>
 ) -> Result<(), String> {
-    let mut settings = state.settings.lock().unwrap();
+    let mut settings = state.settings.lock()
+        .map_err(|e| format!("Failed to lock settings: {}", e))?;
     
     match key.as_str() {
         "uploadLimit" => {
@@ -136,7 +140,8 @@ pub async fn save_to_settings(
 
 #[tauri::command]
 pub async fn get_settings_json(state: State<'_, AppState>) -> Result<Settings, String> {
-    let settings = state.settings.lock().unwrap();
+    let settings = state.settings.lock()
+        .map_err(|e| format!("Failed to lock settings: {}", e))?;
     Ok(settings.clone())
 }
 
@@ -147,13 +152,15 @@ pub async fn change_downloads_folder(state: State<'_, AppState>) -> Result<Setti
     // Future implementation should use:
     // use tauri_plugin_dialog::DialogExt;
     // let folder = app.dialog().file().pick_folder().await;
-    let settings = state.settings.lock().unwrap();
+    let settings = state.settings.lock()
+        .map_err(|e| format!("Failed to lock settings: {}", e))?;
     Ok(settings.clone())
 }
 
 #[tauri::command]
 pub async fn change_backend_port(port: u16, state: State<'_, AppState>) -> Result<(), String> {
-    let mut settings = state.settings.lock().unwrap();
+    let mut settings = state.settings.lock()
+        .map_err(|e| format!("Failed to lock settings: {}", e))?;
     settings.backend_port = Some(port);
     Ok(())
 }
