@@ -2,9 +2,7 @@ module.exports = {
   extends: [
     'eslint:recommended',
     'plugin:react/recommended',
-    'plugin:react/jsx-runtime',
-    '@electron-toolkit',
-    '@electron-toolkit/eslint-config-prettier'
+    'plugin:react/jsx-runtime'
   ],
   rules: {
     // Example rules set to 'warn' instead of 'error'
