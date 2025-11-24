@@ -2,6 +2,22 @@
 
 A cross-platform anime streaming application built with Tauri, featuring Miracast support and an extensible plugin system for multiple anime providers.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org/)
+[![React](https://img.shields.io/badge/React-19.x-blue.svg)](https://react.dev/)
+[![Tauri](https://img.shields.io/badge/Tauri-2.x-brightgreen.svg)](https://tauri.app/)
+
+## 📚 Documentation
+
+- [🚀 Quick Start Guide](QUICKSTART.md) - Get started in minutes
+- [📦 Installation Guide](INSTALLATION.md) - Detailed installation instructions
+- [🔌 Plugin Development](PLUGIN_GUIDE.md) - Create anime provider plugins
+- [🏗️ Architecture](ARCHITECTURE.md) - Technical architecture and design
+- [❓ FAQ](FAQ.md) - Frequently asked questions
+- [🤝 Contributing](CONTRIBUTING.md) - How to contribute
+- [🔒 Security](SECURITY.md) - Security policy and best practices
+- [📝 Changelog](CHANGELOG.md) - Version history and changes
+
 ## Features
 
 - 🎌 **Cross-Platform**: Desktop (Windows, macOS, Linux) and Mobile (Android, iOS)
@@ -18,13 +34,15 @@ A cross-platform anime streaming application built with Tauri, featuring Miracas
 - **Styling**: Custom CSS with responsive design
 - **API**: Tauri IPC for frontend-backend communication
 
-## Prerequisites
+## Quick Start
+
+### Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable)
 - [Node.js](https://nodejs.org/) (v18 or higher)
 - [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
 
-## Installation
+### Installation
 
 1. Clone the repository:
 ```bash
@@ -43,6 +61,8 @@ cd ..
 ```bash
 npm install -g @tauri-apps/cli
 ```
+
+For detailed platform-specific instructions, see [INSTALLATION.md](INSTALLATION.md).
 
 ## Development
 
