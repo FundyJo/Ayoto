@@ -60,22 +60,28 @@ export default function ZenshinProvider({ children }) {
 
     // getSettingsJson
     const getSettingsJson = async () => {
-      const settings = await window.api.getSettingsJson()
-      if (settings.backendPort) {
-        setBackendPort(settings.backendPort)
+      // Only try to get settings if window.api is available (Tauri context)
+      if (typeof window === 'undefined' || !window.api || typeof window.api.getSettingsJson !== 'function') {
+        return
       }
-      if (settings.broadcastDiscordRpc) {
-        setBroadcastDiscordRpc(settings.broadcastDiscordRpc)
+      try {
+        const settings = await window.api.getSettingsJson()
+        if (settings.backendPort) {
+          setBackendPort(settings.backendPort)
+        }
+        if (settings.broadcastDiscordRpc) {
+          setBroadcastDiscordRpc(settings.broadcastDiscordRpc)
+        }
+        if (isTruthyWithZero(settings.uploadLimit) && settings.uploadLimit !== -1) {
+          setUploadLimit(parseInt(settings.uploadLimit) / 1024)
+        }
+        if (isTruthyWithZero(settings.downloadLimit) && settings.downloadLimit !== -1) {
+          setDownloadLimit(parseInt(settings.downloadLimit) / 1024)
+        }
+        setSettings(settings)
+      } catch {
+        // Silently fail if API is not available
       }
-      if (isTruthyWithZero(settings.uploadLimit) && settings.uploadLimit !== -1) {
-        setUploadLimit(parseInt(settings.uploadLimit) / 1024)
-      }
-      if (isTruthyWithZero(settings.downloadLimit) && settings.downloadLimit !== -1) {
-        console.log('settings.downloadLimit', settings.downloadLimit)
-
-        setDownloadLimit(parseInt(settings.downloadLimit) / 1024)
-      }
-      setSettings(settings)
     }
 
     const animateHoverCard = localStorage.getItem('hoverCard')

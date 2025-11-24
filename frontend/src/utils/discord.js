@@ -1,54 +1,39 @@
 // DiscordRPC.js
-import { Client, register } from 'discord-rpc'
+// This class provides Discord Rich Presence integration using the Tauri backend.
+// The actual Discord IPC connection is handled by the Rust backend.
+
 class DiscordRPC {
   constructor(clientId) {
     this.clientId = clientId
-    this.client = new Client({ transport: 'ipc' })
-
-    this.client.on('ready', () => {
-      console.log('Discord RPC is ready!')
-    })
+    this.initialized = false
   }
 
   initialize() {
-    register(this.clientId)
-    this.client.login({ clientId: this.clientId }).catch(() => {
-      setTimeout(() => this.initialize(), 5000).unref()
-    })
+    // In Tauri, Discord RPC is initialized automatically by the backend
+    // when broadcast_discord_rpc is enabled
+    this.initialized = true
+    if (typeof window !== 'undefined' && window.api && window.api.broadcastDiscordRpc) {
+      window.api.broadcastDiscordRpc(true)
+    }
   }
 
   setActivity(activityDetails) {
-    if (!this.client || !this.client.user) return
-
-    this.client.request('SET_ACTIVITY', {
-      pid: process.pid,
-      activity: {
-        timestamps: { start: Date.now() },
+    if (!this.initialized) return
+    
+    if (typeof window !== 'undefined' && window.api && window.api.setDiscordRpc) {
+      window.api.setDiscordRpc({
         details: activityDetails.details || 'Browsing Anime',
         state: activityDetails.state || 'Looking for anime to watch',
-        assets: {
-          // large_image: activityDetails.largeImageKey || 'logo',
-          // large_text: activityDetails.largeImageText || 'Anime Time!',
-          // small_image: activityDetails.smallImageKey || 'logo',
-          // small_text: activityDetails.smallImageText || 'Zenshin'
-          ...activityDetails.assets
-        },
-
-        buttons: [
-          {
-            label: 'Download app',
-            url: 'https://github.com/hitarth-gg/zenshin/releases/latest'
-          }
-        ],
-        instance: true,
-        type: 3
-      }
-    })
+        ...activityDetails
+      })
+    }
   }
+
   disconnect() {
-    this.client.destroy().then(() => {
-      console.log('RPC client disconnected.')
-    })
+    if (typeof window !== 'undefined' && window.api && window.api.broadcastDiscordRpc) {
+      window.api.broadcastDiscordRpc(false)
+    }
+    this.initialized = false
   }
 }
 
