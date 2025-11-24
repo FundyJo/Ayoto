@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use discord_rich_presence::{DiscordIpc, DiscordIpcClient, activity};
 
-const DISCORD_CLIENT_ID: &str = "1312155472781901824";
+const DISCORD_CLIENT_ID: &str = "1334161510120816680";
 const DISCORD_DEFAULT_DETAILS: &str = "Browsing Anime";
 const DISCORD_DEFAULT_STATE: &str = "Looking for anime to watch";
 const DISCORD_DOWNLOAD_URL: &str = "https://github.com/hitarth-gg/zenshin/releases/latest";
