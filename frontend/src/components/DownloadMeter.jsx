@@ -1,41 +1,77 @@
 import { ArrowDownIcon, ArrowUpIcon, BarChartIcon } from '@radix-ui/react-icons'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import formatBytes from '../utils/formatBytes'
 import { Button, Tooltip } from '@radix-ui/themes'
 
 function DownloadMeter() {
   const [message, setMessage] = useState([])
   const [statusWs, setStatus] = useState('Disconnected')
+  const socketRef = useRef(null)
+  const reconnectTimeoutRef = useRef(null)
+  const reconnectDelayRef = useRef(5000) // Start with 5 seconds
 
   useEffect(() => {
-    // Create a new WebSocket connection
-    // const socket = new WebSocket('ws://localhost:64622')
-    const socket = new WebSocket('ws://localhost:64621/ws')
+    let isUnmounted = false
+    
+    const connectWebSocket = () => {
+      if (isUnmounted) return
+      
+      try {
+        const socket = new WebSocket('ws://localhost:64621/ws')
+        socketRef.current = socket
 
-    // Handle WebSocket events
-    socket.onopen = () => {
-      console.log('WebSocket connected')
-      setStatus('Connected')
+        socket.onopen = () => {
+          if (!isUnmounted) {
+            setStatus('Connected')
+            // Reset reconnect delay on successful connection
+            reconnectDelayRef.current = 5000
+          }
+        }
+
+        socket.onmessage = (event) => {
+          if (!isUnmounted) {
+            try {
+              const data = JSON.parse(event.data)
+              setMessage(data)
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+
+        socket.onerror = () => {
+          // Silently handle errors - WebSocket not available is expected when backend isn't running
+        }
+
+        socket.onclose = () => {
+          if (!isUnmounted) {
+            setStatus('Disconnected')
+            // Exponential backoff for reconnection (max 60 seconds)
+            const delay = Math.min(reconnectDelayRef.current, 60000)
+            reconnectTimeoutRef.current = setTimeout(connectWebSocket, delay)
+            reconnectDelayRef.current = delay * 1.5
+          }
+        }
+      } catch {
+        // Failed to create WebSocket, try again later with exponential backoff
+        if (!isUnmounted) {
+          const delay = Math.min(reconnectDelayRef.current, 60000)
+          reconnectTimeoutRef.current = setTimeout(connectWebSocket, delay)
+          reconnectDelayRef.current = delay * 1.5
+        }
+      }
     }
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      // console.log('Received data:', data)
-      setMessage(data)
-    }
+    connectWebSocket()
 
-    socket.onerror = (error) => {
-      console.error('WebSocket error:', error)
-    }
-
-    socket.onclose = () => {
-      console.log('WebSocket disconnected')
-      setStatus('Disconnected')
-    }
-
-    // Cleanup the WebSocket on unmount
     return () => {
-      socket.close()
+      isUnmounted = true
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (socketRef.current) {
+        socketRef.current.close()
+      }
     }
   }, [])
 
