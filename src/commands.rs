@@ -1,6 +1,12 @@
 use tauri::{AppHandle, State, Window};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use discord_rich_presence::{DiscordIpc, DiscordIpcClient, activity};
+
+const DISCORD_CLIENT_ID: &str = "1312155472781901824";
+const DISCORD_DEFAULT_DETAILS: &str = "Browsing Anime";
+const DISCORD_DEFAULT_STATE: &str = "Looking for anime to watch";
+const DISCORD_DOWNLOAD_URL: &str = "https://github.com/hitarth-gg/zenshin/releases/latest";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
@@ -8,10 +14,45 @@ pub struct Settings {
     pub download_limit: Option<i32>,
     pub downloads_folder: Option<String>,
     pub backend_port: Option<u16>,
+    pub broadcast_discord_rpc: Option<bool>,
+}
+
+pub struct DiscordRpcState {
+    pub client: Mutex<Option<DiscordIpcClient>>,
+    pub enabled: Mutex<bool>,
 }
 
 pub struct AppState {
     pub settings: Mutex<Settings>,
+    pub discord: DiscordRpcState,
+}
+
+/// Creates a new Discord IPC client and connects to Discord
+fn create_discord_client() -> Option<DiscordIpcClient> {
+    match DiscordIpcClient::new(DISCORD_CLIENT_ID) {
+        Ok(mut client) => {
+            if client.connect().is_ok() {
+                Some(client)
+            } else {
+                log::warn!("Failed to connect to Discord");
+                None
+            }
+        }
+        Err(e) => {
+            log::warn!("Failed to create Discord client: {:?}", e);
+            None
+        }
+    }
+}
+
+/// Creates the default Discord activity with optional custom details and state
+fn create_activity(details: &str, state: &str) -> activity::Activity {
+    activity::Activity::new()
+        .details(details)
+        .state(state)
+        .buttons(vec![
+            activity::Button::new("Download app", DISCORD_DOWNLOAD_URL)
+        ])
 }
 
 #[tauri::command]
@@ -166,22 +207,74 @@ pub async fn change_backend_port(port: u16, state: State<'_, AppState>) -> Resul
 }
 
 #[tauri::command]
-pub async fn set_discord_rpc(activity_details: serde_json::Value) -> Result<(), String> {
-    // TODO: Implement Discord RPC using discord-rich-presence crate
-    // Placeholder implementation for now
-    // Future implementation should use:
-    // use discord_rich_presence::{DiscordIpc, DiscordIpcClient};
-    // let mut client = DiscordIpcClient::new(CLIENT_ID)?;
-    // client.connect()?;
-    // client.set_activity(activity)?;
-    log::info!("Discord RPC activity (not yet implemented): {:?}", activity_details);
+pub async fn set_discord_rpc(activity_details: serde_json::Value, state: State<'_, AppState>) -> Result<(), String> {
+    let enabled = *state.discord.enabled.lock()
+        .map_err(|e| format!("Failed to lock discord enabled state: {}", e))?;
+    
+    if !enabled {
+        return Ok(());
+    }
+
+    let mut client_guard = state.discord.client.lock()
+        .map_err(|e| format!("Failed to lock discord client: {}", e))?;
+    
+    if client_guard.is_none() {
+        *client_guard = create_discord_client();
+        if client_guard.is_none() {
+            return Ok(());
+        }
+    }
+
+    if let Some(ref mut client) = *client_guard {
+        let details = activity_details.get("details")
+            .and_then(|v| v.as_str())
+            .unwrap_or(DISCORD_DEFAULT_DETAILS);
+        
+        let state_text = activity_details.get("state")
+            .and_then(|v| v.as_str())
+            .unwrap_or(DISCORD_DEFAULT_STATE);
+
+        let act = create_activity(details, state_text);
+
+        if let Err(e) = client.set_activity(act) {
+            log::warn!("Failed to set Discord activity: {:?}", e);
+        }
+    }
+
     Ok(())
 }
 
 #[tauri::command]
-pub async fn broadcast_discord_rpc(value: bool) -> Result<(), String> {
-    // TODO: Implement Discord RPC broadcast toggle
-    // Placeholder implementation for now
-    log::info!("Discord RPC broadcast (not yet implemented): {}", value);
+pub async fn broadcast_discord_rpc(value: bool, state: State<'_, AppState>) -> Result<(), String> {
+    let mut enabled = state.discord.enabled.lock()
+        .map_err(|e| format!("Failed to lock discord enabled state: {}", e))?;
+    
+    *enabled = value;
+
+    if !value {
+        // Disconnect Discord client when disabled
+        let mut client_guard = state.discord.client.lock()
+            .map_err(|e| format!("Failed to lock discord client: {}", e))?;
+        
+        if let Some(ref mut client) = *client_guard {
+            let _ = client.close();
+        }
+        *client_guard = None;
+    } else {
+        // Try to connect when enabled
+        let mut client_guard = state.discord.client.lock()
+            .map_err(|e| format!("Failed to lock discord client: {}", e))?;
+        
+        if client_guard.is_none() {
+            if let Some(mut client) = create_discord_client() {
+                // Set default activity
+                let act = create_activity(DISCORD_DEFAULT_DETAILS, DISCORD_DEFAULT_STATE);
+                let _ = client.set_activity(act);
+                *client_guard = Some(client);
+            }
+        }
+    }
+
+    log::info!("Discord RPC broadcast changed to: {}", value);
     Ok(())
 }

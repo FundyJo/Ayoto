@@ -12,7 +12,12 @@ pub fn run() {
       download_limit: Some(-1),
       downloads_folder: None,
       backend_port: Some(64621),
+      broadcast_discord_rpc: Some(true),
     }),
+    discord: DiscordRpcState {
+      client: Mutex::new(None),
+      enabled: Mutex::new(true),
+    },
   };
 
   tauri::Builder::default()
