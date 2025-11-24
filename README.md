@@ -51,7 +51,28 @@ A poorly written web and electron based anime list manager with media streaming 
 
 ---
 
-### Building the Electron App
+### 🚀 Tauri Migration (New!)
+
+This project is being migrated from Electron to Tauri for better performance and significantly smaller bundle sizes!
+
+**Key Benefits:**
+- ⚡ **10x smaller**: 5-15 MB vs 120+ MB with Electron
+- 🚀 **Faster startup**: No Node.js runtime overhead
+- 💾 **Lower memory usage**: Uses native OS webview
+- 🔒 **Better security**: Rust backend with strict permissions
+
+**Build with Tauri:**
+```bash
+cd Electron/zenshin-electron
+npm install
+npm run tauri:build        # or tauri:build:win, tauri:build:mac, tauri:build:linux
+```
+
+For detailed migration information, see [Electron/zenshin-electron/TAURI_MIGRATION.md](Electron/zenshin-electron/TAURI_MIGRATION.md)
+
+---
+
+### Building the Electron App (Legacy)
 
 Commands required to build the app on Windows, Linux and macOS (untested) are `npm run build:win`, `npm run build:linux` and `npm run build:mac` respectively.
 | Windows             | Linux                 | MacOS               |
@@ -90,9 +111,9 @@ Forks are welcomed, but contributions directly to this project and branch are no
 You can still open issues for feature requests, bug reports or any other inquiries.
 
 ### Tech Stack and dependencies used :
+
+#### Frontend
 - ReactJS
-- ElectronJS
-- WebTorrent
 - TanStack React Query
 - Radix UI and Radix Icons
 - Video.js
@@ -101,8 +122,13 @@ You can still open issues for feature requests, bug reports or any other inquiri
 - ldrs
 - react-infinite-scroll-component
 - TailwindCSS w/ tailwindcss-animated and line-clamp
-- ExpressJS
 - React Lenis
 - Sonner
 - Plyr
+
+#### Backend/Desktop Framework
+- **Tauri v2** (Rust) - Modern, lightweight desktop framework (migrating to)
+- ElectronJS - Legacy desktop framework
+- ExpressJS - Backend server
+- WebTorrent
 - Puppeteer
