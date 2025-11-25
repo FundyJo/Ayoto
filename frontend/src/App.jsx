@@ -16,6 +16,7 @@ import Bookmarks from './pages/Bookmarks'
 import Anilist from './pages/Anilist'
 import Test from './pages/Test'
 import Downloads from './pages/Downloads'
+import Plugins from './pages/Plugins'
 
 // Import Tauri API to make it available globally
 import './utils/tauri-api'
@@ -78,6 +79,11 @@ const router = createHashRouter([
       {
         path: '/downloads',
         element: <Downloads />,
+        errorElement: <ErrorPage />
+      },
+      {
+        path: '/plugins',
+        element: <Plugins />,
         errorElement: <ErrorPage />
       },
       {
