@@ -366,7 +366,7 @@ impl PluginLoader {
     pub fn load_all_from_dirs(&self) -> Vec<PluginLoadResult> {
         let mut results = Vec::new();
 
-        for dir in &self.plugin_dirs.clone() {
+        for dir in &self.plugin_dirs {
             if !dir.exists() {
                 continue;
             }

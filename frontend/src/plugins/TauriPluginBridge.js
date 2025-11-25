@@ -7,6 +7,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core'
+import { open as openDialog } from '@tauri-apps/plugin-dialog'
 
 /**
  * Get the current Ayoto version from the Rust backend
@@ -248,10 +249,7 @@ export class TauriPluginBridge {
    * Load a plugin from a file dialog selection
    */
   async loadPluginFromDialog() {
-    // Import dialog plugin
-    const { open } = await import('@tauri-apps/plugin-dialog')
-    
-    const file = await open({
+    const file = await openDialog({
       title: 'Select Ayoto Plugin',
       filters: [{
         name: 'Ayoto Plugin',
