@@ -1,6 +1,6 @@
 import { Button, Switch, TextField } from '@radix-ui/themes'
 import { useZenshinContext } from '../utils/ContextProvider'
-import { useEffect, useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   PlusIcon,
@@ -61,23 +61,16 @@ export default function Plugins() {
     localStorage.setItem('zenshin_plugins', JSON.stringify(pluginsData))
   }
 
-  // Load plugins from localStorage
-  function loadPluginsFromStorage() {
-    try {
-      const stored = localStorage.getItem('zenshin_plugins')
-      if (stored) {
-        return JSON.parse(stored)
-      }
-    } catch (e) {
-      console.error('Error loading plugins from storage:', e)
-    }
-    return []
-  }
-
   // Add plugin from URL
   async function addPluginFromUrl() {
     if (!pluginUrl.trim()) {
       toast.error('Please enter a plugin URL')
+      return
+    }
+
+    // Validate URL for security - only allow HTTPS
+    if (!isValidPluginUrl(pluginUrl)) {
+      toast.error('Invalid URL. Only HTTPS URLs are allowed for security.')
       return
     }
 
@@ -95,6 +88,11 @@ export default function Plugins() {
         throw new Error('Invalid plugin format: missing id or name')
       }
 
+      // Validate plugin ID format (alphanumeric, hyphens, underscores only)
+      if (!/^[a-zA-Z0-9_-]+$/.test(pluginData.id)) {
+        throw new Error('Invalid plugin ID format')
+      }
+
       // Check if plugin already exists
       if (plugins.some((p) => p.id === pluginData.id)) {
         toast.error('Plugin already installed')
@@ -102,13 +100,16 @@ export default function Plugins() {
         return
       }
 
+      // Validate icon URL if provided
+      const validatedIcon = isValidIconUrl(pluginData.icon) ? pluginData.icon : null
+
       const newPlugin = {
         id: pluginData.id,
         name: pluginData.name,
         description: pluginData.description || 'No description provided',
         version: pluginData.version || '1.0.0',
         author: pluginData.author || 'Unknown',
-        icon: pluginData.icon || null,
+        icon: validatedIcon,
         enabled: true,
         source: pluginUrl,
         providers: pluginData.providers || [],
@@ -141,11 +142,19 @@ export default function Plugins() {
           throw new Error('Invalid plugin format: missing id or name')
         }
 
+        // Validate plugin ID format (alphanumeric, hyphens, underscores only)
+        if (!/^[a-zA-Z0-9_-]+$/.test(pluginData.id)) {
+          throw new Error('Invalid plugin ID format')
+        }
+
         // Check if plugin already exists
         if (plugins.some((p) => p.id === pluginData.id)) {
           toast.error('Plugin already installed')
           return
         }
+
+        // Validate icon URL if provided
+        const validatedIcon = isValidIconUrl(pluginData.icon) ? pluginData.icon : null
 
         const newPlugin = {
           id: pluginData.id,
@@ -153,7 +162,7 @@ export default function Plugins() {
           description: pluginData.description || 'No description provided',
           version: pluginData.version || '1.0.0',
           author: pluginData.author || 'Unknown',
-          icon: pluginData.icon || null,
+          icon: validatedIcon,
           enabled: true,
           source: 'local',
           providers: pluginData.providers || [],
@@ -176,13 +185,27 @@ export default function Plugins() {
     }
   }
 
-  // Initialize plugins from storage on mount
-  useEffect(() => {
-    const storedPlugins = loadPluginsFromStorage()
-    if (storedPlugins.length > 0 && plugins.length === 0) {
-      setPlugins(storedPlugins)
+  // Validate URL to prevent potential security issues
+  function isValidPluginUrl(url) {
+    try {
+      const parsed = new URL(url)
+      // Only allow https URLs for security
+      return parsed.protocol === 'https:'
+    } catch {
+      return false
     }
-  }, [])
+  }
+
+  // Validate icon URL
+  function isValidIconUrl(iconUrl) {
+    if (!iconUrl) return false
+    try {
+      const parsed = new URL(iconUrl)
+      return parsed.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }
 
   return (
     <div className="w-full animate-fade select-none px-16 py-10 font-space-mono animate-duration-500">
