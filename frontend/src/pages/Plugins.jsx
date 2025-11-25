@@ -7,8 +7,11 @@ import {
   TrashIcon,
   ReloadIcon,
   CheckCircledIcon,
-  CrossCircledIcon
+  CrossCircledIcon,
+  RocketIcon,
+  VideoIcon
 } from '@radix-ui/react-icons'
+import { parseAyotoPlugin, validatePlugin, createPluginTemplate, STREAM_FORMATS } from '../plugins'
 
 // Default plugin icon component
 function DefaultPluginIcon({ className }) {
@@ -127,46 +130,70 @@ export default function Plugins() {
     setIsLoading(false)
   }
 
-  // Add plugin from file
+  // Add plugin from file (.json or .ayoto)
   function handleFileUpload(event) {
     const file = event.target.files?.[0]
     if (!file) return
 
+    const isAyotoFile = file.name.endsWith('.ayoto')
+    
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
-        const pluginData = JSON.parse(e.target?.result)
+        const content = e.target?.result
+        let newPlugin
+        
+        if (isAyotoFile) {
+          // Parse .ayoto format with extended validation
+          newPlugin = parseAyotoPlugin(content)
+          if (!newPlugin) {
+            throw new Error('Invalid .ayoto plugin format')
+          }
+        } else {
+          // Legacy JSON format
+          const pluginData = JSON.parse(content)
 
-        // Validate plugin structure
-        if (!pluginData.id || !pluginData.name) {
-          throw new Error('Invalid plugin format: missing id or name')
-        }
+          // Validate plugin structure
+          if (!pluginData.id || !pluginData.name) {
+            throw new Error('Invalid plugin format: missing id or name')
+          }
 
-        // Validate plugin ID format (alphanumeric, hyphens, underscores only)
-        if (!/^[a-zA-Z0-9_-]+$/.test(pluginData.id)) {
-          throw new Error('Invalid plugin ID format')
+          // Validate plugin ID format (alphanumeric, hyphens, underscores only)
+          if (!/^[a-zA-Z0-9_-]+$/.test(pluginData.id)) {
+            throw new Error('Invalid plugin ID format')
+          }
+
+          // Check if plugin already exists
+          if (plugins.some((p) => p.id === pluginData.id)) {
+            toast.error('Plugin already installed')
+            return
+          }
+
+          // Validate icon URL if provided
+          const validatedIcon = isValidIconUrl(pluginData.icon) ? pluginData.icon : null
+
+          newPlugin = {
+            id: pluginData.id,
+            name: pluginData.name,
+            description: pluginData.description || 'No description provided',
+            version: pluginData.version || '1.0.0',
+            author: pluginData.author || 'Unknown',
+            icon: validatedIcon,
+            enabled: true,
+            source: 'local',
+            providers: pluginData.providers || [],
+            formats: pluginData.formats || ['mp4'],
+            anime4kSupport: pluginData.anime4kSupport || false,
+            capabilities: pluginData.capabilities || {},
+            endpoints: pluginData.endpoints || {},
+            config: pluginData.config || {}
+          }
         }
 
         // Check if plugin already exists
-        if (plugins.some((p) => p.id === pluginData.id)) {
+        if (plugins.some((p) => p.id === newPlugin.id)) {
           toast.error('Plugin already installed')
           return
-        }
-
-        // Validate icon URL if provided
-        const validatedIcon = isValidIconUrl(pluginData.icon) ? pluginData.icon : null
-
-        const newPlugin = {
-          id: pluginData.id,
-          name: pluginData.name,
-          description: pluginData.description || 'No description provided',
-          version: pluginData.version || '1.0.0',
-          author: pluginData.author || 'Unknown',
-          icon: validatedIcon,
-          enabled: true,
-          source: 'local',
-          providers: pluginData.providers || [],
-          config: pluginData.config || {}
         }
 
         const updatedPlugins = [...plugins, newPlugin]
@@ -243,12 +270,12 @@ export default function Plugins() {
         <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-3">
           <div className="flex-1">
             <p className="font-bold">Add Plugin from File</p>
-            <p className="text-xs">Load a plugin from a local JSON file</p>
+            <p className="text-xs">Load a plugin from a local .ayoto or .json file</p>
           </div>
           <div>
             <input
               type="file"
-              accept=".json"
+              accept=".json,.ayoto"
               onChange={handleFileUpload}
               ref={fileInputRef}
               className="hidden"
@@ -308,6 +335,12 @@ export default function Plugins() {
                     <span className="rounded bg-[#2a2a2d] px-2 py-0.5 text-xs text-gray-400">
                       v{plugin.version}
                     </span>
+                    {plugin.anime4kSupport && (
+                      <span className="flex items-center gap-1 rounded bg-purple-900/50 px-1.5 py-0.5 text-xs text-purple-300">
+                        <RocketIcon className="h-3 w-3" />
+                        Anime4K
+                      </span>
+                    )}
                     {plugin.enabled ? (
                       <CheckCircledIcon className="h-4 w-4 text-green-500" />
                     ) : (
@@ -316,16 +349,46 @@ export default function Plugins() {
                   </div>
                   <p className="text-xs text-gray-400">{plugin.description}</p>
                   <p className="text-xs text-gray-500">by {plugin.author}</p>
-                  {plugin.providers && plugin.providers.length > 0 && (
-                    <div className="mt-1 flex gap-1">
-                      {plugin.providers.map((provider, idx) => (
+                  
+                  {/* Provider and Format Tags */}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {plugin.providers && plugin.providers.length > 0 && 
+                      plugin.providers.map((provider, idx) => (
                         <span
-                          key={idx}
+                          key={`provider-${idx}`}
                           className="rounded bg-[#3a3a3d] px-1.5 py-0.5 text-xs text-gray-300"
                         >
                           {provider}
                         </span>
-                      ))}
+                      ))
+                    }
+                    {plugin.formats && plugin.formats.length > 0 && 
+                      plugin.formats.map((format, idx) => (
+                        <span
+                          key={`format-${idx}`}
+                          className="flex items-center gap-1 rounded bg-blue-900/40 px-1.5 py-0.5 text-xs text-blue-300"
+                        >
+                          <VideoIcon className="h-3 w-3" />
+                          {format}
+                        </span>
+                      ))
+                    }
+                  </div>
+                  
+                  {/* Capabilities */}
+                  {plugin.capabilities && Object.keys(plugin.capabilities).length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {Object.entries(plugin.capabilities)
+                        .filter(([, enabled]) => enabled)
+                        .map(([capability]) => (
+                          <span
+                            key={capability}
+                            className="rounded bg-green-900/30 px-1.5 py-0.5 text-xs text-green-300"
+                          >
+                            {capability}
+                          </span>
+                        ))
+                      }
                     </div>
                   )}
                 </div>
@@ -356,7 +419,7 @@ export default function Plugins() {
       {/* Plugin Format Documentation */}
       <div className="mt-8">
         <div className="mb-4 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
-          Plugin Format
+          Plugin Format (.ayoto)
         </div>
         <div className="rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
           <pre className="overflow-x-auto whitespace-pre-wrap">
@@ -368,12 +431,53 @@ export default function Plugins() {
   "author": "Author Name",
   "icon": "https://example.com/icon.png",
   "providers": ["provider1", "provider2"],
+  "formats": ["m3u8", "mp4", "mkv", "webm", "torrent"],
+  "anime4kSupport": true,
+  "capabilities": {
+    "search": true,
+    "getPopular": true,
+    "getLatest": true,
+    "getEpisodes": true,
+    "getStreams": true
+  },
+  "endpoints": {
+    "search": "/api/search",
+    "popular": "/api/popular",
+    "latest": "/api/latest",
+    "episodes": "/api/episodes",
+    "streams": "/api/streams"
+  },
   "config": {
-    "apiUrl": "https://api.example.com",
+    "baseUrl": "https://api.example.com",
     "customSettings": {}
   }
 }`}
           </pre>
+        </div>
+        
+        {/* Stream Formats Documentation */}
+        <div className="mt-4 rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
+          <p className="mb-2 font-bold text-gray-300">Supported Stream Formats:</p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li><code className="text-blue-300">m3u8</code> - HLS streaming format (recommended for Anime4K)</li>
+            <li><code className="text-blue-300">mp4</code> - Direct MP4 video files</li>
+            <li><code className="text-blue-300">mkv</code> - Matroska video format</li>
+            <li><code className="text-blue-300">webm</code> - WebM video format</li>
+            <li><code className="text-blue-300">torrent</code> - Torrent magnet links</li>
+          </ul>
+        </div>
+        
+        {/* Anime4K Info */}
+        <div className="mt-4 rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
+          <p className="mb-2 font-bold text-gray-300">Anime4K Support:</p>
+          <p className="mb-2">
+            Set <code className="text-purple-300">anime4kSupport: true</code> if your plugin provides 
+            streams that work well with Anime4K upscaling shaders.
+          </p>
+          <p>
+            Anime4K works best with high-quality source video (m3u8 1080p streams) on devices 
+            with capable GPUs.
+          </p>
         </div>
       </div>
 
