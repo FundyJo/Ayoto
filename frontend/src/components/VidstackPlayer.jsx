@@ -8,9 +8,7 @@ import {
   MediaPlayer,
   MediaProvider,
   Poster,
-  Track,
-  useMediaState,
-  useMediaRemote
+  Track
 } from '@vidstack/react'
 import {
   DefaultVideoLayout,
