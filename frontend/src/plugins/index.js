@@ -29,3 +29,31 @@ export {
   getGPUInfo,
   PERFORMANCE_REQUIREMENTS
 } from './Anime4KConfig'
+
+// Tauri Plugin Bridge - connects to Rust backend
+export {
+  TauriPluginBridge,
+  pluginBridge,
+  getAyotoVersion,
+  loadPluginFromJson,
+  loadPluginFromFile,
+  getAllPlugins,
+  getEnabledPlugins,
+  getPlugin,
+  getPluginsSummary,
+  setPluginEnabled,
+  unloadPlugin,
+  getPluginsWithCapability,
+  getPluginsByFormat,
+  getAnime4kPlugins,
+  validatePluginManifest,
+  getSamplePluginManifest,
+  checkPluginCompatibility,
+  pluginSearch,
+  pluginGetPopular,
+  pluginGetLatest,
+  pluginGetEpisodes,
+  pluginGetStreams,
+  pluginGetAnimeDetails,
+  searchAllPlugins
+} from './TauriPluginBridge'

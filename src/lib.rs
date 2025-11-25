@@ -1,6 +1,8 @@
 mod commands;
+pub mod plugin;
 
 use commands::*;
+use plugin::commands as plugin_commands;
 use std::sync::Mutex;
 use tauri::Manager;
 
@@ -38,6 +40,7 @@ pub fn run() {
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .manage(app_state)
     .invoke_handler(tauri::generate_handler![
+      // Window management commands
       minimize_window,
       maximize_window,
       close_window,
@@ -52,6 +55,30 @@ pub fn run() {
       change_backend_port,
       set_discord_rpc,
       broadcast_discord_rpc,
+      // Plugin management commands
+      plugin_commands::get_ayoto_version,
+      plugin_commands::load_plugin_from_json,
+      plugin_commands::load_plugin_from_file,
+      plugin_commands::get_all_plugins,
+      plugin_commands::get_enabled_plugins,
+      plugin_commands::get_plugin,
+      plugin_commands::get_plugins_summary,
+      plugin_commands::set_plugin_enabled,
+      plugin_commands::unload_plugin,
+      plugin_commands::get_plugins_with_capability,
+      plugin_commands::get_plugins_by_format,
+      plugin_commands::get_anime4k_plugins,
+      plugin_commands::validate_plugin_manifest,
+      plugin_commands::get_sample_plugin_manifest,
+      plugin_commands::check_plugin_compatibility,
+      // Plugin API commands
+      plugin_commands::plugin_search,
+      plugin_commands::plugin_get_popular,
+      plugin_commands::plugin_get_latest,
+      plugin_commands::plugin_get_episodes,
+      plugin_commands::plugin_get_streams,
+      plugin_commands::plugin_get_anime_details,
+      plugin_commands::search_all_plugins,
     ])
     .setup(|app| {
       // Enable logging in both debug and production builds

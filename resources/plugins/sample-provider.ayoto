@@ -1,0 +1,41 @@
+{
+  "id": "sample-provider",
+  "name": "Sample Anime Provider",
+  "version": "1.0.0",
+  "targetAyotoVersion": "2.5.0",
+  "maxAyotoVersion": null,
+  "description": "A sample plugin demonstrating the Ayoto plugin system. This plugin shows how to define a provider that supports search, episodes, and streaming capabilities.",
+  "author": "Ayoto Team",
+  "homepage": "https://github.com/FundyJo/Ayoto",
+  "icon": null,
+  "providers": ["Sample Provider"],
+  "formats": ["m3u8", "mp4"],
+  "anime4kSupport": true,
+  "capabilities": {
+    "search": true,
+    "getPopular": true,
+    "getLatest": true,
+    "getEpisodes": true,
+    "getStreams": true,
+    "getAnimeDetails": true,
+    "scraping": true
+  },
+  "platforms": ["universal"],
+  "scrapingConfig": {
+    "baseUrl": "https://example.com",
+    "userAgent": "Ayoto/2.5.0",
+    "rateLimitMs": 1000,
+    "requiresJavascript": false,
+    "selectors": {
+      "searchResults": ".anime-card",
+      "title": ".anime-title",
+      "cover": ".anime-cover img",
+      "episodeList": ".episode-list .episode"
+    }
+  },
+  "config": {
+    "defaultQuality": "1080p",
+    "preferredServer": "main",
+    "useSubtitles": true
+  }
+}
