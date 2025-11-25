@@ -12,7 +12,8 @@ import {
   LayersIcon,
   LightningBoltIcon,
   OpenInNewWindowIcon,
-  PersonIcon
+  PersonIcon,
+  MixIcon
 } from '@radix-ui/react-icons'
 import Pikacon from '../assets/pikacon.ico'
 import { Button, DropdownMenu, Tooltip } from '@radix-ui/themes'
@@ -202,6 +203,9 @@ export default function Header() {
       <div className="nodrag mr-36 flex items-center justify-center gap-x-4">
         <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/downloads')}>
           <DownloadIcon />
+        </Button>
+        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/plugins')}>
+          <MixIcon />
         </Button>
         <DownloadMeter />
 

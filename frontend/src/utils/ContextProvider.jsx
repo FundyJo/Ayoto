@@ -26,6 +26,7 @@ export default function ZenshinProvider({ children }) {
   const [smoothScroll, setSmoothScroll] = useState(true)
   const [uploadLimit, setUploadLimit] = useState(-1)
   const [downloadLimit, setDownloadLimit] = useState(-1)
+  const [plugins, setPlugins] = useState([])
 
   useEffect(() => {
     const glow = localStorage.getItem('glow')
@@ -94,6 +95,16 @@ export default function ZenshinProvider({ children }) {
       setSmoothScroll(smoothScroll === 'false')
     }
 
+    // Load plugins from localStorage
+    try {
+      const storedPlugins = localStorage.getItem('zenshin_plugins')
+      if (storedPlugins) {
+        setPlugins(JSON.parse(storedPlugins))
+      }
+    } catch (e) {
+      console.error('Error loading plugins:', e)
+    }
+
     getSettingsJson()
   }, [])
 
@@ -127,7 +138,9 @@ export default function ZenshinProvider({ children }) {
         uploadLimit,
         setUploadLimit,
         downloadLimit,
-        setDownloadLimit
+        setDownloadLimit,
+        plugins,
+        setPlugins
       }}
     >
       {children}
