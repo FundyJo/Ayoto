@@ -27,6 +27,8 @@ export default function ZenshinProvider({ children }) {
   const [uploadLimit, setUploadLimit] = useState(-1)
   const [downloadLimit, setDownloadLimit] = useState(-1)
   const [plugins, setPlugins] = useState([])
+  const [showProfileSelectionAtStartup, setShowProfileSelectionAtStartup] = useState(false)
+  const [activeProfile, setActiveProfile] = useState(null)
 
   useEffect(() => {
     const glow = localStorage.getItem('glow')
@@ -105,6 +107,22 @@ export default function ZenshinProvider({ children }) {
       console.error('Error loading plugins:', e)
     }
 
+    // Load profile selection at startup setting
+    const profileSelectionSetting = localStorage.getItem('showProfileSelectionAtStartup')
+    if (profileSelectionSetting) {
+      setShowProfileSelectionAtStartup(profileSelectionSetting === 'true')
+    }
+
+    // Load active profile from localStorage
+    try {
+      const storedActiveProfile = localStorage.getItem('zenshin_active_profile')
+      if (storedActiveProfile) {
+        setActiveProfile(JSON.parse(storedActiveProfile))
+      }
+    } catch (e) {
+      console.error('Error loading active profile:', e)
+    }
+
     getSettingsJson()
   }, [])
 
@@ -140,7 +158,11 @@ export default function ZenshinProvider({ children }) {
         downloadLimit,
         setDownloadLimit,
         plugins,
-        setPlugins
+        setPlugins,
+        showProfileSelectionAtStartup,
+        setShowProfileSelectionAtStartup,
+        activeProfile,
+        setActiveProfile
       }}
     >
       {children}
