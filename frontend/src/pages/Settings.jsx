@@ -388,6 +388,54 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Profile Settings Section */}
+      <div className="mt-8">
+        <div className="mb-8 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
+          User Profiles
+        </div>
+        <div className="flex flex-col gap-4 tracking-wide text-[#b5b5b5ff]">
+          <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-2">
+            <div className="switch_card">
+              <p className="font-bold">Manage Profiles</p>
+              <p className="text-xs">
+                Create and manage user profiles. Each profile can have its own settings and watch history.
+              </p>
+            </div>
+            <Button
+              variant="soft"
+              color="blue"
+              className="cursor-pointer"
+              onClick={() => {
+                window.location.hash = '#/profiles'
+              }}
+            >
+              Manage
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Miracast Section */}
+      <div className="mt-8">
+        <div className="mb-8 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
+          Screen Casting (Miracast)
+        </div>
+        <div className="flex flex-col gap-4 tracking-wide text-[#b5b5b5ff]">
+          <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-2">
+            <div className="switch_card">
+              <p className="font-bold">Miracast Support</p>
+              <p className="text-xs">
+                Cast video content to Miracast-compatible displays and TVs. 
+                Use the cast button in the video player to connect to nearby devices.
+              </p>
+              <p className="text-xs mt-1 text-gray-500">
+                Note: Miracast is supported on Windows and Linux. macOS uses AirPlay instead.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="keyboard_shortcuts mt-8">
         <div className="mb-8 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
           Keyboard Shortcuts

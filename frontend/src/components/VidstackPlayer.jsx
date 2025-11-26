@@ -3,7 +3,7 @@
  * A modern video player using Vidstack with HLS, Anime4K support, and mobile/desktop compatibility
  */
 
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react'
 import {
   MediaPlayer,
   MediaProvider,
@@ -19,8 +19,9 @@ import {
 import '@vidstack/react/player/styles/default/theme.css'
 import '@vidstack/react/player/styles/default/layouts/video.css'
 
-import { anime4kConfig, getAllPresets, checkWebGLSupport, getGPUInfo } from '../plugins/Anime4KConfig'
+import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo } from '../plugins/Anime4KConfig'
 import { STREAM_FORMATS } from '../plugins/PluginManager'
+import MiracastControls from './MiracastControls'
 
 /**
  * Get source type for Vidstack based on format
@@ -61,17 +62,99 @@ function detectFormat(url) {
 }
 
 /**
- * Anime4K Settings Panel Component
+ * Hook to use Rust Anime4K backend with fallback to JavaScript config
  */
-function Anime4KSettings({ preset, onPresetChange, enabled, onToggle }) {
-  const presets = getAllPresets()
+function useAnime4KRust() {
+  const [presets, setPresets] = useState([])
+  const [config, setConfig] = useState(null)
+  const [isRustAvailable, setIsRustAvailable] = useState(false)
+
+  useEffect(() => {
+    const initAnime4K = async () => {
+      try {
+        if (window.api?.anime4k) {
+          // Try to use Rust backend
+          const rustPresets = await window.api.anime4k.getPresets()
+          const rustConfig = await window.api.anime4k.getConfig()
+          setPresets(rustPresets)
+          setConfig(rustConfig)
+          setIsRustAvailable(true)
+        } else {
+          // Fallback to JavaScript config
+          setPresets(getLegacyPresets())
+          setConfig({
+            enabled: anime4kConfig.enabled,
+            presetId: anime4kConfig.preset?.id || 'none',
+            cssFilter: anime4kConfig.getCSSApproximation()
+          })
+          setIsRustAvailable(false)
+        }
+      } catch (error) {
+        console.error('Failed to initialize Anime4K:', error)
+        // Fallback to JavaScript config
+        setPresets(getLegacyPresets())
+        setIsRustAvailable(false)
+      }
+    }
+    initAnime4K()
+  }, [])
+
+  const setAnime4KConfig = useCallback(async (enabled, presetId) => {
+    try {
+      if (isRustAvailable && window.api?.anime4k) {
+        const newConfig = await window.api.anime4k.setConfig(enabled, presetId)
+        setConfig(newConfig)
+        return newConfig
+      } else {
+        // Fallback to JavaScript
+        anime4kConfig.setPreset(presetId)
+        anime4kConfig.enabled = enabled
+        setConfig({
+          enabled,
+          presetId,
+          cssFilter: anime4kConfig.getCSSApproximation()
+        })
+        return { enabled, presetId, cssFilter: anime4kConfig.getCSSApproximation() }
+      }
+    } catch (error) {
+      console.error('Failed to set Anime4K config:', error)
+      return null
+    }
+  }, [isRustAvailable])
+
+  const recommendPreset = useCallback(async () => {
+    try {
+      if (isRustAvailable && window.api?.anime4k) {
+        const gpuInfo = getGPUInfo()
+        return await window.api.anime4k.recommendPreset(gpuInfo)
+      }
+      return 'mode-b' // Default fallback
+    } catch {
+      return 'mode-b'
+    }
+  }, [isRustAvailable])
+
+  return { presets, config, setAnime4KConfig, recommendPreset, isRustAvailable }
+}
+
+/**
+ * Anime4K Settings Panel Component (Updated for Rust backend)
+ */
+function Anime4KSettings({ preset, onPresetChange, enabled, onToggle, presets, isRustBackend }) {
   const gpuInfo = getGPUInfo()
   const hasWebGL = checkWebGLSupport()
   
   return (
     <div className="anime4k-settings bg-[#1a1a1d] p-3 rounded-md text-sm">
       <div className="flex items-center justify-between mb-3">
-        <span className="font-semibold text-white">Anime4K Upscaling</span>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-white">Anime4K Upscaling</span>
+          {isRustBackend && (
+            <span className="text-xs bg-orange-600/30 text-orange-400 px-1.5 py-0.5 rounded">
+              Rust
+            </span>
+          )}
+        </div>
         <label className="relative inline-flex items-center cursor-pointer">
           <input
             type="checkbox"
@@ -98,7 +181,7 @@ function Anime4KSettings({ preset, onPresetChange, enabled, onToggle }) {
                 key={p.id}
                 onClick={() => onPresetChange(p.id)}
                 className={`w-full text-left px-3 py-2 rounded transition-colors ${
-                  preset.id === p.id
+                  preset?.id === p.id
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#2a2a2d] text-gray-300 hover:bg-[#3a3a3d]'
                 }`}
@@ -138,16 +221,44 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
     anime4kEnabled = false,
     anime4kPreset = 'mode-b',
     className = '',
-    showAnime4KControls = true
+    showAnime4KControls = true,
+    showMiracastControls = true
   },
   ref
 ) {
   const playerRef = useRef(null)
+  
+  // Use Rust Anime4K backend
+  const { 
+    presets, 
+    config, 
+    setAnime4KConfig, 
+    isRustAvailable 
+  } = useAnime4KRust()
+  
   const [isAnime4KEnabled, setIsAnime4KEnabled] = useState(anime4kEnabled)
-  const [currentPreset, setCurrentPreset] = useState(
-    getAllPresets().find(p => p.id === anime4kPreset) || getAllPresets()[2]
-  )
+  const [currentPreset, setCurrentPreset] = useState(null)
   const [videoStyle, setVideoStyle] = useState({})
+  
+  // Initialize preset when presets are loaded
+  useEffect(() => {
+    if (presets.length > 0) {
+      const preset = presets.find(p => p.id === anime4kPreset) || presets.find(p => p.id === 'mode-b') || presets[0]
+      setCurrentPreset(preset)
+    }
+  }, [presets, anime4kPreset])
+  
+  // Sync with Rust config when available
+  useEffect(() => {
+    if (config) {
+      setIsAnime4KEnabled(config.enabled)
+      if (config.cssFilter && config.cssFilter !== 'none') {
+        setVideoStyle({ filter: config.cssFilter })
+      } else {
+        setVideoStyle({})
+      }
+    }
+  }, [config])
   
   // Detect format if not provided
   const detectedFormat = format || detectFormat(src)
@@ -170,42 +281,50 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
       }
     },
     toggleFullscreen: () => playerRef.current?.requestFullscreen?.(),
-    setAnime4K: (enabled, preset) => {
-      setIsAnime4KEnabled(enabled)
+    setAnime4K: async (enabled, preset) => {
+      await handleAnime4KToggle(enabled)
       if (preset) {
-        const newPreset = getAllPresets().find(p => p.id === preset)
-        if (newPreset) setCurrentPreset(newPreset)
+        await handlePresetChange(preset)
       }
     }
   }))
   
-  // Update Anime4K CSS filter when settings change
-  useEffect(() => {
-    if (isAnime4KEnabled && currentPreset.id !== 'none') {
-      anime4kConfig.setPreset(currentPreset.id)
-      setVideoStyle({
-        filter: anime4kConfig.getCSSApproximation()
-      })
-    } else {
-      setVideoStyle({})
-    }
-  }, [isAnime4KEnabled, currentPreset])
-  
   // Handle preset change
-  const handlePresetChange = (presetId) => {
-    const preset = getAllPresets().find(p => p.id === presetId)
+  const handlePresetChange = async (presetId) => {
+    const preset = presets.find(p => p.id === presetId)
     if (preset) {
       setCurrentPreset(preset)
+      const newConfig = await setAnime4KConfig(isAnime4KEnabled, presetId)
+      if (newConfig?.cssFilter) {
+        setVideoStyle({ filter: newConfig.cssFilter })
+      }
     }
   }
   
   // Handle Anime4K toggle
-  const handleAnime4KToggle = (enabled) => {
+  const handleAnime4KToggle = async (enabled) => {
     setIsAnime4KEnabled(enabled)
+    const presetId = currentPreset?.id || 'mode-b'
+    const newConfig = await setAnime4KConfig(enabled, presetId)
+    if (newConfig?.cssFilter && enabled) {
+      setVideoStyle({ filter: newConfig.cssFilter })
+    } else {
+      setVideoStyle({})
+    }
   }
   
   return (
     <div className={`vidstack-player-wrapper ${className}`}>
+      {/* Miracast controls */}
+      {showMiracastControls && (
+        <div className="flex justify-end mb-2">
+          <MiracastControls 
+            videoUrl={src}
+            videoTitle={title}
+          />
+        </div>
+      )}
+      
       <MediaPlayer
         ref={playerRef}
         title={title}
@@ -254,13 +373,15 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
       </MediaPlayer>
       
       {/* Anime4K Settings Panel */}
-      {showAnime4KControls && (
+      {showAnime4KControls && presets.length > 0 && (
         <div className="mt-4">
           <Anime4KSettings
             preset={currentPreset}
             onPresetChange={handlePresetChange}
             enabled={isAnime4KEnabled}
             onToggle={handleAnime4KToggle}
+            presets={presets}
+            isRustBackend={isRustAvailable}
           />
         </div>
       )}
