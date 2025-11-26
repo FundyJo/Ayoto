@@ -300,7 +300,10 @@ export default function Header() {
                       </DropdownMenu.Item>
                     ))}
                     <DropdownMenu.Separator />
-                    <DropdownMenu.Item onClick={() => navigate('/profiles')}>
+                    <DropdownMenu.Item
+                      onClick={() => navigate('/profiles')}
+                      shortcut={<GearIcon />}
+                    >
                       Manage Profiles
                     </DropdownMenu.Item>
                   </DropdownMenu.SubContent>
