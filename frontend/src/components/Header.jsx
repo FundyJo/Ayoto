@@ -240,62 +240,6 @@ export default function Header() {
         </Button>
         <DownloadMeter />
 
-        {/* Profile Switcher */}
-        <DropdownMenu.Root className="nodrag" modal={false}>
-          <DropdownMenu.Trigger>
-            <Button variant="soft" color="gray" size="1">
-              <div className="flex animate-fade items-center gap-x-2">
-                {activeProfile ? (
-                  <div
-                    className="h-5 w-5 rounded-sm flex items-center justify-center text-xs font-bold"
-                    style={{ backgroundColor: AVATAR_COLORS[activeProfile.avatar]?.bg || '#3b82f6' }}
-                  >
-                    {activeProfile.name?.charAt(0).toUpperCase()}
-                  </div>
-                ) : (
-                  <AvatarIcon className="my-1" width={16} height={16} />
-                )}
-                <div className="font-space-mono text-[.8rem]">
-                  {activeProfile?.name || 'Profile'}
-                </div>
-              </div>
-              <DropdownMenu.TriggerIcon className="ml-1" />
-            </Button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content>
-            {profiles.length > 0 && (
-              <>
-                <DropdownMenu.Label>Switch Profile</DropdownMenu.Label>
-                {profiles.map((profile) => (
-                  <DropdownMenu.Item
-                    key={profile.id}
-                    onClick={() => handleProfileSwitch(profile)}
-                    color={activeProfile?.id === profile.id ? 'blue' : 'gray'}
-                  >
-                    <div className="flex items-center gap-x-2">
-                      <div
-                        className="h-4 w-4 rounded-sm flex items-center justify-center text-xs font-bold"
-                        style={{ backgroundColor: AVATAR_COLORS[profile.avatar]?.bg || '#3b82f6' }}
-                      >
-                        {profile.name?.charAt(0).toUpperCase()}
-                      </div>
-                      {profile.name}
-                      {profile.isMain && <span className="text-xs text-gray-500">(Main)</span>}
-                    </div>
-                  </DropdownMenu.Item>
-                ))}
-                <DropdownMenu.Separator />
-              </>
-            )}
-            <DropdownMenu.Item
-              onClick={() => navigate('/profiles')}
-              shortcut={<GearIcon />}
-            >
-              Manage Profiles
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-
         {true && (
           <DropdownMenu.Root className="nodrag" modal={false}>
             <DropdownMenu.Trigger>
@@ -318,6 +262,59 @@ export default function Header() {
               </Button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content>
+              {/* Profile Switching - Who's Watching */}
+              {profiles.length > 0 && (
+                <DropdownMenu.Sub>
+                  <DropdownMenu.SubTrigger>
+                    <div className="flex items-center gap-x-2">
+                      {activeProfile ? (
+                        <div
+                          className="h-4 w-4 rounded-sm flex items-center justify-center text-xs font-bold"
+                          style={{ backgroundColor: AVATAR_COLORS[activeProfile.avatar]?.bg || '#3b82f6' }}
+                        >
+                          {activeProfile.name?.charAt(0).toUpperCase()}
+                        </div>
+                      ) : (
+                        <AvatarIcon className="my-1" width={14} height={14} />
+                      )}
+                      Who&apos;s Watching
+                    </div>
+                  </DropdownMenu.SubTrigger>
+                  <DropdownMenu.SubContent>
+                    {profiles.map((profile) => (
+                      <DropdownMenu.Item
+                        key={profile.id}
+                        onClick={() => handleProfileSwitch(profile)}
+                        color={activeProfile?.id === profile.id ? 'blue' : 'gray'}
+                      >
+                        <div className="flex items-center gap-x-2">
+                          <div
+                            className="h-4 w-4 rounded-sm flex items-center justify-center text-xs font-bold"
+                            style={{ backgroundColor: AVATAR_COLORS[profile.avatar]?.bg || '#3b82f6' }}
+                          >
+                            {profile.name?.charAt(0).toUpperCase()}
+                          </div>
+                          {profile.name}
+                          {profile.isMain && <span className="text-xs text-gray-500">(Main)</span>}
+                        </div>
+                      </DropdownMenu.Item>
+                    ))}
+                    <DropdownMenu.Separator />
+                    <DropdownMenu.Item onClick={() => navigate('/profiles')}>
+                      Manage Profiles
+                    </DropdownMenu.Item>
+                  </DropdownMenu.SubContent>
+                </DropdownMenu.Sub>
+              )}
+              {profiles.length === 0 && (
+                <DropdownMenu.Item onClick={() => navigate('/profiles')}>
+                  <div className="flex items-center gap-x-2">
+                    <AvatarIcon className="my-1" width={14} height={14} />
+                    Who&apos;s Watching
+                  </div>
+                </DropdownMenu.Item>
+              )}
+              <DropdownMenu.Separator />
               <DropdownMenu.Item
                 onClick={
                   // https://github.com/hitarth-gg
