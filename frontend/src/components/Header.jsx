@@ -251,11 +251,18 @@ export default function Header() {
                       alt="avatar"
                       className="h-6 w-6 rounded-full"
                     />
+                  ) : activeProfile ? (
+                    <div
+                      className="h-6 w-6 rounded-sm flex items-center justify-center text-xs font-bold"
+                      style={{ backgroundColor: AVATAR_COLORS[activeProfile.avatar]?.bg || '#3b82f6' }}
+                    >
+                      {activeProfile.name?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
                   ) : (
                     <PersonIcon className="my-1" width={16} height={16} />
                   )}
                   <div className="font-space-mono text-[.8rem]">
-                    {userProfile?.name || 'anonuser'}
+                    {userProfile?.name || activeProfile?.name || 'Anonuser'}
                   </div>
                 </div>
                 <DropdownMenu.TriggerIcon className="ml-1" />
