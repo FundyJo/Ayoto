@@ -13,7 +13,8 @@ import {
   LightningBoltIcon,
   OpenInNewWindowIcon,
   PersonIcon,
-  MixIcon
+  MixIcon,
+  AvatarIcon
 } from '@radix-ui/react-icons'
 import Pikacon from '../assets/pikacon.ico'
 import { Button, DropdownMenu, Tooltip } from '@radix-ui/themes'
@@ -26,10 +27,12 @@ import AnimePaheSearchBar from '../extensions/animepahe/components/AnimePaheSear
 import AniListLogo from '../assets/symbols/AniListLogo'
 import { useZenshinContext } from '../utils/ContextProvider'
 import DownloadMeter from './DownloadMeter'
+import { AVATAR_COLORS } from './ProfileSelector'
 
 export default function Header() {
   const navigate = useNavigate()
-  const { setUserId, backendPort, settings } = useZenshinContext()
+  const { setUserId, backendPort, settings, activeProfile, setActiveProfile } = useZenshinContext()
+  const [profiles, setProfiles] = useState([])
 
   const checkBackendRunning = async () => {
     let mainJsBP = await window.api.getSettingsJson()
@@ -119,10 +122,36 @@ export default function Header() {
       }
     })
   }
-  // async function getSettingsJson() {
-  //   let data = await window.api.getSettingsJson()
-  //   setSettingsJson(data)
-  // }
+
+  // Load profiles for the switcher
+  useEffect(() => {
+    const loadProfiles = async () => {
+      try {
+        if (window.api?.profiles) {
+          const allProfiles = await window.api.profiles.getAll()
+          setProfiles(allProfiles)
+        }
+      } catch (error) {
+        console.error('Failed to load profiles:', error)
+      }
+    }
+    loadProfiles()
+  }, [])
+
+  // Handle profile switch
+  const handleProfileSwitch = async (profile) => {
+    try {
+      if (window.api?.profiles) {
+        await window.api.profiles.setActive(profile.id)
+      }
+      setActiveProfile(profile)
+      localStorage.setItem('zenshin_active_profile', JSON.stringify(profile))
+      toast.success(`Switched to ${profile.name}`)
+    } catch (error) {
+      console.error('Failed to switch profile:', error)
+      toast.error('Failed to switch profile')
+    }
+  }
 
   // get current route and check if it is /animepahe
   const { pathname } = useLocation()
@@ -208,6 +237,62 @@ export default function Header() {
           <MixIcon />
         </Button>
         <DownloadMeter />
+
+        {/* Profile Switcher */}
+        <DropdownMenu.Root className="nodrag" modal={false}>
+          <DropdownMenu.Trigger>
+            <Button variant="soft" color="gray" size={'1'}>
+              <div className="flex animate-fade items-center gap-x-2">
+                {activeProfile ? (
+                  <div
+                    className="h-5 w-5 rounded-sm flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: AVATAR_COLORS[activeProfile.avatar]?.bg || '#3b82f6' }}
+                  >
+                    {activeProfile.name?.charAt(0).toUpperCase()}
+                  </div>
+                ) : (
+                  <AvatarIcon className="my-1" width={16} height={16} />
+                )}
+                <div className="font-space-mono text-[.8rem]">
+                  {activeProfile?.name || 'Profile'}
+                </div>
+              </div>
+              <DropdownMenu.TriggerIcon className="ml-1" />
+            </Button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content>
+            {profiles.length > 0 && (
+              <>
+                <DropdownMenu.Label>Switch Profile</DropdownMenu.Label>
+                {profiles.map((profile) => (
+                  <DropdownMenu.Item
+                    key={profile.id}
+                    onClick={() => handleProfileSwitch(profile)}
+                    color={activeProfile?.id === profile.id ? 'blue' : 'gray'}
+                  >
+                    <div className="flex items-center gap-x-2">
+                      <div
+                        className="h-4 w-4 rounded-sm flex items-center justify-center text-xs font-bold"
+                        style={{ backgroundColor: AVATAR_COLORS[profile.avatar]?.bg || '#3b82f6' }}
+                      >
+                        {profile.name?.charAt(0).toUpperCase()}
+                      </div>
+                      {profile.name}
+                      {profile.isMain && <span className="text-xs text-gray-500">(Main)</span>}
+                    </div>
+                  </DropdownMenu.Item>
+                ))}
+                <DropdownMenu.Separator />
+              </>
+            )}
+            <DropdownMenu.Item
+              onClick={() => navigate('/profiles')}
+              shortcut={<GearIcon />}
+            >
+              Manage Profiles
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
 
         {true && (
           <DropdownMenu.Root className="nodrag" modal={false}>

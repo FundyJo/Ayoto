@@ -30,7 +30,9 @@ export default function Settings() {
     uploadLimit,
     setUploadLimit,
     downloadLimit,
-    setDownloadLimit
+    setDownloadLimit,
+    showProfileSelectionAtStartup,
+    setShowProfileSelectionAtStartup
   } = useZenshinContext()
 
   // const [settingsJson, setSettingsJson] = useState({})
@@ -132,6 +134,12 @@ export default function Settings() {
     const newSmoothScrollState = !smoothScroll
     setSmoothScroll(newSmoothScrollState)
     localStorage.setItem('smoothScroll', newSmoothScrollState ? 'true' : 'false')
+  }
+
+  function toggleShowProfileSelectionAtStartup() {
+    const newState = !showProfileSelectionAtStartup
+    setShowProfileSelectionAtStartup(newState)
+    localStorage.setItem('showProfileSelectionAtStartup', newState ? 'true' : 'false')
   }
 
   // useEffect(() => {
@@ -394,6 +402,20 @@ export default function Settings() {
           User Profiles
         </div>
         <div className="flex flex-col gap-4 tracking-wide text-[#b5b5b5ff]">
+          <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-2">
+            <div className="switch_card">
+              <p className="font-bold">Show Profile Selection at Startup</p>
+              <p className="text-xs">
+                When enabled, shows &quot;Who&apos;s Watching?&quot; profile selection screen when the app starts.
+                This allows different users to select their profile before using the app.
+              </p>
+            </div>
+            <Switch
+              checked={showProfileSelectionAtStartup}
+              style={{ marginLeft: '1.5rem', cursor: 'pointer' }}
+              onCheckedChange={toggleShowProfileSelectionAtStartup}
+            />
+          </div>
           <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-2">
             <div className="switch_card">
               <p className="font-bold">Manage Profiles</p>
