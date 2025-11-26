@@ -17,6 +17,7 @@ import Anilist from './pages/Anilist'
 import Test from './pages/Test'
 import Downloads from './pages/Downloads'
 import Plugins from './pages/Plugins'
+import ProfileSelection from './pages/ProfileSelection'
 
 // Import Tauri API to make it available globally
 import './utils/tauri-api'
@@ -27,6 +28,12 @@ import './utils/tauri-api'
 // const Player = lazy(() => import("./pages/Player"));
 
 const router = createHashRouter([
+  // Profile selection route (standalone, no app layout)
+  {
+    path: '/profiles',
+    element: <ProfileSelection />,
+    errorElement: <ErrorPage />
+  },
   {
     element: <AppLayout />,
     errorElement: <AppLayout props={<ErrorPage />} />,
