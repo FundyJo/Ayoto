@@ -6,23 +6,19 @@ import {
   ArrowRightIcon,
   DividerVerticalIcon,
   DownloadIcon,
-  ExclamationTriangleIcon,
   GearIcon,
   GitHubLogoIcon,
-  LayersIcon,
-  LightningBoltIcon,
   OpenInNewWindowIcon,
   PersonIcon,
   MixIcon,
   AvatarIcon
 } from '@radix-ui/react-icons'
 import Pikacon from '../assets/pikacon.ico'
-import { Button, DropdownMenu, Tooltip } from '@radix-ui/themes'
+import { Button, DropdownMenu } from '@radix-ui/themes'
 import { anilistAuthUrl } from '../utils/auth'
 import { useEffect, useState } from 'react'
 import useGetAnilistProfile from '../hooks/useGetAnilistProfile'
 import { toast } from 'sonner'
-import axios from 'axios'
 import AnimePaheSearchBar from '../extensions/animepahe/components/AnimePaheSearchBar'
 import AniListLogo from '../assets/symbols/AniListLogo'
 import { useZenshinContext } from '../utils/ContextProvider'
@@ -31,37 +27,8 @@ import { AVATAR_COLORS } from './ProfileSelector'
 
 export default function Header() {
   const navigate = useNavigate()
-  const { setUserId, backendPort, settings, activeProfile, setActiveProfile } = useZenshinContext()
+  const { setUserId, settings, activeProfile, setActiveProfile } = useZenshinContext()
   const [profiles, setProfiles] = useState([])
-
-  const checkBackendRunning = async () => {
-    let mainJsBP = await window.api.getSettingsJson()
-    try {
-      // const response = await axios.get(`http://localhost:${backendPort}/ping`)
-      const response = await axios.get(`http://localhost:${backendPort}/ping`)
-      // console.log(response)
-
-      if (response.status === 200) {
-        toast.success('Backend is running', {
-          icon: <LightningBoltIcon height="16" width="16" color="#ffffff" />,
-          description: `Backend is running on your local machine: ${backendPort} - ${mainJsBP.backendPort}`,
-          classNames: {
-            title: 'text-green-500'
-          }
-        })
-      }
-    } catch (error) {
-      toast.error('Backend is not running', {
-        icon: <ExclamationTriangleIcon height="16" width="16" color="#ffffff" />,
-        description: `Backend is not running on your local machine: ${backendPort} - ${mainJsBP.backendPort}`,
-        classNames: {
-          title: 'text-rose-500'
-        }
-      })
-
-      console.error('Error checking if the backend is running', error)
-    }
-  }
 
   /* -------------------- ANILIST AUTH -------------------- */
   const [anilistToken, setAnilistToken] = useState(localStorage.getItem('anilist_token') || '')
@@ -328,13 +295,7 @@ export default function Header() {
               >
                 GitHub <GitHubLogoIcon />
               </DropdownMenu.Item>
-              <DropdownMenu.Item
-                color="green"
-                onClick={checkBackendRunning}
-                shortcut={<LayersIcon />}
-              >
-                Ping Backend
-              </DropdownMenu.Item>
+
               <DropdownMenu.Item
                 onClick={() => window.api.openFolder(settings.downloadsFolderPath)}
                 shortcut={<DownloadIcon />}
