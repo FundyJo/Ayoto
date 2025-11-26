@@ -36,7 +36,6 @@ function StartupRedirect() {
   useEffect(() => {
     // Check if we should show profile selection at startup
     const showProfileSelection = localStorage.getItem('showProfileSelectionAtStartup') === 'true'
-    const hasActiveProfile = localStorage.getItem('zenshin_active_profile')
     const hasSeenProfileSelection = sessionStorage.getItem('hasSeenProfileSelection')
     
     // Show profile selection if:

@@ -126,13 +126,15 @@ export default function Header() {
   // Load profiles for the switcher
   useEffect(() => {
     const loadProfiles = async () => {
+      if (!window.api?.profiles) {
+        // Profile API not available (development mode without Tauri)
+        return
+      }
       try {
-        if (window.api?.profiles) {
-          const allProfiles = await window.api.profiles.getAll()
-          setProfiles(allProfiles)
-        }
+        const allProfiles = await window.api.profiles.getAll()
+        setProfiles(allProfiles)
       } catch (error) {
-        console.error('Failed to load profiles:', error)
+        console.error('Failed to load profiles from backend:', error)
       }
     }
     loadProfiles()
@@ -241,7 +243,7 @@ export default function Header() {
         {/* Profile Switcher */}
         <DropdownMenu.Root className="nodrag" modal={false}>
           <DropdownMenu.Trigger>
-            <Button variant="soft" color="gray" size={'1'}>
+            <Button variant="soft" color="gray" size="1">
               <div className="flex animate-fade items-center gap-x-2">
                 {activeProfile ? (
                   <div
