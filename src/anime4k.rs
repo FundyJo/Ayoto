@@ -8,6 +8,23 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::State;
 
+// =============================================================================
+// Anime4K Shader Name Constants
+// =============================================================================
+
+/// Anime4K shader names as constants to prevent typos
+pub mod shaders {
+    pub const CLAMP_HIGHLIGHTS: &str = "Anime4K_Clamp_Highlights";
+    pub const RESTORE_CNN_S: &str = "Anime4K_Restore_CNN_S";
+    pub const RESTORE_CNN_SOFT_M: &str = "Anime4K_Restore_CNN_Soft_M";
+    pub const UPSCALE_CNN_X2_S: &str = "Anime4K_Upscale_CNN_x2_S";
+    pub const UPSCALE_CNN_X2_M: &str = "Anime4K_Upscale_CNN_x2_M";
+    pub const UPSCALE_CNN_X2_L: &str = "Anime4K_Upscale_CNN_x2_L";
+    pub const UPSCALE_DENOISE_CNN_X2_VL: &str = "Anime4K_Upscale_Denoise_CNN_x2_VL";
+    pub const AUTO_DOWNSCALE_PRE_X2: &str = "Anime4K_AutoDownscalePre_x2";
+    pub const AUTO_DOWNSCALE_PRE_X4: &str = "Anime4K_AutoDownscalePre_x4";
+}
+
 /// Performance level for Anime4K presets
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -106,6 +123,8 @@ impl Default for Anime4KState {
 
 /// Get all available Anime4K presets
 pub fn get_all_presets() -> Vec<Anime4KPreset> {
+    use shaders::*;
+    
     vec![
         Anime4KPreset {
             id: "none".to_string(),
@@ -120,9 +139,9 @@ pub fn get_all_presets() -> Vec<Anime4KPreset> {
             description: "Optimized for weak GPUs, minimal quality improvement".to_string(),
             performance: PerformanceLevel::Low,
             shaders: vec![
-                "Anime4K_Clamp_Highlights".to_string(),
-                "Anime4K_Restore_CNN_S".to_string(),
-                "Anime4K_Upscale_CNN_x2_S".to_string(),
+                CLAMP_HIGHLIGHTS.to_string(),
+                RESTORE_CNN_S.to_string(),
+                UPSCALE_CNN_X2_S.to_string(),
             ],
         },
         Anime4KPreset {
@@ -131,9 +150,9 @@ pub fn get_all_presets() -> Vec<Anime4KPreset> {
             description: "Balanced quality and performance".to_string(),
             performance: PerformanceLevel::Medium,
             shaders: vec![
-                "Anime4K_Clamp_Highlights".to_string(),
-                "Anime4K_Restore_CNN_Soft_M".to_string(),
-                "Anime4K_Upscale_CNN_x2_M".to_string(),
+                CLAMP_HIGHLIGHTS.to_string(),
+                RESTORE_CNN_SOFT_M.to_string(),
+                UPSCALE_CNN_X2_M.to_string(),
             ],
         },
         Anime4KPreset {
@@ -142,11 +161,11 @@ pub fn get_all_presets() -> Vec<Anime4KPreset> {
             description: "High quality, requires powerful GPU".to_string(),
             performance: PerformanceLevel::High,
             shaders: vec![
-                "Anime4K_Clamp_Highlights".to_string(),
-                "Anime4K_Upscale_Denoise_CNN_x2_VL".to_string(),
-                "Anime4K_AutoDownscalePre_x2".to_string(),
-                "Anime4K_AutoDownscalePre_x4".to_string(),
-                "Anime4K_Upscale_CNN_x2_L".to_string(),
+                CLAMP_HIGHLIGHTS.to_string(),
+                UPSCALE_DENOISE_CNN_X2_VL.to_string(),
+                AUTO_DOWNSCALE_PRE_X2.to_string(),
+                AUTO_DOWNSCALE_PRE_X4.to_string(),
+                UPSCALE_CNN_X2_L.to_string(),
             ],
         },
         Anime4KPreset {
@@ -155,12 +174,12 @@ pub fn get_all_presets() -> Vec<Anime4KPreset> {
             description: "Fast mode with line art enhancement".to_string(),
             performance: PerformanceLevel::LowMedium,
             shaders: vec![
-                "Anime4K_Clamp_Highlights".to_string(),
-                "Anime4K_Restore_CNN_S".to_string(),
-                "Anime4K_Upscale_CNN_x2_S".to_string(),
-                "Anime4K_Restore_CNN_S".to_string(),
-                "Anime4K_AutoDownscalePre_x2".to_string(),
-                "Anime4K_Upscale_CNN_x2_S".to_string(),
+                CLAMP_HIGHLIGHTS.to_string(),
+                RESTORE_CNN_S.to_string(),
+                UPSCALE_CNN_X2_S.to_string(),
+                RESTORE_CNN_S.to_string(),
+                AUTO_DOWNSCALE_PRE_X2.to_string(),
+                UPSCALE_CNN_X2_S.to_string(),
             ],
         },
         Anime4KPreset {
@@ -169,12 +188,12 @@ pub fn get_all_presets() -> Vec<Anime4KPreset> {
             description: "Balanced mode with enhanced details".to_string(),
             performance: PerformanceLevel::MediumHigh,
             shaders: vec![
-                "Anime4K_Clamp_Highlights".to_string(),
-                "Anime4K_Restore_CNN_Soft_M".to_string(),
-                "Anime4K_Upscale_CNN_x2_M".to_string(),
-                "Anime4K_AutoDownscalePre_x2".to_string(),
-                "Anime4K_Restore_CNN_Soft_M".to_string(),
-                "Anime4K_Upscale_CNN_x2_M".to_string(),
+                CLAMP_HIGHLIGHTS.to_string(),
+                RESTORE_CNN_SOFT_M.to_string(),
+                UPSCALE_CNN_X2_M.to_string(),
+                AUTO_DOWNSCALE_PRE_X2.to_string(),
+                RESTORE_CNN_SOFT_M.to_string(),
+                UPSCALE_CNN_X2_M.to_string(),
             ],
         },
         Anime4KPreset {
@@ -183,14 +202,14 @@ pub fn get_all_presets() -> Vec<Anime4KPreset> {
             description: "Best quality, requires very powerful GPU".to_string(),
             performance: PerformanceLevel::VeryHigh,
             shaders: vec![
-                "Anime4K_Clamp_Highlights".to_string(),
-                "Anime4K_Upscale_Denoise_CNN_x2_VL".to_string(),
-                "Anime4K_AutoDownscalePre_x2".to_string(),
-                "Anime4K_AutoDownscalePre_x4".to_string(),
-                "Anime4K_Upscale_CNN_x2_L".to_string(),
-                "Anime4K_Restore_CNN_S".to_string(),
-                "Anime4K_AutoDownscalePre_x2".to_string(),
-                "Anime4K_Upscale_CNN_x2_S".to_string(),
+                CLAMP_HIGHLIGHTS.to_string(),
+                UPSCALE_DENOISE_CNN_X2_VL.to_string(),
+                AUTO_DOWNSCALE_PRE_X2.to_string(),
+                AUTO_DOWNSCALE_PRE_X4.to_string(),
+                UPSCALE_CNN_X2_L.to_string(),
+                RESTORE_CNN_S.to_string(),
+                AUTO_DOWNSCALE_PRE_X2.to_string(),
+                UPSCALE_CNN_X2_S.to_string(),
             ],
         },
     ]

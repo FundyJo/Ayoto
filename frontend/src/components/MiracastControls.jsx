@@ -163,7 +163,7 @@ function SessionDisplay({ session, onDisconnect, onStopCast }) {
             <div className="text-white font-medium">{session.device.name}</div>
             <div className="flex items-center gap-2">
               <span 
-                className={`w-2 h-2 rounded-full bg-${stateInfo.color}-500`}
+                className="w-2 h-2 rounded-full"
                 style={{ 
                   backgroundColor: stateInfo.color === 'green' ? '#22c55e' :
                     stateInfo.color === 'purple' ? '#a855f7' :
