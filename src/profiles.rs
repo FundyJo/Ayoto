@@ -48,8 +48,10 @@ pub struct UserProfile {
     pub avatar: String,
     /// Profile color theme
     pub color: String,
-    /// Whether this is the main/default profile (kept for backwards compatibility, always false)
+    /// DEPRECATED: This field is kept for backwards compatibility only.
+    /// All profiles are now equal and deletable. This field is always false for new profiles.
     #[serde(default)]
+    #[deprecated(note = "The main profile concept has been removed. All profiles are equal.")]
     pub is_main: bool,
     /// Creation timestamp (Unix milliseconds)
     pub created_at: i64,

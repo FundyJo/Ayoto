@@ -329,7 +329,7 @@ export default function ProfileSelector({ onProfileSelect, showManageOption = tr
   return (
     <div className="min-h-screen bg-[#141414] flex flex-col items-center justify-center font-space-mono">
       <h1 className="text-4xl font-semibold text-white mb-12">
-        {profiles.length === 0 ? 'Create a Profile' : 'Who\'s Watching?'}
+        {profiles.length === 0 ? 'Create a Profile' : "Who's Watching?"}
       </h1>
 
       <div className="flex flex-wrap justify-center gap-8 mb-12">
