@@ -4,6 +4,7 @@ import zenshinLogo from '../assets/zenshinLogo.png'
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  BookmarkIcon,
   DividerVerticalIcon,
   DownloadIcon,
   GearIcon,
@@ -308,6 +309,14 @@ export default function Header() {
               >
                 Downloads
               </DropdownMenu.Item>
+              {userProfile && (
+                <DropdownMenu.Item
+                  onClick={() => navigate('/bookmarks')}
+                  shortcut={<BookmarkIcon />}
+                >
+                  Watchlist
+                </DropdownMenu.Item>
+              )}
               <DropdownMenu.Item
                 color="gray"
                 onClick={() => navigate('/settings')}
