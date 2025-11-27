@@ -98,8 +98,8 @@ pub async fn open_folder(path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn oauth_login(url: String, app: AppHandle) -> Result<(), String> {
-    use tauri_plugin_shell::ShellExt;
-    let _ = app.shell().open(&url, None);
+    use tauri_plugin_opener::OpenerExt;
+    let _ = app.opener().open_url(&url, None::<&str>);
     Ok(())
 }
 
@@ -124,8 +124,8 @@ pub async fn open_vlc(command: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn open_animepahe(url: String, app: AppHandle) -> Result<(), String> {
-    use tauri_plugin_shell::ShellExt;
-    let _ = app.shell().open(&url, None);
+    use tauri_plugin_opener::OpenerExt;
+    let _ = app.opener().open_url(&url, None::<&str>);
     Ok(())
 }
 

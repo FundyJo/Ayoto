@@ -9,7 +9,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 use tauri_plugin_store::StoreExt;
 
 /// Maximum number of profiles allowed
@@ -371,6 +371,7 @@ pub fn profile_create(
     }
     
     let profile_id = generate_profile_id();
+    #[allow(deprecated)]
     let profile = UserProfile {
         id: profile_id.clone(),
         name: trimmed_name.to_string(),
