@@ -2,16 +2,27 @@
 //! 
 //! This module provides a Netflix-like user profile system where users can select
 //! who is watching. Each profile can have different settings and watch history.
+//! Profiles are persisted to disk using tauri-plugin-store.
 //! 
 //! Note: Age restriction functionality is NOT implemented yet as per requirements.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
+use tauri_plugin_store::StoreExt;
 
 /// Maximum number of profiles allowed
 pub const MAX_PROFILES: usize = 5;
+
+/// Store file name for profiles
+const PROFILES_STORE_FILE: &str = "profiles.json";
+
+/// Store key for profiles data
+const PROFILES_KEY: &str = "profiles";
+
+/// Store key for active profile ID
+const ACTIVE_PROFILE_KEY: &str = "active_profile_id";
 
 /// Default avatar options for profiles
 pub const DEFAULT_AVATARS: &[&str] = &[
@@ -37,7 +48,8 @@ pub struct UserProfile {
     pub avatar: String,
     /// Profile color theme
     pub color: String,
-    /// Whether this is the main/default profile
+    /// Whether this is the main/default profile (kept for backwards compatibility, always false)
+    #[serde(default)]
     pub is_main: bool,
     /// Creation timestamp (Unix milliseconds)
     pub created_at: i64,
@@ -73,45 +85,23 @@ pub struct ProfileSettings {
     pub custom: HashMap<String, serde_json::Value>,
 }
 
-/// Profile manager state
+/// Profile manager state (in-memory cache)
 pub struct ProfileState {
     /// All profiles indexed by ID
     profiles: Mutex<HashMap<String, UserProfile>>,
     /// Currently active profile ID
     active_profile_id: Mutex<Option<String>>,
+    /// Whether profiles have been loaded from store
+    loaded: Mutex<bool>,
 }
 
 impl Default for ProfileState {
     fn default() -> Self {
-        let mut profiles = HashMap::new();
-        
-        // Create default main profile
-        let main_profile = UserProfile {
-            id: "main".to_string(),
-            name: "Main".to_string(),
-            avatar: "avatar_blue".to_string(),
-            color: "#3b82f6".to_string(),
-            is_main: true,
-            created_at: get_current_timestamp(),
-            last_used_at: None,
-            settings: ProfileSettings {
-                autoplay_next: true,
-                auto_skip_intro: false,
-                auto_skip_outro: false,
-                preferred_quality: Some("1080p".to_string()),
-                preferred_audio_lang: None,
-                preferred_subtitle_lang: None,
-                subtitles_enabled: true,
-                anime4k_preset: Some("mode-b".to_string()),
-                custom: HashMap::new(),
-            },
-        };
-        
-        profiles.insert(main_profile.id.clone(), main_profile);
-        
+        // Start with empty profiles - will be loaded from store on first access
         ProfileState {
-            profiles: Mutex::new(profiles),
-            active_profile_id: Mutex::new(Some("main".to_string())),
+            profiles: Mutex::new(HashMap::new()),
+            active_profile_id: Mutex::new(None),
+            loaded: Mutex::new(false),
         }
     }
 }
@@ -135,12 +125,120 @@ fn generate_profile_id() -> String {
 }
 
 // =============================================================================
+// Persistence Functions
+// =============================================================================
+
+/// Load profiles from persistent store
+fn load_profiles_from_store(app: &AppHandle) -> HashMap<String, UserProfile> {
+    match app.store(PROFILES_STORE_FILE) {
+        Ok(store) => {
+            if let Some(value) = store.get(PROFILES_KEY) {
+                match serde_json::from_value::<HashMap<String, UserProfile>>(value.clone()) {
+                    Ok(profiles) => {
+                        log::info!("Loaded {} profiles from store", profiles.len());
+                        return profiles;
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize profiles: {}", e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            log::warn!("Failed to open profile store: {}", e);
+        }
+    }
+    HashMap::new()
+}
+
+/// Load active profile ID from persistent store
+fn load_active_profile_from_store(app: &AppHandle) -> Option<String> {
+    match app.store(PROFILES_STORE_FILE) {
+        Ok(store) => {
+            if let Some(value) = store.get(ACTIVE_PROFILE_KEY) {
+                if let Some(id) = value.as_str() {
+                    return Some(id.to_string());
+                }
+            }
+        }
+        Err(e) => {
+            log::warn!("Failed to load active profile: {}", e);
+        }
+    }
+    None
+}
+
+/// Save profiles to persistent store
+fn save_profiles_to_store(app: &AppHandle, profiles: &HashMap<String, UserProfile>) -> Result<(), String> {
+    let store = app.store(PROFILES_STORE_FILE)
+        .map_err(|e| format!("Failed to open profile store: {}", e))?;
+    
+    let value = serde_json::to_value(profiles)
+        .map_err(|e| format!("Failed to serialize profiles: {}", e))?;
+    
+    store.set(PROFILES_KEY, value);
+    store.save()
+        .map_err(|e| format!("Failed to save profiles: {}", e))?;
+    
+    log::info!("Saved {} profiles to store", profiles.len());
+    Ok(())
+}
+
+/// Save active profile ID to persistent store
+fn save_active_profile_to_store(app: &AppHandle, active_id: &Option<String>) -> Result<(), String> {
+    let store = app.store(PROFILES_STORE_FILE)
+        .map_err(|e| format!("Failed to open profile store: {}", e))?;
+    
+    match active_id {
+        Some(id) => store.set(ACTIVE_PROFILE_KEY, serde_json::Value::String(id.clone())),
+        None => store.set(ACTIVE_PROFILE_KEY, serde_json::Value::Null),
+    }
+    
+    store.save()
+        .map_err(|e| format!("Failed to save active profile: {}", e))?;
+    
+    Ok(())
+}
+
+/// Ensure in-memory state is synchronized with persistent store
+fn ensure_profiles_loaded(app: &AppHandle, state: &ProfileState) {
+    let mut loaded = state.loaded.lock().unwrap();
+    
+    // Only load once
+    if *loaded {
+        return;
+    }
+    
+    let mut profiles = state.profiles.lock().unwrap();
+    let mut active_id = state.active_profile_id.lock().unwrap();
+    
+    // Load from store
+    let stored_profiles = load_profiles_from_store(app);
+    *profiles = stored_profiles;
+    
+    let stored_active = load_active_profile_from_store(app);
+    // Only set active if the profile still exists
+    if let Some(ref id) = stored_active {
+        if profiles.contains_key(id) {
+            *active_id = stored_active;
+        }
+    }
+    
+    *loaded = true;
+}
+
+// =============================================================================
 // Tauri Commands
 // =============================================================================
 
 /// Get all user profiles
 #[tauri::command]
-pub fn profile_get_all(state: State<'_, ProfileState>) -> Result<Vec<UserProfile>, String> {
+pub fn profile_get_all(
+    app: AppHandle,
+    state: State<'_, ProfileState>,
+) -> Result<Vec<UserProfile>, String> {
+    ensure_profiles_loaded(&app, &state);
+    
     let profiles = state
         .profiles
         .lock()
@@ -148,16 +246,8 @@ pub fn profile_get_all(state: State<'_, ProfileState>) -> Result<Vec<UserProfile
     
     let mut profile_list: Vec<UserProfile> = profiles.values().cloned().collect();
     
-    // Sort by creation date, main profile first
-    profile_list.sort_by(|a, b| {
-        if a.is_main && !b.is_main {
-            std::cmp::Ordering::Less
-        } else if !a.is_main && b.is_main {
-            std::cmp::Ordering::Greater
-        } else {
-            a.created_at.cmp(&b.created_at)
-        }
-    });
+    // Sort by creation date
+    profile_list.sort_by(|a, b| a.created_at.cmp(&b.created_at));
     
     Ok(profile_list)
 }
@@ -166,8 +256,11 @@ pub fn profile_get_all(state: State<'_, ProfileState>) -> Result<Vec<UserProfile
 #[tauri::command]
 pub fn profile_get(
     profile_id: String,
+    app: AppHandle,
     state: State<'_, ProfileState>,
 ) -> Result<Option<UserProfile>, String> {
+    ensure_profiles_loaded(&app, &state);
+    
     let profiles = state
         .profiles
         .lock()
@@ -178,7 +271,12 @@ pub fn profile_get(
 
 /// Get the currently active profile
 #[tauri::command]
-pub fn profile_get_active(state: State<'_, ProfileState>) -> Result<Option<UserProfile>, String> {
+pub fn profile_get_active(
+    app: AppHandle,
+    state: State<'_, ProfileState>,
+) -> Result<Option<UserProfile>, String> {
+    ensure_profiles_loaded(&app, &state);
+    
     let active_id = state
         .active_profile_id
         .lock()
@@ -199,8 +297,11 @@ pub fn profile_get_active(state: State<'_, ProfileState>) -> Result<Option<UserP
 #[tauri::command]
 pub fn profile_set_active(
     profile_id: String,
+    app: AppHandle,
     state: State<'_, ProfileState>,
 ) -> Result<UserProfile, String> {
+    ensure_profiles_loaded(&app, &state);
+    
     // Verify profile exists
     let mut profiles = state
         .profiles
@@ -223,6 +324,10 @@ pub fn profile_set_active(
         .map_err(|e| format!("Failed to lock active profile: {}", e))?;
     *active_id = Some(profile_id.clone());
     
+    // Persist changes
+    save_profiles_to_store(&app, &profiles)?;
+    save_active_profile_to_store(&app, &active_id)?;
+    
     log::info!("Profile switched to: {}", profile_id);
     
     Ok(profiles.get(&profile_id).unwrap().clone())
@@ -234,8 +339,11 @@ pub fn profile_create(
     name: String,
     avatar: String,
     color: String,
+    app: AppHandle,
     state: State<'_, ProfileState>,
 ) -> Result<UserProfile, String> {
+    ensure_profiles_loaded(&app, &state);
+    
     // Validate name
     let trimmed_name = name.trim();
     if trimmed_name.is_empty() {
@@ -274,6 +382,9 @@ pub fn profile_create(
     
     profiles.insert(profile_id.clone(), profile.clone());
     
+    // Persist changes
+    save_profiles_to_store(&app, &profiles)?;
+    
     log::info!("Profile created: {} ({})", profile.name, profile_id);
     
     Ok(profile)
@@ -286,8 +397,11 @@ pub fn profile_update(
     name: Option<String>,
     avatar: Option<String>,
     color: Option<String>,
+    app: AppHandle,
     state: State<'_, ProfileState>,
 ) -> Result<UserProfile, String> {
+    ensure_profiles_loaded(&app, &state);
+    
     let mut profiles = state
         .profiles
         .lock()
@@ -331,9 +445,14 @@ pub fn profile_update(
         profile.color = new_color;
     }
     
+    let updated_profile = profile.clone();
+    
+    // Persist changes
+    save_profiles_to_store(&app, &profiles)?;
+    
     log::info!("Profile updated: {}", profile_id);
     
-    Ok(profile.clone())
+    Ok(updated_profile)
 }
 
 /// Update profile settings
@@ -341,8 +460,11 @@ pub fn profile_update(
 pub fn profile_update_settings(
     profile_id: String,
     settings: ProfileSettings,
+    app: AppHandle,
     state: State<'_, ProfileState>,
 ) -> Result<UserProfile, String> {
+    ensure_profiles_loaded(&app, &state);
+    
     let mut profiles = state
         .profiles
         .lock()
@@ -354,42 +476,50 @@ pub fn profile_update_settings(
     
     profile.settings = settings;
     
+    let updated_profile = profile.clone();
+    
+    // Persist changes
+    save_profiles_to_store(&app, &profiles)?;
+    
     log::info!("Profile settings updated: {}", profile_id);
     
-    Ok(profile.clone())
+    Ok(updated_profile)
 }
 
 /// Delete a profile
 #[tauri::command]
 pub fn profile_delete(
     profile_id: String,
+    app: AppHandle,
     state: State<'_, ProfileState>,
 ) -> Result<(), String> {
+    ensure_profiles_loaded(&app, &state);
+    
     let mut profiles = state
         .profiles
         .lock()
         .map_err(|e| format!("Failed to lock profiles: {}", e))?;
     
-    // Can't delete main profile
-    if let Some(profile) = profiles.get(&profile_id) {
-        if profile.is_main {
-            return Err("Cannot delete the main profile".to_string());
-        }
-    } else {
+    // Check if profile exists
+    if !profiles.contains_key(&profile_id) {
         return Err(format!("Profile '{}' not found", profile_id));
     }
     
     profiles.remove(&profile_id);
     
-    // If deleted profile was active, switch to main
+    // If deleted profile was active, clear active profile
     let mut active_id = state
         .active_profile_id
         .lock()
         .map_err(|e| format!("Failed to lock active profile: {}", e))?;
     
     if active_id.as_ref() == Some(&profile_id) {
-        *active_id = Some("main".to_string());
+        *active_id = None;
     }
+    
+    // Persist changes
+    save_profiles_to_store(&app, &profiles)?;
+    save_active_profile_to_store(&app, &active_id)?;
     
     log::info!("Profile deleted: {}", profile_id);
     
@@ -404,7 +534,12 @@ pub fn profile_get_avatars() -> Vec<&'static str> {
 
 /// Get profile count
 #[tauri::command]
-pub fn profile_get_count(state: State<'_, ProfileState>) -> Result<usize, String> {
+pub fn profile_get_count(
+    app: AppHandle,
+    state: State<'_, ProfileState>,
+) -> Result<usize, String> {
+    ensure_profiles_loaded(&app, &state);
+    
     let profiles = state
         .profiles
         .lock()
@@ -414,7 +549,12 @@ pub fn profile_get_count(state: State<'_, ProfileState>) -> Result<usize, String
 
 /// Check if more profiles can be created
 #[tauri::command]
-pub fn profile_can_create(state: State<'_, ProfileState>) -> Result<bool, String> {
+pub fn profile_can_create(
+    app: AppHandle,
+    state: State<'_, ProfileState>,
+) -> Result<bool, String> {
+    ensure_profiles_loaded(&app, &state);
+    
     let profiles = state
         .profiles
         .lock()
@@ -430,13 +570,11 @@ mod tests {
     fn test_default_profile_state() {
         let state = ProfileState::default();
         let profiles = state.profiles.lock().unwrap();
+        let loaded = state.loaded.lock().unwrap();
         
-        assert_eq!(profiles.len(), 1);
-        assert!(profiles.contains_key("main"));
-        
-        let main = profiles.get("main").unwrap();
-        assert!(main.is_main);
-        assert_eq!(main.name, "Main");
+        // No default profile - starts empty and not loaded
+        assert_eq!(profiles.len(), 0);
+        assert!(!*loaded);
     }
 
     #[test]
