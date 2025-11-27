@@ -23,11 +23,21 @@ export default function ProfileSelection() {
     navigate('/')
   }
 
+  const handleSkip = () => {
+    // Clear any active profile when skipping
+    localStorage.removeItem('zenshin_active_profile')
+    setActiveProfile(null)
+    
+    // Navigate to home page
+    navigate('/')
+  }
+
   return (
     <Theme appearance="dark">
       <ProfileSelector 
         onProfileSelect={handleProfileSelect}
         showManageOption={true}
+        onSkip={handleSkip}
       />
     </Theme>
   )
