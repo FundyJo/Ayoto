@@ -41,6 +41,7 @@ pub fn run() {
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_websocket::init())
+    .plugin(tauri_plugin_store::Builder::default().build())
     .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
       let windows = app.webview_windows();
       if let Some((_, window)) = windows.iter().next() {

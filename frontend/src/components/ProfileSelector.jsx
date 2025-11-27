@@ -98,9 +98,6 @@ function ProfileCard({ profile, onSelect, onEdit, isEditing }) {
       <span className="mt-3 text-gray-300 text-lg group-hover:text-white transition-colors">
         {profile.name}
       </span>
-      {profile.isMain && (
-        <span className="text-xs text-gray-500 mt-1">Main Profile</span>
-      )}
     </div>
   )
 }
@@ -202,7 +199,7 @@ function ProfileEditor({ profile, onSave, onDelete, onClose, isNew }) {
             {isNew ? 'Create' : 'Save'}
           </Button>
           
-          {!isNew && !profile?.isMain && (
+          {!isNew && (
             <Button
               className="cursor-pointer"
               color={isDeleting ? 'red' : 'gray'}
@@ -245,10 +242,8 @@ export default function ProfileSelector({ onProfileSelect, showManageOption = tr
         const canCreateMore = await window.api.profiles.canCreate()
         setCanCreate(canCreateMore)
       } else {
-        // Fallback for development without Tauri
-        setProfiles([
-          { id: 'main', name: 'Main', avatar: 'avatar_blue', isMain: true },
-        ])
+        // Fallback for development without Tauri - empty profile list
+        setProfiles([])
       }
     } catch (error) {
       console.error('Failed to load profiles:', error)
@@ -334,7 +329,7 @@ export default function ProfileSelector({ onProfileSelect, showManageOption = tr
   return (
     <div className="min-h-screen bg-[#141414] flex flex-col items-center justify-center font-space-mono">
       <h1 className="text-4xl font-semibold text-white mb-12">
-        Who&apos;s Watching?
+        {profiles.length === 0 ? 'Create a Profile' : "Who's Watching?"}
       </h1>
 
       <div className="flex flex-wrap justify-center gap-8 mb-12">
@@ -356,7 +351,7 @@ export default function ProfileSelector({ onProfileSelect, showManageOption = tr
         )}
       </div>
 
-      {showManageOption && (
+      {showManageOption && profiles.length > 0 && (
         <Button
           variant="outline"
           color="gray"
