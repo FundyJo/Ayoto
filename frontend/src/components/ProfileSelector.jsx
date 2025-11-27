@@ -220,7 +220,7 @@ function ProfileEditor({ profile, onSave, onDelete, onClose, isNew }) {
  * Main ProfileSelector Component
  * Shows "Who's Watching?" screen with all profiles
  */
-export default function ProfileSelector({ onProfileSelect, showManageOption = true }) {
+export default function ProfileSelector({ onProfileSelect, showManageOption = true, onSkip }) {
   const [profiles, setProfiles] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -359,6 +359,18 @@ export default function ProfileSelector({ onProfileSelect, showManageOption = tr
           onClick={() => setIsEditing(!isEditing)}
         >
           {isEditing ? 'Done' : 'Manage Profiles'}
+        </Button>
+      )}
+
+      {/* Skip button when no profiles exist */}
+      {profiles.length === 0 && onSkip && (
+        <Button
+          variant="outline"
+          color="gray"
+          className="cursor-pointer text-gray-400 hover:text-white mt-4"
+          onClick={onSkip}
+        >
+          Skip for now
         </Button>
       )}
 

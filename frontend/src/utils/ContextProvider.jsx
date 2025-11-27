@@ -113,16 +113,46 @@ export default function ZenshinProvider({ children }) {
       setShowProfileSelectionAtStartup(profileSelectionSetting === 'true')
     }
 
-    // Load active profile from localStorage
-    try {
-      const storedActiveProfile = localStorage.getItem('zenshin_active_profile')
-      if (storedActiveProfile) {
-        setActiveProfile(JSON.parse(storedActiveProfile))
+    // Load and validate active profile
+    const loadAndValidateActiveProfile = async () => {
+      try {
+        const storedActiveProfile = localStorage.getItem('zenshin_active_profile')
+        if (storedActiveProfile) {
+          const profile = JSON.parse(storedActiveProfile)
+          
+          // Validate that the profile still exists in the backend
+          if (window.api?.profiles) {
+            try {
+              const backendProfile = await window.api.profiles.get(profile.id)
+              if (backendProfile) {
+                // Profile exists in backend, use the backend version (in case it was updated)
+                setActiveProfile(backendProfile)
+                localStorage.setItem('zenshin_active_profile', JSON.stringify(backendProfile))
+              } else {
+                // Profile no longer exists in backend, clear it
+                console.warn('Active profile no longer exists in backend, clearing')
+                localStorage.removeItem('zenshin_active_profile')
+                setActiveProfile(null)
+              }
+            } catch (backendError) {
+              // Backend API error, but profile was stored - use stored version
+              console.warn('Failed to validate profile with backend:', backendError)
+              setActiveProfile(profile)
+            }
+          } else {
+            // No backend API available (dev mode), use stored profile
+            setActiveProfile(profile)
+          }
+        }
+      } catch (e) {
+        console.error('Error loading active profile:', e)
+        // Clear corrupted data
+        localStorage.removeItem('zenshin_active_profile')
+        setActiveProfile(null)
       }
-    } catch (e) {
-      console.error('Error loading active profile:', e)
     }
 
+    loadAndValidateActiveProfile()
     getSettingsJson()
   }, [])
 
