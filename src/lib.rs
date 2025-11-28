@@ -85,8 +85,13 @@ pub fn run() {
       plugin_commands::get_plugins_with_capability,
       plugin_commands::get_plugins_by_format,
       plugin_commands::get_anime4k_plugins,
+      plugin_commands::get_stream_providers,
+      plugin_commands::get_media_providers,
+      plugin_commands::get_stream_providers_for_hoster,
+      plugin_commands::get_media_providers_for_language,
       plugin_commands::validate_plugin_manifest,
       plugin_commands::get_sample_plugin_manifest,
+      plugin_commands::get_sample_stream_provider_manifest,
       plugin_commands::check_plugin_compatibility,
       // Plugin API commands
       plugin_commands::plugin_search,

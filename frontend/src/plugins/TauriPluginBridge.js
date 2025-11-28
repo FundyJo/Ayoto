@@ -115,6 +115,40 @@ export async function getAnime4kPlugins() {
 }
 
 /**
+ * Get all Stream Provider plugins
+ * @returns {Promise<Object[]>} Array of stream provider plugins
+ */
+export async function getStreamProviders() {
+  return await invoke('get_stream_providers')
+}
+
+/**
+ * Get all Media Provider plugins
+ * @returns {Promise<Object[]>} Array of media provider plugins
+ */
+export async function getMediaProviders() {
+  return await invoke('get_media_providers')
+}
+
+/**
+ * Get stream provider plugins that support a specific hoster
+ * @param {string} hoster - Hoster name (e.g., "voe", "vidoza")
+ * @returns {Promise<Object[]>} Array of plugins supporting the hoster
+ */
+export async function getStreamProvidersForHoster(hoster) {
+  return await invoke('get_stream_providers_for_hoster', { hoster })
+}
+
+/**
+ * Get media provider plugins that support a specific language
+ * @param {string} language - Language code (e.g., "de", "en")
+ * @returns {Promise<Object[]>} Array of plugins supporting the language
+ */
+export async function getMediaProvidersForLanguage(language) {
+  return await invoke('get_media_providers_for_language', { language })
+}
+
+/**
  * Validate a plugin manifest without loading it
  * @param {string} json - Plugin manifest JSON
  * @returns {Promise<Object>} Validation result with isValid and errors
@@ -124,11 +158,19 @@ export async function validatePluginManifest(json) {
 }
 
 /**
- * Get a sample plugin manifest for reference
+ * Get a sample Media Provider plugin manifest for reference
  * @returns {Promise<string>} Sample plugin JSON string
  */
 export async function getSamplePluginManifest() {
   return await invoke('get_sample_plugin_manifest')
+}
+
+/**
+ * Get a sample Stream Provider plugin manifest for reference
+ * @returns {Promise<string>} Sample stream provider plugin JSON string
+ */
+export async function getSampleStreamProviderManifest() {
+  return await invoke('get_sample_stream_provider_manifest')
 }
 
 /**

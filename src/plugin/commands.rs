@@ -1,9 +1,15 @@
 //! Tauri Commands for the Ayoto Plugin System
 //! 
 //! Exposes plugin management functionality to the frontend.
+//! 
+//! # Plugin Types
+//! 
+//! Commands support two types of plugins:
+//! - **StreamProvider**: For video extraction from hosters (Voe, Vidoza, etc.)
+//! - **MediaProvider**: For content listings from sites (aniworld.to, s.to, etc.)
 
 use super::{
-    get_plugin_loader, create_sample_plugin,
+    get_plugin_loader, create_sample_plugin, create_sample_stream_provider,
     LoadedPlugin, PluginLoadResult, PluginSummary, PluginManifest,
     PopulatedAnime, Episode, SearchResult, EpisodesResult,
     AYOTO_VERSION
@@ -98,6 +104,34 @@ pub fn get_anime4k_plugins() -> Vec<LoadedPlugin> {
     loader.get_anime4k_plugins()
 }
 
+/// Get all Stream Provider plugins
+#[tauri::command]
+pub fn get_stream_providers() -> Vec<LoadedPlugin> {
+    let loader = get_plugin_loader();
+    loader.get_stream_providers()
+}
+
+/// Get all Media Provider plugins
+#[tauri::command]
+pub fn get_media_providers() -> Vec<LoadedPlugin> {
+    let loader = get_plugin_loader();
+    loader.get_media_providers()
+}
+
+/// Get stream provider plugins that support a specific hoster
+#[tauri::command]
+pub fn get_stream_providers_for_hoster(hoster: String) -> Vec<LoadedPlugin> {
+    let loader = get_plugin_loader();
+    loader.get_stream_providers_for_hoster(&hoster)
+}
+
+/// Get media provider plugins that support a specific language
+#[tauri::command]
+pub fn get_media_providers_for_language(language: String) -> Vec<LoadedPlugin> {
+    let loader = get_plugin_loader();
+    loader.get_media_providers_for_language(&language)
+}
+
 /// Validate a plugin manifest without loading it
 #[tauri::command]
 pub fn validate_plugin_manifest(json: String) -> Result<super::ValidationResult, String> {
@@ -105,10 +139,17 @@ pub fn validate_plugin_manifest(json: String) -> Result<super::ValidationResult,
     Ok(manifest.validate())
 }
 
-/// Create a sample plugin manifest for reference
+/// Create a sample plugin manifest for reference (Media Provider)
 #[tauri::command]
 pub fn get_sample_plugin_manifest() -> Result<String, String> {
     let sample = create_sample_plugin();
+    sample.to_json()
+}
+
+/// Create a sample Stream Provider plugin manifest for reference
+#[tauri::command]
+pub fn get_sample_stream_provider_manifest() -> Result<String, String> {
+    let sample = create_sample_stream_provider();
     sample.to_json()
 }
 

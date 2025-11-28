@@ -2,6 +2,12 @@
 //! 
 //! Handles loading, validating, and managing .ayoto plugins.
 //! Plugins can be loaded from files or directories.
+//! 
+//! # Plugin Types
+//! 
+//! The loader supports two types of plugins:
+//! - **StreamProvider**: For video extraction from hosters (Voe, Vidoza, etc.)
+//! - **MediaProvider**: For content listings from sites (aniworld.to, s.to, etc.)
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -9,7 +15,7 @@ use std::sync::{Arc, RwLock};
 use serde::{Deserialize, Serialize};
 
 use super::manifest::{PluginManifest, SemVer, TargetPlatform};
-use super::types::PluginError;
+use super::types::{PluginError, PluginType};
 
 /// Current Ayoto version (from Cargo.toml)
 pub const AYOTO_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -333,6 +339,7 @@ impl PluginLoader {
             .filter(|p| {
                 let caps = &p.manifest.capabilities;
                 match capability {
+                    // Media Provider capabilities
                     "search" => caps.search,
                     "getPopular" => caps.get_popular,
                     "getLatest" => caps.get_latest,
@@ -340,6 +347,11 @@ impl PluginLoader {
                     "getStreams" => caps.get_streams,
                     "getAnimeDetails" => caps.get_anime_details,
                     "scraping" => caps.scraping,
+                    // Stream Provider capabilities
+                    "extractStream" => caps.extract_stream,
+                    "getHosterInfo" => caps.get_hoster_info,
+                    "decryptStream" => caps.decrypt_stream,
+                    "getDownloadLink" => caps.get_download_link,
                     _ => false,
                 }
             })
@@ -359,6 +371,54 @@ impl PluginLoader {
         self.get_enabled_plugins()
             .into_iter()
             .filter(|p| p.manifest.anime4k_support)
+            .collect()
+    }
+
+    /// Get plugins by type (StreamProvider or MediaProvider)
+    pub fn get_plugins_by_type(&self, plugin_type: &PluginType) -> Vec<LoadedPlugin> {
+        self.get_enabled_plugins()
+            .into_iter()
+            .filter(|p| &p.manifest.plugin_type == plugin_type)
+            .collect()
+    }
+
+    /// Get all Stream Provider plugins
+    pub fn get_stream_providers(&self) -> Vec<LoadedPlugin> {
+        self.get_plugins_by_type(&PluginType::StreamProvider)
+    }
+
+    /// Get all Media Provider plugins
+    pub fn get_media_providers(&self) -> Vec<LoadedPlugin> {
+        self.get_plugins_by_type(&PluginType::MediaProvider)
+    }
+
+    /// Get stream provider plugins that support a specific hoster
+    pub fn get_stream_providers_for_hoster(&self, hoster: &str) -> Vec<LoadedPlugin> {
+        let hoster_lower = hoster.to_lowercase();
+        self.get_stream_providers()
+            .into_iter()
+            .filter(|p| {
+                if let Some(ref config) = p.manifest.stream_provider_config {
+                    config.supported_hosters.iter().any(|h| h.to_lowercase() == hoster_lower)
+                } else {
+                    false
+                }
+            })
+            .collect()
+    }
+
+    /// Get media provider plugins that support a specific language
+    pub fn get_media_providers_for_language(&self, language: &str) -> Vec<LoadedPlugin> {
+        let lang_lower = language.to_lowercase();
+        self.get_media_providers()
+            .into_iter()
+            .filter(|p| {
+                if let Some(ref config) = p.manifest.media_provider_config {
+                    config.languages.iter().any(|l| l.to_lowercase() == lang_lower)
+                } else {
+                    true // If no languages specified, assume all languages
+                }
+            })
             .collect()
     }
 
@@ -392,6 +452,7 @@ impl PluginLoader {
                 id: p.manifest.id,
                 name: p.manifest.name,
                 version: p.manifest.version,
+                plugin_type: p.manifest.plugin_type,
                 description: p.manifest.description,
                 author: p.manifest.author,
                 icon: p.manifest.icon,
@@ -417,6 +478,7 @@ pub struct PluginSummary {
     pub id: String,
     pub name: String,
     pub version: String,
+    pub plugin_type: PluginType,
     pub description: Option<String>,
     pub author: Option<String>,
     pub icon: Option<String>,
@@ -428,6 +490,7 @@ pub struct PluginSummary {
 
 fn count_capabilities(caps: &super::manifest::PluginCapabilities) -> usize {
     let mut count = 0;
+    // Media Provider capabilities
     if caps.search { count += 1; }
     if caps.get_popular { count += 1; }
     if caps.get_latest { count += 1; }
@@ -435,18 +498,29 @@ fn count_capabilities(caps: &super::manifest::PluginCapabilities) -> usize {
     if caps.get_streams { count += 1; }
     if caps.get_anime_details { count += 1; }
     if caps.scraping { count += 1; }
+    // Stream Provider capabilities
+    if caps.extract_stream { count += 1; }
+    if caps.get_hoster_info { count += 1; }
+    if caps.decrypt_stream { count += 1; }
+    if caps.get_download_link { count += 1; }
     count
 }
 
-/// Create a sample plugin manifest for testing
+/// Create a sample Media Provider plugin manifest for testing
 pub fn create_sample_plugin() -> PluginManifest {
+    create_sample_media_provider()
+}
+
+/// Create a sample Media Provider plugin manifest
+pub fn create_sample_media_provider() -> PluginManifest {
     PluginManifest {
-        id: "sample-provider".to_string(),
+        id: "sample-media-provider".to_string(),
         name: "Sample Anime Provider".to_string(),
         version: "1.0.0".to_string(),
+        plugin_type: PluginType::MediaProvider,
         target_ayoto_version: AYOTO_VERSION.to_string(),
         max_ayoto_version: None,
-        description: Some("A sample plugin demonstrating the Ayoto plugin system".to_string()),
+        description: Some("A sample media provider plugin demonstrating the Ayoto plugin system".to_string()),
         author: Some("Ayoto Team".to_string()),
         homepage: Some("https://github.com/FundyJo/Ayoto".to_string()),
         icon: None,
@@ -461,6 +535,7 @@ pub fn create_sample_plugin() -> PluginManifest {
             get_streams: true,
             get_anime_details: true,
             scraping: true,
+            ..Default::default()
         },
         platforms: vec![TargetPlatform::Universal],
         scraping_config: Some(super::manifest::ScrapingConfig {
@@ -470,9 +545,61 @@ pub fn create_sample_plugin() -> PluginManifest {
             requires_javascript: false,
             selectors: None,
         }),
+        stream_provider_config: None,
+        media_provider_config: Some(super::types::MediaProviderConfig {
+            base_url: Some("https://aniworld.to".to_string()),
+            languages: vec!["de".to_string(), "en".to_string()],
+            content_types: vec!["anime".to_string(), "series".to_string()],
+            requires_auth: false,
+            has_nsfw: false,
+        }),
         config: serde_json::json!({
             "defaultQuality": "1080p",
             "preferredServer": "main"
+        }),
+    }
+}
+
+/// Create a sample Stream Provider plugin manifest
+pub fn create_sample_stream_provider() -> PluginManifest {
+    PluginManifest {
+        id: "sample-stream-provider".to_string(),
+        name: "Sample Stream Extractor".to_string(),
+        version: "1.0.0".to_string(),
+        plugin_type: PluginType::StreamProvider,
+        target_ayoto_version: AYOTO_VERSION.to_string(),
+        max_ayoto_version: None,
+        description: Some("A sample stream provider plugin for extracting videos from hosters".to_string()),
+        author: Some("Ayoto Team".to_string()),
+        homepage: Some("https://github.com/FundyJo/Ayoto".to_string()),
+        icon: None,
+        providers: vec!["Voe".to_string(), "Vidoza".to_string()],
+        formats: vec!["m3u8".to_string(), "mp4".to_string()],
+        anime4k_support: false,
+        capabilities: super::manifest::PluginCapabilities {
+            extract_stream: true,
+            get_hoster_info: true,
+            decrypt_stream: true,
+            get_download_link: true,
+            ..Default::default()
+        },
+        platforms: vec![TargetPlatform::Universal],
+        scraping_config: None,
+        stream_provider_config: Some(super::types::StreamProviderConfig {
+            supported_hosters: vec!["voe".to_string(), "vidoza".to_string(), "streamtape".to_string()],
+            supports_encrypted: true,
+            supports_download: true,
+            url_patterns: vec![
+                r"https?://voe\.sx/.*".to_string(),
+                r"https?://vidoza\.[a-z]+/.*".to_string(),
+                r"https?://streamtape\.com/.*".to_string(),
+            ],
+            priority: 10,
+        }),
+        media_provider_config: None,
+        config: serde_json::json!({
+            "timeout": 30,
+            "retries": 3
         }),
     }
 }
@@ -495,7 +622,7 @@ mod tests {
         
         let result = loader.load_from_json(&json, "test");
         assert!(result.success, "Errors: {:?}", result.errors);
-        assert_eq!(result.plugin_id, Some("sample-provider".to_string()));
+        assert_eq!(result.plugin_id, Some("sample-media-provider".to_string()));
     }
 
     #[test]
@@ -507,6 +634,42 @@ mod tests {
 
         let search_plugins = loader.get_plugins_with_capability("search");
         assert_eq!(search_plugins.len(), 1);
-        assert_eq!(search_plugins[0].manifest.id, "sample-provider");
+        assert_eq!(search_plugins[0].manifest.id, "sample-media-provider");
+    }
+
+    #[test]
+    fn test_stream_provider_loading() {
+        let loader = PluginLoader::new();
+        let sample = create_sample_stream_provider();
+        let json = sample.to_json().unwrap();
+        
+        let result = loader.load_from_json(&json, "test");
+        assert!(result.success, "Errors: {:?}", result.errors);
+        assert_eq!(result.plugin_id, Some("sample-stream-provider".to_string()));
+        
+        // Verify we can find it by type
+        let stream_providers = loader.get_stream_providers();
+        assert_eq!(stream_providers.len(), 1);
+        assert_eq!(stream_providers[0].manifest.plugin_type, PluginType::StreamProvider);
+    }
+
+    #[test]
+    fn test_get_stream_providers_for_hoster() {
+        let loader = PluginLoader::new();
+        let sample = create_sample_stream_provider();
+        let json = sample.to_json().unwrap();
+        loader.load_from_json(&json, "test");
+
+        // Should find the stream provider for "voe" hoster
+        let voe_providers = loader.get_stream_providers_for_hoster("voe");
+        assert_eq!(voe_providers.len(), 1);
+        
+        // Should find for "Vidoza" (case insensitive)
+        let vidoza_providers = loader.get_stream_providers_for_hoster("Vidoza");
+        assert_eq!(vidoza_providers.len(), 1);
+        
+        // Should not find for unknown hoster
+        let unknown_providers = loader.get_stream_providers_for_hoster("unknown");
+        assert_eq!(unknown_providers.len(), 0);
     }
 }

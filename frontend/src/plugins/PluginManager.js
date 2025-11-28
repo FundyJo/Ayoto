@@ -7,7 +7,19 @@
  * - Defines provider capabilities (search, getPopular, getEpisodes, etc.)
  * - Specifies supported stream formats (m3u8, mp4, mkv, etc.)
  * - Optional Anime4K shader support flag for high-performance devices
+ * 
+ * Plugin Types:
+ * 1. StreamProvider - Handles streaming analysis and video extraction from hosters
+ *    like Voe, Vidoza, Filestream, etc.
+ * 2. MediaProvider - Provides anime/media search and listings from sites
+ *    like aniworld.to, s.to, etc.
  */
+
+// Plugin types
+export const PLUGIN_TYPES = {
+  STREAM_PROVIDER: 'streamProvider',
+  MEDIA_PROVIDER: 'mediaProvider'
+}
 
 // Supported stream formats
 export const STREAM_FORMATS = {
@@ -28,6 +40,26 @@ export const ANIME4K_PRESETS = {
   MODE_B_B: 'mode-b+b',       // Balanced + additional shaders
   MODE_C_A: 'mode-c+a'        // High quality + additional shaders
 }
+
+/**
+ * Stream Provider Config structure
+ * @typedef {Object} StreamProviderConfig
+ * @property {string[]} supportedHosters - List of supported hosters (e.g., "voe", "vidoza")
+ * @property {boolean} supportsEncrypted - Whether this provider can handle encrypted streams
+ * @property {boolean} supportsDownload - Whether this provider supports direct download links
+ * @property {string[]} urlPatterns - URL patterns that this provider can handle
+ * @property {number} priority - Priority when multiple providers support same hoster
+ */
+
+/**
+ * Media Provider Config structure
+ * @typedef {Object} MediaProviderConfig
+ * @property {string} baseUrl - Base URL of the media site
+ * @property {string[]} languages - Languages supported by this provider
+ * @property {string[]} contentTypes - Content types supported (anime, movie, series)
+ * @property {boolean} requiresAuth - Whether the site requires authentication
+ * @property {boolean} hasNsfw - Whether the provider has NSFW content
+ */
 
 /**
  * Episode object structure
@@ -77,6 +109,7 @@ export const ANIME4K_PRESETS = {
  * @property {string} id - Unique plugin ID
  * @property {string} name - Display name
  * @property {string} version - Semver version
+ * @property {string} pluginType - Type of plugin (streamProvider or mediaProvider)
  * @property {string} [description] - Plugin description
  * @property {string} [author] - Author name
  * @property {string} [icon] - Icon URL
@@ -84,12 +117,18 @@ export const ANIME4K_PRESETS = {
  * @property {string[]} formats - Supported stream formats
  * @property {boolean} anime4kSupport - Whether plugin supports Anime4K shaders
  * @property {Object} capabilities - Plugin capabilities
- * @property {boolean} capabilities.search - Has search function
- * @property {boolean} capabilities.getPopular - Has getPopular function
- * @property {boolean} capabilities.getLatest - Has getLatest function
- * @property {boolean} capabilities.getEpisodes - Has getEpisodes function
- * @property {boolean} capabilities.getStreams - Has getStreams function
+ * @property {boolean} capabilities.search - Has search function (Media Provider)
+ * @property {boolean} capabilities.getPopular - Has getPopular function (Media Provider)
+ * @property {boolean} capabilities.getLatest - Has getLatest function (Media Provider)
+ * @property {boolean} capabilities.getEpisodes - Has getEpisodes function (Media Provider)
+ * @property {boolean} capabilities.getStreams - Has getStreams function (Media Provider)
+ * @property {boolean} capabilities.extractStream - Has extractStream function (Stream Provider)
+ * @property {boolean} capabilities.getHosterInfo - Has getHosterInfo function (Stream Provider)
+ * @property {boolean} capabilities.decryptStream - Has decryptStream function (Stream Provider)
+ * @property {boolean} capabilities.getDownloadLink - Has getDownloadLink function (Stream Provider)
  * @property {Object} [endpoints] - API endpoints for capabilities
+ * @property {StreamProviderConfig} [streamProviderConfig] - Stream provider specific config
+ * @property {MediaProviderConfig} [mediaProviderConfig] - Media provider specific config
  */
 
 // Plugin validation schema
@@ -120,6 +159,14 @@ export function validatePlugin(pluginData) {
     errors.push('Invalid version format. Use semantic versioning (e.g., 1.0.0)')
   }
   
+  // Validate plugin type if specified
+  if (pluginData.pluginType) {
+    const validTypes = Object.values(PLUGIN_TYPES)
+    if (!validTypes.includes(pluginData.pluginType)) {
+      errors.push(`Invalid plugin type: ${pluginData.pluginType}. Valid types: ${validTypes.join(', ')}`)
+    }
+  }
+  
   // Validate formats array
   if (pluginData.formats && Array.isArray(pluginData.formats)) {
     const validFormats = Object.values(STREAM_FORMATS)
@@ -131,7 +178,13 @@ export function validatePlugin(pluginData) {
   
   // Validate capabilities
   if (pluginData.capabilities) {
-    const validCapabilities = ['search', 'getPopular', 'getLatest', 'getEpisodes', 'getStreams']
+    // Valid capabilities for both Media Provider and Stream Provider
+    const validCapabilities = [
+      // Media Provider capabilities
+      'search', 'getPopular', 'getLatest', 'getEpisodes', 'getStreams', 'getAnimeDetails', 'scraping',
+      // Stream Provider capabilities
+      'extractStream', 'getHosterInfo', 'decryptStream', 'getDownloadLink'
+    ]
     const invalidCaps = Object.keys(pluginData.capabilities).filter(c => !validCapabilities.includes(c))
     if (invalidCaps.length > 0) {
       errors.push(`Invalid capabilities: ${invalidCaps.join(', ')}`)
@@ -164,6 +217,7 @@ export function parseAyotoPlugin(content) {
       id: data.id,
       name: data.name,
       version: data.version,
+      pluginType: data.pluginType || PLUGIN_TYPES.MEDIA_PROVIDER,
       description: data.description || 'No description provided',
       author: data.author || 'Unknown',
       icon: data.icon || null,
@@ -171,13 +225,23 @@ export function parseAyotoPlugin(content) {
       formats: data.formats,
       anime4kSupport: data.anime4kSupport || false,
       capabilities: {
+        // Media Provider capabilities
         search: data.capabilities.search || false,
         getPopular: data.capabilities.getPopular || false,
         getLatest: data.capabilities.getLatest || false,
         getEpisodes: data.capabilities.getEpisodes || false,
-        getStreams: data.capabilities.getStreams || false
+        getStreams: data.capabilities.getStreams || false,
+        getAnimeDetails: data.capabilities.getAnimeDetails || false,
+        scraping: data.capabilities.scraping || false,
+        // Stream Provider capabilities
+        extractStream: data.capabilities.extractStream || false,
+        getHosterInfo: data.capabilities.getHosterInfo || false,
+        decryptStream: data.capabilities.decryptStream || false,
+        getDownloadLink: data.capabilities.getDownloadLink || false
       },
       endpoints: data.endpoints || {},
+      streamProviderConfig: data.streamProviderConfig || null,
+      mediaProviderConfig: data.mediaProviderConfig || null,
       config: data.config || {},
       enabled: true,
       source: 'local'
@@ -189,15 +253,24 @@ export function parseAyotoPlugin(content) {
 }
 
 /**
- * Creates an .ayoto plugin template
+ * Creates a Media Provider .ayoto plugin template
  * @returns {Object} Template plugin structure
  */
 export function createPluginTemplate() {
+  return createMediaProviderTemplate()
+}
+
+/**
+ * Creates a Media Provider .ayoto plugin template
+ * @returns {Object} Template Media Provider plugin structure
+ */
+export function createMediaProviderTemplate() {
   return {
-    id: 'my-plugin',
-    name: 'My Plugin',
+    id: 'my-media-provider',
+    name: 'My Media Provider',
     version: '1.0.0',
-    description: 'Plugin description',
+    pluginType: PLUGIN_TYPES.MEDIA_PROVIDER,
+    description: 'A media provider plugin for anime/media listings',
     author: 'Your Name',
     icon: 'https://example.com/icon.png',
     providers: ['Provider Name'],
@@ -208,7 +281,9 @@ export function createPluginTemplate() {
       getPopular: true,
       getLatest: true,
       getEpisodes: true,
-      getStreams: true
+      getStreams: true,
+      getAnimeDetails: true,
+      scraping: true
     },
     endpoints: {
       search: '/api/search',
@@ -217,8 +292,55 @@ export function createPluginTemplate() {
       episodes: '/api/episodes',
       streams: '/api/streams'
     },
+    mediaProviderConfig: {
+      baseUrl: 'https://aniworld.to',
+      languages: ['de', 'en'],
+      contentTypes: ['anime', 'series'],
+      requiresAuth: false,
+      hasNsfw: false
+    },
     config: {
       baseUrl: 'https://api.example.com'
+    }
+  }
+}
+
+/**
+ * Creates a Stream Provider .ayoto plugin template
+ * @returns {Object} Template Stream Provider plugin structure
+ */
+export function createStreamProviderTemplate() {
+  return {
+    id: 'my-stream-provider',
+    name: 'My Stream Extractor',
+    version: '1.0.0',
+    pluginType: PLUGIN_TYPES.STREAM_PROVIDER,
+    description: 'A stream provider plugin for extracting videos from hosters',
+    author: 'Your Name',
+    icon: 'https://example.com/icon.png',
+    providers: ['Voe', 'Vidoza'],
+    formats: ['m3u8', 'mp4'],
+    anime4kSupport: false,
+    capabilities: {
+      extractStream: true,
+      getHosterInfo: true,
+      decryptStream: true,
+      getDownloadLink: true
+    },
+    streamProviderConfig: {
+      supportedHosters: ['voe', 'vidoza', 'streamtape'],
+      supportsEncrypted: true,
+      supportsDownload: true,
+      urlPatterns: [
+        'https?://voe\\.sx/.*',
+        'https?://vidoza\\.[a-z]+/.*',
+        'https?://streamtape\\.com/.*'
+      ],
+      priority: 10
+    },
+    config: {
+      timeout: 30,
+      retries: 3
     }
   }
 }
@@ -337,6 +459,65 @@ export class PluginManager {
    */
   getAnime4KPlugins() {
     return this.getEnabledPlugins().filter(p => p.anime4kSupport)
+  }
+  
+  /**
+   * Get plugins by type (StreamProvider or MediaProvider)
+   * @param {string} pluginType - Plugin type
+   * @returns {AyotoPlugin[]}
+   */
+  getPluginsByType(pluginType) {
+    return this.getEnabledPlugins().filter(p => p.pluginType === pluginType)
+  }
+  
+  /**
+   * Get all Stream Provider plugins
+   * @returns {AyotoPlugin[]}
+   */
+  getStreamProviders() {
+    return this.getPluginsByType(PLUGIN_TYPES.STREAM_PROVIDER)
+  }
+  
+  /**
+   * Get all Media Provider plugins
+   * @returns {AyotoPlugin[]}
+   */
+  getMediaProviders() {
+    return this.getPluginsByType(PLUGIN_TYPES.MEDIA_PROVIDER)
+  }
+  
+  /**
+   * Get stream provider plugins that support a specific hoster
+   * @param {string} hoster - Hoster name (e.g., "voe", "vidoza")
+   * @returns {AyotoPlugin[]}
+   */
+  getStreamProvidersForHoster(hoster) {
+    const hosterLower = hoster.toLowerCase()
+    return this.getStreamProviders().filter(p => {
+      if (p.streamProviderConfig && p.streamProviderConfig.supportedHosters) {
+        return p.streamProviderConfig.supportedHosters.some(
+          h => h.toLowerCase() === hosterLower
+        )
+      }
+      return false
+    })
+  }
+  
+  /**
+   * Get media provider plugins that support a specific language
+   * @param {string} language - Language code (e.g., "de", "en")
+   * @returns {AyotoPlugin[]}
+   */
+  getMediaProvidersForLanguage(language) {
+    const langLower = language.toLowerCase()
+    return this.getMediaProviders().filter(p => {
+      if (p.mediaProviderConfig && p.mediaProviderConfig.languages) {
+        return p.mediaProviderConfig.languages.some(
+          l => l.toLowerCase() === langLower
+        )
+      }
+      return true // If no languages specified, assume all languages
+    })
   }
   
   /**

@@ -1,6 +1,12 @@
 /**
  * Ayoto Plugin System
  * Exports all plugin-related modules
+ * 
+ * Plugin Types:
+ * 1. StreamProvider - Handles streaming analysis and video extraction from hosters
+ *    like Voe, Vidoza, Filestream, etc.
+ * 2. MediaProvider - Provides anime/media search and listings from sites
+ *    like aniworld.to, s.to, etc.
  */
 
 export {
@@ -9,8 +15,11 @@ export {
   parseAyotoPlugin,
   validatePlugin,
   createPluginTemplate,
+  createMediaProviderTemplate,
+  createStreamProviderTemplate,
   STREAM_FORMATS,
-  ANIME4K_PRESETS
+  ANIME4K_PRESETS,
+  PLUGIN_TYPES
 } from './PluginManager'
 
 export {
@@ -46,8 +55,13 @@ export {
   getPluginsWithCapability,
   getPluginsByFormat,
   getAnime4kPlugins,
+  getStreamProviders,
+  getMediaProviders,
+  getStreamProvidersForHoster,
+  getMediaProvidersForLanguage,
   validatePluginManifest,
   getSamplePluginManifest,
+  getSampleStreamProviderManifest,
   checkPluginCompatibility,
   pluginSearch,
   pluginGetPopular,
