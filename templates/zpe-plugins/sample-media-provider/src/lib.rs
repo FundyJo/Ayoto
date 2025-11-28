@@ -128,17 +128,37 @@ impl<T> ZpeResult<T> {
 // ============================================================================
 
 /// Allocate memory for the host to write data
+/// 
+/// # Safety
+/// 
+/// This function allocates raw memory and returns a pointer. The caller
+/// is responsible for properly deallocating the memory using `deallocate`.
 #[no_mangle]
 pub extern "C" fn allocate(size: i32) -> i32 {
-    let layout = Layout::from_size_align(size as usize, 1).unwrap();
-    unsafe { alloc(layout) as i32 }
+    if size <= 0 {
+        return 0; // Invalid size
+    }
+    
+    match Layout::from_size_align(size as usize, 1) {
+        Ok(layout) => unsafe { alloc(layout) as i32 },
+        Err(_) => 0, // Layout error - return null pointer
+    }
 }
 
 /// Free allocated memory
+/// 
+/// # Safety
+/// 
+/// The pointer must have been allocated by `allocate` with the same size.
 #[no_mangle]
 pub extern "C" fn deallocate(ptr: i32, size: i32) {
-    let layout = Layout::from_size_align(size as usize, 1).unwrap();
-    unsafe { dealloc(ptr as *mut u8, layout) }
+    if ptr == 0 || size <= 0 {
+        return; // Ignore null pointer or invalid size
+    }
+    
+    if let Ok(layout) = Layout::from_size_align(size as usize, 1) {
+        unsafe { dealloc(ptr as *mut u8, layout) }
+    }
 }
 
 // ============================================================================

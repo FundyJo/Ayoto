@@ -339,7 +339,7 @@ pub struct ZpeResult<T> {
     pub error: Option<String>,
 }
 
-impl<T: Default> ZpeResult<T> {
+impl<T> ZpeResult<T> {
     /// Create a success result
     pub fn ok(value: T) -> Self {
         ZpeResult {
@@ -410,13 +410,16 @@ impl From<ZpeEpisode> for super::super::types::Episode {
 
 impl From<ZpeStreamSource> for super::super::types::StreamSource {
     fn from(zpe: ZpeStreamSource) -> Self {
-        let format = match zpe.format.as_str() {
-            "m3u8" => super::super::types::StreamFormat::M3u8,
+        let format = match zpe.format.to_lowercase().as_str() {
+            "m3u8" | "hls" => super::super::types::StreamFormat::M3u8,
             "mp4" => super::super::types::StreamFormat::Mp4,
             "mkv" => super::super::types::StreamFormat::Mkv,
             "webm" => super::super::types::StreamFormat::Webm,
-            "torrent" => super::super::types::StreamFormat::Torrent,
-            _ => super::super::types::StreamFormat::M3u8,
+            "torrent" | "magnet" => super::super::types::StreamFormat::Torrent,
+            unknown => {
+                log::warn!("Unknown stream format '{}', defaulting to M3u8", unknown);
+                super::super::types::StreamFormat::M3u8
+            }
         };
 
         super::super::types::StreamSource {
