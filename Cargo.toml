@@ -35,3 +35,7 @@ tauri-plugin-window-state = "2"
 tauri-plugin-store = "2.4"
 tauri-plugin-opener = "2"
 discord-rich-presence = "1.0.0"
+
+# Native plugin system dependencies
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

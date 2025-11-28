@@ -1,58 +1,55 @@
 //! Ayoto Plugin System
 //! 
-//! A universal plugin system for loading .ayoto plugins that work across
-//! desktop and mobile platforms. Plugins can provide anime search, 
-//! streaming sources, and episode information through a standardized API.
+//! A universal plugin system supporting both JSON manifests (.ayoto) and native
+//! Rust plugins (.so/.dll/.dylib) that work across desktop and mobile platforms.
 //! 
-//! # Plugin Format (.ayoto)
+//! # Plugin Types
 //! 
-//! Plugins are JSON files with the `.ayoto` extension that define:
-//! - Plugin metadata (id, name, version, author)
-//! - Target Ayoto version for compatibility checking
-//! - Capabilities (search, getEpisodes, getStreams, etc.)
-//! - Supported stream formats (m3u8, mp4, mkv, webm, torrent)
-//! - Scraping configuration for web-based providers
+//! ## Native Rust Plugins (Recommended)
+//! 
+//! Native plugins are compiled Rust dynamic libraries that can perform actual
+//! scraping, HTTP requests, and data processing. They work across all platforms:
+//! - **Linux**: `.so` files
+//! - **Windows**: `.dll` files
+//! - **macOS**: `.dylib` files
+//! - **Android**: `.so` files (ARM/ARM64)
+//! 
+//! Native plugins implement the `AyotoPlugin` trait and export standard entry points.
+//! 
+//! ## JSON Manifest Plugins (Legacy)
+//! 
+//! JSON plugins are configuration files that define metadata and capabilities.
+//! They are useful for simple configuration but cannot execute code.
+//! 
+//! # Native Plugin Development
+//! 
+//! ```rust,ignore
+//! use ayoto_plugin_sdk::{AyotoPlugin, ayoto_plugin_export};
+//! 
+//! struct MyProvider {
+//!     // plugin state
+//! }
+//! 
+//! impl AyotoPlugin for MyProvider {
+//!     fn get_metadata(&self) -> PluginMetadata { ... }
+//!     fn search(&self, query: &str, page: u32) -> FfiResult<FfiAnimeList> { ... }
+//!     // ... other methods
+//! }
+//! 
+//! ayoto_plugin_export!(MyProvider);
+//! ```
 //! 
 //! # Version Compatibility
 //! 
 //! Plugins declare their target Ayoto version using semantic versioning.
 //! - Plugins built for v1.x.x will work with any v1.y.z (same major version)
 //! - Plugins built for v1.x.x may NOT work with v2.x.x due to API changes
-//! - Warnings are shown when plugins are built for older versions
-//! 
-//! # Example Plugin
-//! 
-//! ```json
-//! {
-//!   "id": "my-provider",
-//!   "name": "My Anime Provider",
-//!   "version": "1.0.0",
-//!   "targetAyotoVersion": "2.5.0",
-//!   "description": "A custom anime provider plugin",
-//!   "author": "Your Name",
-//!   "providers": ["MyProvider"],
-//!   "formats": ["m3u8", "mp4"],
-//!   "anime4kSupport": true,
-//!   "capabilities": {
-//!     "search": true,
-//!     "getPopular": true,
-//!     "getEpisodes": true,
-//!     "getStreams": true,
-//!     "scraping": true
-//!   },
-//!   "platforms": ["universal"],
-//!   "scrapingConfig": {
-//!     "baseUrl": "https://example.com",
-//!     "rateLimitMs": 1000,
-//!     "requiresJavascript": false
-//!   }
-//! }
-//! ```
 
 pub mod types;
 pub mod manifest;
 pub mod loader;
 pub mod commands;
+pub mod native;
 
 // Re-export commonly used types
 pub use types::{
@@ -73,6 +70,26 @@ pub use loader::{
     PluginCompatibility, PluginSummary,
     AYOTO_VERSION, PLUGIN_EXTENSION,
     create_sample_plugin, create_sample_media_provider, create_sample_stream_provider
+};
+
+// Re-export native plugin types
+pub use native::{
+    AyotoPlugin, PluginCapabilities as NativePluginCapabilities, DefaultPlugin,
+    FfiResult, FfiAnime, FfiAnimeList, FfiEpisode, FfiEpisodeList,
+    FfiStreamSource, FfiStreamSourceList, FfiHttpRequest, FfiHttpResponse,
+    FfiPluginConfig, FfiSubtitle, FfiPopulatedEpisode,
+    PluginMetadata, HttpContext, HosterInfo,
+    NativePluginLoader, NativePluginInfo, NativePluginLoadResult,
+    get_native_plugin_loader, get_plugin_extension, get_platform_name,
+    PluginRuntime, PLUGIN_ABI_VERSION,
+    CAP_SEARCH, CAP_GET_POPULAR, CAP_GET_LATEST, CAP_GET_EPISODES,
+    CAP_GET_STREAMS, CAP_GET_ANIME_DETAILS, CAP_SCRAPING,
+    CAP_EXTRACT_STREAM, CAP_GET_HOSTER_INFO, CAP_DECRYPT_STREAM, CAP_GET_DOWNLOAD_LINK,
+    PLATFORM_LINUX, PLATFORM_WINDOWS, PLATFORM_MACOS, PLATFORM_ANDROID, PLATFORM_IOS, PLATFORM_UNIVERSAL,
+    PLUGIN_TYPE_MEDIA_PROVIDER, PLUGIN_TYPE_STREAM_PROVIDER,
+    STREAM_FORMAT_M3U8, STREAM_FORMAT_MP4, STREAM_FORMAT_MKV, STREAM_FORMAT_WEBM, STREAM_FORMAT_TORRENT,
+    HTTP_METHOD_GET, HTTP_METHOD_POST, HTTP_METHOD_PUT, HTTP_METHOD_DELETE, HTTP_METHOD_HEAD,
+    CAPABILITY_HTTP, CAPABILITY_STORAGE, CAPABILITY_LOGGING, CAPABILITY_CRYPTO,
 };
 
 use std::sync::OnceLock;
