@@ -55,7 +55,7 @@
     "languageSelector": ".changemark",
     "languageMappings": {
       "1": "de",
-      "2": "en", 
+      "2": "en",
       "3": "jp"
     }
   },
