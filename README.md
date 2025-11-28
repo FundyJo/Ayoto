@@ -101,6 +101,25 @@ zanshin/
 - VLC external player integration
 - Deep linking support (zanshin://)
 - Persistent window state
+- **Native Plugin System** - Extend functionality with Rust plugins
+
+## Native Plugin System
+
+Ayoto features a universal native plugin system that allows extending functionality through Rust plugins compiled as dynamic libraries. This enables:
+
+- **Cross-Platform Compatibility**: Plugins work on Linux, Windows, macOS, Android, and iOS
+- **Web Scraping**: Plugins can perform scraping on provider websites using the built-in HTTP context
+- **Media Providers**: Add new anime sources (aniworld.to, s.to, etc.)
+- **Stream Providers**: Add support for new video hosters (Voe, Vidoza, etc.)
+
+### Plugin Development
+
+See [docs/NATIVE_PLUGIN_DEVELOPMENT.md](docs/NATIVE_PLUGIN_DEVELOPMENT.md) for a complete guide on creating native plugins.
+
+### Plugin Types
+
+1. **Media Provider Plugins** - Provide anime search, episode listings, and stream sources
+2. **Stream Provider Plugins** - Extract video URLs from hosting services
 
 ## Development
 

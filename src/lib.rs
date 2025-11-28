@@ -101,6 +101,17 @@ pub fn run() {
       plugin_commands::plugin_get_streams,
       plugin_commands::plugin_get_anime_details,
       plugin_commands::search_all_plugins,
+      // Native plugin commands
+      plugin_commands::get_native_plugin_extension,
+      plugin_commands::get_current_platform,
+      plugin_commands::load_native_plugin,
+      plugin_commands::get_all_native_plugins,
+      plugin_commands::get_native_plugin,
+      plugin_commands::unload_native_plugin,
+      plugin_commands::native_plugin_search,
+      plugin_commands::native_plugin_get_episodes,
+      plugin_commands::native_plugin_get_streams,
+      plugin_commands::get_native_plugin_info,
       // Anime4K commands
       anime4k::anime4k_get_presets,
       anime4k::anime4k_get_preset,

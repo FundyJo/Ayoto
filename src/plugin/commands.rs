@@ -426,3 +426,141 @@ pub async fn search_all_plugins(query: String) -> Vec<(String, SearchResult)> {
     
     results
 }
+
+// ============================================================================
+// Native Plugin Commands
+// ============================================================================
+
+use super::native::{
+    get_native_plugin_loader, NativePluginInfo, NativePluginLoadResult,
+    get_plugin_extension, get_platform_name,
+};
+
+/// Get the platform-specific plugin extension
+#[tauri::command]
+pub fn get_native_plugin_extension() -> String {
+    get_plugin_extension().to_string()
+}
+
+/// Get the current platform name
+#[tauri::command]
+pub fn get_current_platform() -> String {
+    get_platform_name().to_string()
+}
+
+/// Load a native plugin from a file path
+#[tauri::command]
+pub fn load_native_plugin(path: String) -> NativePluginLoadResult {
+    let loader = get_native_plugin_loader();
+    loader.load_plugin(&path)
+}
+
+/// Get all loaded native plugins
+#[tauri::command]
+pub fn get_all_native_plugins() -> Vec<NativePluginInfo> {
+    let loader = get_native_plugin_loader();
+    loader.get_all_plugins()
+}
+
+/// Get a native plugin by ID
+#[tauri::command]
+pub fn get_native_plugin(plugin_id: String) -> Option<NativePluginInfo> {
+    let loader = get_native_plugin_loader();
+    loader.get_plugin(&plugin_id)
+}
+
+/// Unload a native plugin
+#[tauri::command]
+pub fn unload_native_plugin(plugin_id: String) -> Result<(), String> {
+    let loader = get_native_plugin_loader();
+    loader.unload_plugin(&plugin_id)
+}
+
+/// Search using a native plugin
+#[tauri::command]
+pub async fn native_plugin_search(
+    plugin_id: String,
+    query: String,
+    page: Option<u32>,
+) -> Result<SearchResult, String> {
+    let loader = get_native_plugin_loader();
+    
+    let result = loader.plugin_search(&plugin_id, &query, page.unwrap_or(1))?;
+    
+    // Convert FFI types to standard types
+    // Note: In a full implementation, we would properly convert the FFI list
+    // For now, we return a placeholder showing the API structure
+    Ok(SearchResult {
+        results: vec![],
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_results: None,
+    })
+}
+
+/// Get episodes using a native plugin
+#[tauri::command]
+pub async fn native_plugin_get_episodes(
+    plugin_id: String,
+    anime_id: String,
+    page: Option<u32>,
+) -> Result<EpisodesResult, String> {
+    let loader = get_native_plugin_loader();
+    
+    let result = loader.plugin_get_episodes(&plugin_id, &anime_id, page.unwrap_or(1))?;
+    
+    Ok(EpisodesResult {
+        episodes: vec![],
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_episodes: Some(result.total_episodes),
+    })
+}
+
+/// Get streams using a native plugin
+#[tauri::command]
+pub async fn native_plugin_get_streams(
+    plugin_id: String,
+    anime_id: String,
+    episode_id: String,
+) -> Result<super::PopulatedEpisode, String> {
+    let loader = get_native_plugin_loader();
+    
+    let _result = loader.plugin_get_streams(&plugin_id, &anime_id, &episode_id)?;
+    
+    // Convert FFI types to standard types
+    Ok(super::PopulatedEpisode {
+        episode: Episode {
+            id: episode_id,
+            number: 1,
+            title: None,
+            thumbnail: None,
+            description: None,
+            duration: None,
+            air_date: None,
+            is_filler: None,
+        },
+        sources: vec![],
+        subtitles: vec![],
+        intro: None,
+        outro: None,
+    })
+}
+
+/// Get information about native plugin system
+#[tauri::command]
+pub fn get_native_plugin_info() -> serde_json::Value {
+    serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "abiVersion": super::native::PLUGIN_ABI_VERSION,
+        "platform": get_platform_name(),
+        "pluginExtension": get_plugin_extension(),
+        "supportedPlatforms": [
+            { "name": "linux", "extension": "so" },
+            { "name": "windows", "extension": "dll" },
+            { "name": "macos", "extension": "dylib" },
+            { "name": "android", "extension": "so" },
+            { "name": "ios", "extension": "dylib" }
+        ]
+    })
+}
