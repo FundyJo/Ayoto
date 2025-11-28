@@ -279,12 +279,6 @@ export default function Header() {
                     ))}
                     <DropdownMenu.Separator />
                     <DropdownMenu.Item
-                      onClick={() => navigate('/bookmarks')}
-                      shortcut={<BookmarkIcon />}
-                    >
-                      Watchlist
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item
                       onClick={() => navigate('/profiles')}
                       shortcut={<GearIcon />}
                     >
