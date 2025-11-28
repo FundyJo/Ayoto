@@ -308,14 +308,6 @@ export default function Header() {
               >
                 Downloads
               </DropdownMenu.Item>
-              {userProfile && (
-                <DropdownMenu.Item
-                  onClick={() => navigate('/bookmarks')}
-                  shortcut={<BookmarkIcon />}
-                >
-                  Watchlist
-                </DropdownMenu.Item>
-              )}
               <DropdownMenu.Item
                 color="gray"
                 onClick={() => navigate('/settings')}
