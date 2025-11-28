@@ -299,8 +299,8 @@ fn parse_status_code(status_line: &str) -> u16 {
 
 /// Async HTTP request helper for use within Tauri commands
 pub struct AsyncHttpClient {
-    user_agent: String,
-    timeout: u32,
+    _user_agent: String,
+    _timeout: u32,
 }
 
 impl Default for AsyncHttpClient {
@@ -312,8 +312,8 @@ impl Default for AsyncHttpClient {
 impl AsyncHttpClient {
     pub fn new() -> Self {
         AsyncHttpClient {
-            user_agent: format!("Ayoto/{}", env!("CARGO_PKG_VERSION")),
-            timeout: 30,
+            _user_agent: format!("Ayoto/{}", env!("CARGO_PKG_VERSION")),
+            _timeout: 30,
         }
     }
 

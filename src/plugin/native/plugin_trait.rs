@@ -210,10 +210,12 @@ impl HttpContext {
 
 /// Type alias for the plugin creation function
 /// Every plugin must export this function
+#[allow(improper_ctypes_definitions)]
 pub type CreatePluginFn = unsafe extern "C" fn() -> *mut dyn AyotoPlugin;
 
 /// Type alias for the plugin destruction function
 /// Every plugin must export this function
+#[allow(improper_ctypes_definitions)]
 pub type DestroyPluginFn = unsafe extern "C" fn(*mut dyn AyotoPlugin);
 
 /// Type alias for getting plugin ABI version
