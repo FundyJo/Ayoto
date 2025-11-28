@@ -24,6 +24,8 @@ pub struct ZpeManifest {
     pub description: Option<String>,
     /// Plugin homepage/repository URL
     pub homepage: Option<String>,
+    /// Plugin icon URL or base64 data URI
+    pub icon: Option<String>,
     /// Plugin type
     pub plugin_type: ZpePluginType,
     /// Plugin capabilities
@@ -42,6 +44,7 @@ impl Default for ZpeManifest {
             author: None,
             description: None,
             homepage: None,
+            icon: None,
             plugin_type: ZpePluginType::MediaProvider,
             capabilities: ZpeCapabilities::default(),
             abi_version: super::ZPE_ABI_VERSION,
@@ -165,6 +168,8 @@ pub struct ZpePluginInfo {
     pub author: Option<String>,
     /// Plugin description
     pub description: Option<String>,
+    /// Plugin icon URL or base64 data URI
+    pub icon: Option<String>,
     /// Target Ayoto version
     pub target_ayoto_version: String,
     /// Plugin type

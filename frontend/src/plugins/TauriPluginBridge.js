@@ -395,6 +395,34 @@ export async function getZpePluginInfo() {
 }
 
 // ============================================================================
+// ZPE Plugin Persistence Functions
+// ============================================================================
+
+/**
+ * Save ZPE plugin paths to persistent storage
+ * @returns {Promise<void>}
+ */
+export async function saveZpePluginPaths() {
+  return await invoke('save_zpe_plugin_paths')
+}
+
+/**
+ * Get saved ZPE plugin paths from persistent storage
+ * @returns {Promise<Object[]>} Array of saved plugin info with id, filePath, and enabled status
+ */
+export async function getSavedZpePluginPaths() {
+  return await invoke('get_saved_zpe_plugin_paths')
+}
+
+/**
+ * Reload all saved ZPE plugins from their stored paths
+ * @returns {Promise<Object[]>} Array of load results
+ */
+export async function reloadSavedZpePlugins() {
+  return await invoke('reload_saved_zpe_plugins')
+}
+
+// ============================================================================
 // Unified Plugin Bridge Class
 // ============================================================================
 

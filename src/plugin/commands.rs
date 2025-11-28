@@ -799,3 +799,104 @@ pub fn get_zpe_plugin_info() -> serde_json::Value {
         ]
     })
 }
+
+// ============================================================================
+// ZPE Plugin Persistence Commands
+// ============================================================================
+
+use tauri::AppHandle;
+use tauri_plugin_store::StoreExt;
+
+/// Store file name for ZPE plugins
+const ZPE_PLUGINS_STORE_FILE: &str = "zpe_plugins.json";
+
+/// Store key for plugin paths
+const ZPE_PLUGINS_KEY: &str = "plugin_paths";
+
+/// Saved plugin info for persistence
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedZpePlugin {
+    /// Plugin ID
+    pub id: String,
+    /// Plugin file path
+    pub file_path: String,
+    /// Whether the plugin is enabled
+    pub enabled: bool,
+}
+
+/// Save ZPE plugin paths to persistent storage
+#[tauri::command]
+pub fn save_zpe_plugin_paths(app: AppHandle) -> Result<(), String> {
+    let loader = get_zpe_plugin_loader();
+    let plugins = loader.get_all_plugins();
+    
+    let saved_plugins: Vec<SavedZpePlugin> = plugins.iter().map(|p| SavedZpePlugin {
+        id: p.id.clone(),
+        file_path: p.file_path.clone(),
+        enabled: p.enabled,
+    }).collect();
+    
+    let store = app.store(ZPE_PLUGINS_STORE_FILE)
+        .map_err(|e| format!("Failed to open ZPE plugins store: {}", e))?;
+    
+    let value = serde_json::to_value(&saved_plugins)
+        .map_err(|e| format!("Failed to serialize plugin paths: {}", e))?;
+    
+    store.set(ZPE_PLUGINS_KEY, value);
+    store.save()
+        .map_err(|e| format!("Failed to save ZPE plugins: {}", e))?;
+    
+    log::info!("Saved {} ZPE plugin paths to store", saved_plugins.len());
+    Ok(())
+}
+
+/// Load ZPE plugin paths from persistent storage
+#[tauri::command]
+pub fn get_saved_zpe_plugin_paths(app: AppHandle) -> Vec<SavedZpePlugin> {
+    match app.store(ZPE_PLUGINS_STORE_FILE) {
+        Ok(store) => {
+            if let Some(value) = store.get(ZPE_PLUGINS_KEY) {
+                match serde_json::from_value::<Vec<SavedZpePlugin>>(value.clone()) {
+                    Ok(plugins) => {
+                        log::info!("Loaded {} saved ZPE plugin paths from store", plugins.len());
+                        return plugins;
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to deserialize saved ZPE plugins: {}", e);
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            log::warn!("Failed to open ZPE plugins store: {}", e);
+        }
+    }
+    Vec::new()
+}
+
+/// Reload all saved ZPE plugins from their stored paths
+#[tauri::command]
+pub fn reload_saved_zpe_plugins(app: AppHandle) -> Vec<ZpeLoadResult> {
+    let saved = get_saved_zpe_plugin_paths(app.clone());
+    let loader = get_zpe_plugin_loader();
+    
+    let mut results = Vec::new();
+    
+    for saved_plugin in saved {
+        // Try to load the plugin from its saved path
+        let result = loader.load_plugin(&saved_plugin.file_path);
+        
+        // If loaded successfully and the saved state was disabled, disable it
+        if result.success && !saved_plugin.enabled {
+            if let Some(ref id) = result.plugin_id {
+                let _ = loader.set_plugin_enabled(id, false);
+            }
+        }
+        
+        results.push(result);
+    }
+    
+    log::info!("Reloaded {} saved ZPE plugins", results.len());
+    results
+}

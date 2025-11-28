@@ -35,6 +35,7 @@ impl ZpePluginContainer {
             version: self.manifest.version.clone(),
             author: self.manifest.author.clone(),
             description: self.manifest.description.clone(),
+            icon: self.manifest.icon.clone(),
             target_ayoto_version: self.manifest.target_ayoto_version.clone(),
             plugin_type: self.manifest.plugin_type,
             capabilities: self.manifest.capabilities.clone(),

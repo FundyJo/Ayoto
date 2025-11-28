@@ -10,7 +10,7 @@ import {
   CrossCircledIcon,
   ExclamationTriangleIcon
 } from '@radix-ui/react-icons'
-import { loadZpePlugin, getAllZpePlugins, setZpePluginEnabled, unloadZpePlugin } from '../plugins'
+import { loadZpePlugin, getAllZpePlugins, setZpePluginEnabled, unloadZpePlugin, saveZpePluginPaths, reloadSavedZpePlugins } from '../plugins'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 
 // Default plugin icon component
@@ -30,6 +30,24 @@ function DefaultPluginIcon({ className }) {
   )
 }
 
+// Plugin icon component with fallback
+function PluginIcon({ icon, name }) {
+  const [hasError, setHasError] = useState(false)
+  
+  if (!icon || hasError) {
+    return <DefaultPluginIcon className="h-6 w-6 text-gray-400" />
+  }
+  
+  return (
+    <img 
+      src={icon} 
+      alt={`${name} icon`}
+      className="h-full w-full object-cover"
+      onError={() => setHasError(true)}
+    />
+  )
+}
+
 export default function Plugins() {
   const { settings } = useZenshinContext()
   const [zpePlugins, setZpePlugins] = useState([])
@@ -37,8 +55,21 @@ export default function Plugins() {
 
   // Load ZPE plugins on mount
   useEffect(() => {
-    loadZpePlugins()
+    loadSavedAndCurrentPlugins()
   }, [])
+
+  // Load saved plugins first, then get all plugins
+  async function loadSavedAndCurrentPlugins() {
+    try {
+      // Try to reload any saved plugins first
+      await reloadSavedZpePlugins()
+    } catch (error) {
+      console.error('Failed to reload saved ZPE plugins:', error)
+      // This is expected in web mode or when no plugins are saved
+    }
+    // Then load the current list of plugins
+    await loadZpePlugins()
+  }
 
   // Load all ZPE plugins from backend
   async function loadZpePlugins() {
@@ -61,6 +92,12 @@ export default function Plugins() {
       await setZpePluginEnabled(pluginId, newEnabled)
       toast.success(`Plugin ${newEnabled ? 'enabled' : 'disabled'}: ${plugin.name}`)
       await loadZpePlugins() // Reload plugins to get updated state
+      // Save the updated plugin states
+      try {
+        await saveZpePluginPaths()
+      } catch (saveError) {
+        console.error('Failed to save plugin state:', saveError)
+      }
     } catch (error) {
       toast.error(`Failed to ${newEnabled ? 'enable' : 'disable'} plugin: ${error}`)
     }
@@ -75,6 +112,12 @@ export default function Plugins() {
       await unloadZpePlugin(pluginId)
       toast.success(`Plugin removed: ${plugin.name}`)
       await loadZpePlugins() // Reload plugins
+      // Save the updated plugin list
+      try {
+        await saveZpePluginPaths()
+      } catch (saveError) {
+        console.error('Failed to save plugin state:', saveError)
+      }
     } catch (error) {
       toast.error(`Failed to remove plugin: ${error}`)
     }
@@ -104,6 +147,12 @@ export default function Plugins() {
       if (result.success) {
         toast.success(`Plugin installed: ${result.pluginId}`)
         await loadZpePlugins() // Reload plugins list
+        // Save the updated plugin list
+        try {
+          await saveZpePluginPaths()
+        } catch (saveError) {
+          console.error('Failed to save plugin state:', saveError)
+        }
       } else {
         const errorMsg = result.errors?.join(', ') || 'Unknown error'
         toast.error(`Failed to load plugin: ${errorMsg}`)
@@ -183,8 +232,8 @@ export default function Plugins() {
             >
               <div className="flex items-center gap-4">
                 {/* Plugin Icon */}
-                <div className="flex h-12 w-12 items-center justify-center rounded-md bg-[#2a2a2d]">
-                  <DefaultPluginIcon className="h-6 w-6 text-gray-400" />
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md bg-[#2a2a2d]">
+                  <PluginIcon icon={plugin.icon} name={plugin.name} />
                 </div>
 
                 {/* Plugin Info */}

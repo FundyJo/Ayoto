@@ -127,6 +127,10 @@ pub fn run() {
       plugin_commands::zpe_plugin_get_streams,
       plugin_commands::zpe_plugin_get_anime_details,
       plugin_commands::get_zpe_plugin_info,
+      // ZPE Plugin Persistence commands
+      plugin_commands::save_zpe_plugin_paths,
+      plugin_commands::get_saved_zpe_plugin_paths,
+      plugin_commands::reload_saved_zpe_plugins,
       // Anime4K commands
       anime4k::anime4k_get_presets,
       anime4k::anime4k_get_preset,
