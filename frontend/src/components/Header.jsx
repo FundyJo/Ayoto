@@ -315,6 +315,14 @@ export default function Header() {
               >
                 Settings
               </DropdownMenu.Item>
+              {activeProfile && (
+                <DropdownMenu.Item
+                  onClick={() => navigate('/bookmarks')}
+                  shortcut={<BookmarkIcon />}
+                >
+                  Watchlist
+                </DropdownMenu.Item>
+              )}
               {/* <DropdownMenu.Sub>
                 <DropdownMenu.SubTrigger>More</DropdownMenu.SubTrigger>
                 <DropdownMenu.SubContent>
