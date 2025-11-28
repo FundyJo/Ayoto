@@ -302,7 +302,7 @@ function Bookmarks() {
               <div className="mb-2 text-sm font-semibold opacity-70">AnimePahe</div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg2:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-9">
                 {Object.entries(bookmarks.animepahe).map(([key, value]) => (
-                  <BookmarkCardComponent key={value.url} data={value} type="animepahe" />
+                  <BookmarkCardComponent key={`animepahe-${key}`} data={value} type="animepahe" />
                 ))}
               </div>
             </div>
@@ -314,7 +314,7 @@ function Bookmarks() {
               <div className="mb-2 text-sm font-semibold opacity-70">Torrents</div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg2:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-9">
                 {Object.entries(bookmarks.torrents).map(([key, value]) => (
-                  <BookmarkCardComponent key={value.url || key} data={value} type="torrents" />
+                  <BookmarkCardComponent key={`torrent-${key}`} data={value} type="torrents" />
                 ))}
               </div>
             </div>
