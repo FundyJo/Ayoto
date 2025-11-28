@@ -2,8 +2,85 @@
 //! 
 //! This module defines all the types used in the Ayoto plugin system.
 //! Plugins return strongly-typed objects for anime search, episodes, streaming, etc.
+//! 
+//! # Plugin Types
+//! 
+//! There are two main types of plugins:
+//! 
+//! 1. **Stream Provider** - Handles streaming analysis and processing from video hosters
+//!    like Voe, Vidoza, Filestream, etc. These plugins extract actual video URLs from
+//!    hosting sites and handle stream decryption/processing.
+//! 
+//! 2. **Media Provider** - Provides anime/media listings and search functionality from
+//!    sites like aniworld.to, s.to, etc. These plugins handle content discovery and
+//!    episode listings.
 
 use serde::{Deserialize, Serialize};
+
+/// The type of plugin - determines what functionality the plugin provides
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum PluginType {
+    /// Stream Provider plugin - handles streaming analysis and video extraction
+    /// from hosters like Voe, Vidoza, Filestream, etc.
+    /// These plugins take a hoster URL and extract the actual video stream URL.
+    StreamProvider,
+    /// Media Provider plugin - provides anime/media search and listings
+    /// from sites like aniworld.to, s.to, etc.
+    /// These plugins handle content discovery, search, and episode listings.
+    #[default]
+    MediaProvider,
+}
+
+impl std::fmt::Display for PluginType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PluginType::StreamProvider => write!(f, "stream-provider"),
+            PluginType::MediaProvider => write!(f, "media-provider"),
+        }
+    }
+}
+
+/// Configuration specific to Stream Provider plugins
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamProviderConfig {
+    /// List of supported hosters (e.g., "voe", "vidoza", "filestream")
+    #[serde(default)]
+    pub supported_hosters: Vec<String>,
+    /// Whether this provider can handle encrypted streams
+    #[serde(default)]
+    pub supports_encrypted: bool,
+    /// Whether this provider supports direct download links
+    #[serde(default)]
+    pub supports_download: bool,
+    /// URL patterns that this provider can handle (regex patterns)
+    #[serde(default)]
+    pub url_patterns: Vec<String>,
+    /// Priority when multiple providers support the same hoster (higher = preferred)
+    #[serde(default)]
+    pub priority: i32,
+}
+
+/// Configuration specific to Media Provider plugins
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaProviderConfig {
+    /// Base URL of the media site (e.g., "https://aniworld.to")
+    pub base_url: Option<String>,
+    /// Languages supported by this provider
+    #[serde(default)]
+    pub languages: Vec<String>,
+    /// Content types supported (anime, movie, series)
+    #[serde(default)]
+    pub content_types: Vec<String>,
+    /// Whether the site requires authentication
+    #[serde(default)]
+    pub requires_auth: bool,
+    /// Whether the provider has NSFW content
+    #[serde(default)]
+    pub has_nsfw: bool,
+}
 
 /// Represents an anime from search results or listings
 /// Contains basic information about an anime
@@ -246,5 +323,47 @@ mod tests {
         let json = serde_json::to_string(&anime).unwrap();
         assert!(json.contains("test-123"));
         assert!(json.contains("Test Anime"));
+    }
+
+    #[test]
+    fn test_plugin_type_display() {
+        assert_eq!(PluginType::StreamProvider.to_string(), "stream-provider");
+        assert_eq!(PluginType::MediaProvider.to_string(), "media-provider");
+    }
+
+    #[test]
+    fn test_plugin_type_default() {
+        let default_type: PluginType = Default::default();
+        assert_eq!(default_type, PluginType::MediaProvider);
+    }
+
+    #[test]
+    fn test_stream_provider_config_serialization() {
+        let config = StreamProviderConfig {
+            supported_hosters: vec!["voe".to_string(), "vidoza".to_string()],
+            supports_encrypted: true,
+            supports_download: false,
+            url_patterns: vec![r"https?://voe\.sx/.*".to_string()],
+            priority: 10,
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("voe"));
+        assert!(json.contains("supportedHosters"));
+    }
+
+    #[test]
+    fn test_media_provider_config_serialization() {
+        let config = MediaProviderConfig {
+            base_url: Some("https://aniworld.to".to_string()),
+            languages: vec!["de".to_string(), "en".to_string()],
+            content_types: vec!["anime".to_string(), "series".to_string()],
+            requires_auth: false,
+            has_nsfw: false,
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("aniworld.to"));
+        assert!(json.contains("baseUrl"));
     }
 }

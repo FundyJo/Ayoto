@@ -8,8 +8,6 @@ import {
   DividerVerticalIcon,
   DownloadIcon,
   GearIcon,
-  GitHubLogoIcon,
-  OpenInNewWindowIcon,
   PersonIcon,
   MixIcon,
   AvatarIcon
@@ -187,15 +185,20 @@ export default function Header() {
           {/* <DashboardIcon /> */}
           <AniListLogo style="h-5 w-5" />
         </Button>
-        {/* <Button
-          className="nodrag"
-          size="1"
-          color="gray"
-          variant="soft"
-          onClick={() => navigate('/bookmarks')}
-        >
-          <BookmarkIcon />
-        </Button> */}
+        
+        {/* Watchlist Button - visible when logged in */}
+        {userProfile && (
+          <Button
+            className="nodrag"
+            size="1"
+            color="blue"
+            variant="soft"
+            onClick={() => navigate('/bookmarks')}
+          >
+            <BookmarkIcon />
+            <span className="font-space-mono text-[.8rem]">Watchlist</span>
+          </Button>
+        )}
       </div>
 
       <div className="nodrag mx-5 w-2/6">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
@@ -294,29 +297,11 @@ export default function Header() {
               )}
               <DropdownMenu.Separator />
               <DropdownMenu.Item
-                onClick={
-                  // https://github.com/hitarth-gg
-                  () => window.open('https://github.com/hitarth-gg', '_blank')
-                }
-                // shortcut={<GitHubLogoIcon />}
-                shortcut={<OpenInNewWindowIcon />}
-              >
-                GitHub <GitHubLogoIcon />
-              </DropdownMenu.Item>
-              <DropdownMenu.Item
                 onClick={() => window.api.openFolder(settings.downloadsFolderPath)}
                 shortcut={<DownloadIcon />}
               >
                 Downloads
               </DropdownMenu.Item>
-              {userProfile && (
-                <DropdownMenu.Item
-                  onClick={() => navigate('/bookmarks')}
-                  shortcut={<BookmarkIcon />}
-                >
-                  Watchlist
-                </DropdownMenu.Item>
-              )}
               <DropdownMenu.Item
                 color="gray"
                 onClick={() => navigate('/settings')}
@@ -324,6 +309,14 @@ export default function Header() {
               >
                 Settings
               </DropdownMenu.Item>
+              {activeProfile && (
+                <DropdownMenu.Item
+                  onClick={() => navigate('/bookmarks')}
+                  shortcut={<BookmarkIcon />}
+                >
+                  Watchlist
+                </DropdownMenu.Item>
+              )}
               {/* <DropdownMenu.Sub>
                 <DropdownMenu.SubTrigger>More</DropdownMenu.SubTrigger>
                 <DropdownMenu.SubContent>

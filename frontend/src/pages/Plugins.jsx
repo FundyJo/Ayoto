@@ -1,6 +1,6 @@
-import { Button, Switch, TextField } from '@radix-ui/themes'
+import { Button, Switch } from '@radix-ui/themes'
 import { useZenshinContext } from '../utils/ContextProvider'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
   PlusIcon,
@@ -9,9 +9,9 @@ import {
   CheckCircledIcon,
   CrossCircledIcon,
   RocketIcon,
-  VideoIcon
+  ExclamationTriangleIcon
 } from '@radix-ui/react-icons'
-import { parseAyotoPlugin, validatePlugin, createPluginTemplate, STREAM_FORMATS } from '../plugins'
+import { loadZpePlugin, getAllZpePlugins, setZpePluginEnabled, unloadZpePlugin, getZpePluginInfo } from '../plugins'
 
 // Default plugin icon component
 function DefaultPluginIcon({ className }) {
@@ -31,180 +31,110 @@ function DefaultPluginIcon({ className }) {
 }
 
 export default function Plugins() {
-  const { plugins, setPlugins, settings } = useZenshinContext()
-  const [pluginUrl, setPluginUrl] = useState('')
+  const { settings } = useZenshinContext()
+  const [zpePlugins, setZpePlugins] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const [zpeInfo, setZpeInfo] = useState(null)
   const fileInputRef = useRef(null)
 
-  // Toggle plugin enabled state
-  function togglePlugin(pluginId) {
-    const updatedPlugins = plugins.map((plugin) => {
-      if (plugin.id === pluginId) {
-        const newEnabled = !plugin.enabled
-        toast.success(`Plugin ${newEnabled ? 'enabled' : 'disabled'}: ${plugin.name}`)
-        return { ...plugin, enabled: newEnabled }
-      }
-      return plugin
-    })
-    setPlugins(updatedPlugins)
-    savePluginsToStorage(updatedPlugins)
-  }
+  // Load ZPE plugins on mount
+  useEffect(() => {
+    loadZpePlugins()
+    loadZpeInfo()
+  }, [])
 
-  // Remove a plugin
-  function removePlugin(pluginId) {
-    const plugin = plugins.find((p) => p.id === pluginId)
-    const updatedPlugins = plugins.filter((p) => p.id !== pluginId)
-    setPlugins(updatedPlugins)
-    savePluginsToStorage(updatedPlugins)
-    toast.success(`Plugin removed: ${plugin?.name}`)
-  }
-
-  // Save plugins to localStorage
-  function savePluginsToStorage(pluginsData) {
-    localStorage.setItem('zenshin_plugins', JSON.stringify(pluginsData))
-  }
-
-  // Add plugin from URL
-  async function addPluginFromUrl() {
-    if (!pluginUrl.trim()) {
-      toast.error('Please enter a plugin URL')
-      return
+  // Load all ZPE plugins from backend
+  async function loadZpePlugins() {
+    try {
+      const plugins = await getAllZpePlugins()
+      setZpePlugins(plugins || [])
+    } catch (error) {
+      console.error('Failed to load ZPE plugins:', error)
+      // ZPE system might not be available in web mode
     }
+  }
 
-    // Validate URL for security - only allow HTTPS
-    if (!isValidPluginUrl(pluginUrl)) {
-      toast.error('Invalid URL. Only HTTPS URLs are allowed for security.')
+  // Load ZPE system info
+  async function loadZpeInfo() {
+    try {
+      const info = await getZpePluginInfo()
+      setZpeInfo(info)
+    } catch (error) {
+      console.error('Failed to load ZPE info:', error)
+    }
+  }
+
+  // Toggle ZPE plugin enabled state
+  async function togglePlugin(pluginId) {
+    const plugin = zpePlugins.find((p) => p.id === pluginId)
+    if (!plugin) return
+
+    const newEnabled = !plugin.enabled
+    try {
+      await setZpePluginEnabled(pluginId, newEnabled)
+      toast.success(`Plugin ${newEnabled ? 'enabled' : 'disabled'}: ${plugin.name}`)
+      await loadZpePlugins() // Reload plugins to get updated state
+    } catch (error) {
+      toast.error(`Failed to ${newEnabled ? 'enable' : 'disable'} plugin: ${error}`)
+    }
+  }
+
+  // Remove a ZPE plugin
+  async function removePlugin(pluginId) {
+    const plugin = zpePlugins.find((p) => p.id === pluginId)
+    if (!plugin) return
+
+    try {
+      await unloadZpePlugin(pluginId)
+      toast.success(`Plugin removed: ${plugin.name}`)
+      await loadZpePlugins() // Reload plugins
+    } catch (error) {
+      toast.error(`Failed to remove plugin: ${error}`)
+    }
+  }
+
+  // Handle ZPE file upload
+  async function handleFileUpload(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Only accept .zpe files
+    if (!file.name.endsWith('.zpe')) {
+      toast.error('Invalid file format. Only .zpe files are supported.')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
       return
     }
 
     setIsLoading(true)
     try {
-      // Fetch the plugin manifest/config from URL
-      const response = await fetch(pluginUrl)
-      if (!response.ok) {
-        throw new Error('Failed to fetch plugin')
-      }
-      const pluginData = await response.json()
-
-      // Validate plugin structure
-      if (!pluginData.id || !pluginData.name) {
-        throw new Error('Invalid plugin format: missing id or name')
-      }
-
-      // Validate plugin ID format (alphanumeric, hyphens, underscores only)
-      if (!/^[a-zA-Z0-9_-]+$/.test(pluginData.id)) {
-        throw new Error('Invalid plugin ID format')
-      }
-
-      // Check if plugin already exists
-      if (plugins.some((p) => p.id === pluginData.id)) {
-        toast.error('Plugin already installed')
+      // In Tauri, file.path contains the full file system path
+      // This is a Tauri-specific property not available in web browsers
+      const filePath = file.path
+      
+      if (!filePath) {
+        toast.error('Unable to get file path. Please make sure you are running in the desktop app.')
         setIsLoading(false)
         return
       }
-
-      // Validate icon URL if provided
-      const validatedIcon = isValidIconUrl(pluginData.icon) ? pluginData.icon : null
-
-      const newPlugin = {
-        id: pluginData.id,
-        name: pluginData.name,
-        description: pluginData.description || 'No description provided',
-        version: pluginData.version || '1.0.0',
-        author: pluginData.author || 'Unknown',
-        icon: validatedIcon,
-        enabled: true,
-        source: pluginUrl,
-        providers: pluginData.providers || [],
-        config: pluginData.config || {}
+      
+      const result = await loadZpePlugin(filePath)
+      
+      if (result.success) {
+        toast.success(`Plugin installed: ${result.pluginId}`)
+        await loadZpePlugins() // Reload plugins list
+      } else {
+        const errorMsg = result.errors?.join(', ') || 'Unknown error'
+        toast.error(`Failed to load plugin: ${errorMsg}`)
+        if (result.warnings?.length > 0) {
+          result.warnings.forEach(warning => toast.warning(warning))
+        }
       }
-
-      const updatedPlugins = [...plugins, newPlugin]
-      setPlugins(updatedPlugins)
-      savePluginsToStorage(updatedPlugins)
-      setPluginUrl('')
-      toast.success(`Plugin installed: ${newPlugin.name}`)
     } catch (error) {
-      toast.error(`Failed to add plugin: ${error.message}`)
+      toast.error(`Failed to load plugin: ${error}`)
     }
     setIsLoading(false)
-  }
-
-  // Add plugin from file (.json or .ayoto)
-  function handleFileUpload(event) {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    const isAyotoFile = file.name.endsWith('.ayoto')
-    
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result
-        let newPlugin
-        
-        if (isAyotoFile) {
-          // Parse .ayoto format with extended validation
-          newPlugin = parseAyotoPlugin(content)
-          if (!newPlugin) {
-            throw new Error('Invalid .ayoto plugin format')
-          }
-        } else {
-          // Legacy JSON format
-          const pluginData = JSON.parse(content)
-
-          // Validate plugin structure
-          if (!pluginData.id || !pluginData.name) {
-            throw new Error('Invalid plugin format: missing id or name')
-          }
-
-          // Validate plugin ID format (alphanumeric, hyphens, underscores only)
-          if (!/^[a-zA-Z0-9_-]+$/.test(pluginData.id)) {
-            throw new Error('Invalid plugin ID format')
-          }
-
-          // Check if plugin already exists
-          if (plugins.some((p) => p.id === pluginData.id)) {
-            toast.error('Plugin already installed')
-            return
-          }
-
-          // Validate icon URL if provided
-          const validatedIcon = isValidIconUrl(pluginData.icon) ? pluginData.icon : null
-
-          newPlugin = {
-            id: pluginData.id,
-            name: pluginData.name,
-            description: pluginData.description || 'No description provided',
-            version: pluginData.version || '1.0.0',
-            author: pluginData.author || 'Unknown',
-            icon: validatedIcon,
-            enabled: true,
-            source: 'local',
-            providers: pluginData.providers || [],
-            formats: pluginData.formats || ['mp4'],
-            anime4kSupport: pluginData.anime4kSupport || false,
-            capabilities: pluginData.capabilities || {},
-            endpoints: pluginData.endpoints || {},
-            config: pluginData.config || {}
-          }
-        }
-
-        // Check if plugin already exists
-        if (plugins.some((p) => p.id === newPlugin.id)) {
-          toast.error('Plugin already installed')
-          return
-        }
-
-        const updatedPlugins = [...plugins, newPlugin]
-        setPlugins(updatedPlugins)
-        savePluginsToStorage(updatedPlugins)
-        toast.success(`Plugin installed: ${newPlugin.name}`)
-      } catch (error) {
-        toast.error(`Failed to load plugin: ${error.message}`)
-      }
-    }
-    reader.readAsText(file)
 
     // Reset file input
     if (fileInputRef.current) {
@@ -212,70 +142,38 @@ export default function Plugins() {
     }
   }
 
-  // Validate URL to prevent potential security issues
-  function isValidPluginUrl(url) {
-    try {
-      const parsed = new URL(url)
-      // Only allow https URLs for security
-      return parsed.protocol === 'https:'
-    } catch {
-      return false
+  // Get capability display name
+  function getCapabilityName(key) {
+    const names = {
+      search: 'Search',
+      getPopular: 'Popular',
+      getLatest: 'Latest',
+      getEpisodes: 'Episodes',
+      getStreams: 'Streams',
+      getAnimeDetails: 'Details',
+      extractStream: 'Extract',
+      getHosterInfo: 'Hoster Info'
     }
-  }
-
-  // Validate icon URL
-  function isValidIconUrl(iconUrl) {
-    if (!iconUrl) return false
-    try {
-      const parsed = new URL(iconUrl)
-      return parsed.protocol === 'https:'
-    } catch {
-      return false
-    }
+    return names[key] || key
   }
 
   return (
     <div className="w-full animate-fade select-none px-16 py-10 font-space-mono animate-duration-500">
       <div className="mb-8 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
-        Plugins
+        ZPE Plugins
       </div>
 
       {/* Add Plugin Section */}
       <div className="mb-8 flex flex-col gap-4 tracking-wide text-[#b5b5b5ff]">
         <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-3">
           <div className="flex-1">
-            <p className="font-bold">Add Plugin from URL</p>
-            <p className="text-xs">Enter a URL to a plugin manifest (JSON file)</p>
-          </div>
-          <div className="flex w-1/2 gap-2">
-            <TextField.Root
-              placeholder="https://example.com/plugin.json"
-              value={pluginUrl}
-              onChange={(e) => setPluginUrl(e.target.value)}
-              className="flex-1"
-            />
-            <Button
-              variant="soft"
-              color="green"
-              className="cursor-pointer"
-              onClick={addPluginFromUrl}
-              disabled={isLoading}
-            >
-              {isLoading ? <ReloadIcon className="animate-spin" /> : <PlusIcon />}
-              Add
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-3">
-          <div className="flex-1">
-            <p className="font-bold">Add Plugin from File</p>
-            <p className="text-xs">Load a plugin from a local .ayoto or .json file</p>
+            <p className="font-bold">Load ZPE Plugin</p>
+            <p className="text-xs">Load a plugin from a local .zpe file (Zenshine Plugin Extension)</p>
           </div>
           <div>
             <input
               type="file"
-              accept=".json,.ayoto"
+              accept=".zpe"
               onChange={handleFileUpload}
               ref={fileInputRef}
               className="hidden"
@@ -286,9 +184,10 @@ export default function Plugins() {
               color="blue"
               className="cursor-pointer"
               onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
             >
-              <PlusIcon />
-              Load File
+              {isLoading ? <ReloadIcon className="animate-spin" /> : <PlusIcon />}
+              Load .zpe File
             </Button>
           </div>
         </div>
@@ -296,18 +195,18 @@ export default function Plugins() {
 
       {/* Installed Plugins Section */}
       <div className="mb-4 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
-        Installed Plugins ({plugins.length})
+        Installed ZPE Plugins ({zpePlugins.length})
       </div>
 
-      {plugins.length === 0 ? (
+      {zpePlugins.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-gray-500">
           <DefaultPluginIcon className="mb-4 h-16 w-16 opacity-50" />
-          <p className="text-lg">No plugins installed</p>
-          <p className="text-sm">Add a plugin using the options above</p>
+          <p className="text-lg">No ZPE plugins installed</p>
+          <p className="text-sm">Load a .zpe plugin file to get started</p>
         </div>
       ) : (
         <div className="flex flex-col gap-4 tracking-wide text-[#b5b5b5ff]">
-          {plugins.map((plugin) => (
+          {zpePlugins.map((plugin) => (
             <div
               key={plugin.id}
               className={`flex w-full items-center justify-between rounded-sm bg-[#202022] px-4 py-3 transition-opacity ${
@@ -317,15 +216,7 @@ export default function Plugins() {
               <div className="flex items-center gap-4">
                 {/* Plugin Icon */}
                 <div className="flex h-12 w-12 items-center justify-center rounded-md bg-[#2a2a2d]">
-                  {plugin.icon ? (
-                    <img
-                      src={plugin.icon}
-                      alt={plugin.name}
-                      className="h-8 w-8 rounded object-contain"
-                    />
-                  ) : (
-                    <DefaultPluginIcon className="h-6 w-6 text-gray-400" />
-                  )}
+                  <DefaultPluginIcon className="h-6 w-6 text-gray-400" />
                 </div>
 
                 {/* Plugin Info */}
@@ -335,10 +226,13 @@ export default function Plugins() {
                     <span className="rounded bg-[#2a2a2d] px-2 py-0.5 text-xs text-gray-400">
                       v{plugin.version}
                     </span>
-                    {plugin.anime4kSupport && (
-                      <span className="flex items-center gap-1 rounded bg-purple-900/50 px-1.5 py-0.5 text-xs text-purple-300">
-                        <RocketIcon className="h-3 w-3" />
-                        Anime4K
+                    <span className="rounded bg-cyan-900/50 px-1.5 py-0.5 text-xs text-cyan-300">
+                      ZPE
+                    </span>
+                    {!plugin.isCompatible && (
+                      <span className="flex items-center gap-1 rounded bg-yellow-900/50 px-1.5 py-0.5 text-xs text-yellow-300">
+                        <ExclamationTriangleIcon className="h-3 w-3" />
+                        Incompatible
                       </span>
                     )}
                     {plugin.enabled ? (
@@ -347,36 +241,18 @@ export default function Plugins() {
                       <CrossCircledIcon className="h-4 w-4 text-gray-500" />
                     )}
                   </div>
-                  <p className="text-xs text-gray-400">{plugin.description}</p>
-                  <p className="text-xs text-gray-500">by {plugin.author}</p>
+                  <p className="text-xs text-gray-400">{plugin.description || 'No description'}</p>
+                  <p className="text-xs text-gray-500">by {plugin.author || 'Unknown'}</p>
                   
-                  {/* Provider and Format Tags */}
+                  {/* Plugin Type Tag */}
                   <div className="mt-1 flex flex-wrap gap-1">
-                    {plugin.providers && plugin.providers.length > 0 && 
-                      plugin.providers.map((provider, idx) => (
-                        <span
-                          key={`provider-${idx}`}
-                          className="rounded bg-[#3a3a3d] px-1.5 py-0.5 text-xs text-gray-300"
-                        >
-                          {provider}
-                        </span>
-                      ))
-                    }
-                    {plugin.formats && plugin.formats.length > 0 && 
-                      plugin.formats.map((format, idx) => (
-                        <span
-                          key={`format-${idx}`}
-                          className="flex items-center gap-1 rounded bg-blue-900/40 px-1.5 py-0.5 text-xs text-blue-300"
-                        >
-                          <VideoIcon className="h-3 w-3" />
-                          {format}
-                        </span>
-                      ))
-                    }
+                    <span className="rounded bg-[#3a3a3d] px-1.5 py-0.5 text-xs text-gray-300">
+                      {plugin.pluginType === 'streamProvider' ? 'Stream Provider' : 'Media Provider'}
+                    </span>
                   </div>
                   
                   {/* Capabilities */}
-                  {plugin.capabilities && Object.keys(plugin.capabilities).length > 0 && (
+                  {plugin.capabilities && (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {Object.entries(plugin.capabilities)
                         .filter(([, enabled]) => enabled)
@@ -385,7 +261,7 @@ export default function Plugins() {
                             key={capability}
                             className="rounded bg-green-900/30 px-1.5 py-0.5 text-xs text-green-300"
                           >
-                            {capability}
+                            {getCapabilityName(capability)}
                           </span>
                         ))
                       }
@@ -416,23 +292,33 @@ export default function Plugins() {
         </div>
       )}
 
-      {/* Plugin Format Documentation */}
+      {/* ZPE Plugin Format Documentation */}
       <div className="mt-8">
         <div className="mb-4 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
-          Plugin Format (.ayoto)
+          ZPE Plugin Format (.zpe)
         </div>
         <div className="rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
-          <pre className="overflow-x-auto whitespace-pre-wrap">
+          <p className="mb-3 text-gray-300">
+            ZPE (Zenshine Plugin Extension) is a cross-platform plugin format using WebAssembly.
+            Plugins are compiled once and run on all platforms (Windows, macOS, Linux, Android, iOS).
+          </p>
+          <p className="mb-2 font-bold text-gray-300">ZPE Archive Structure:</p>
+          <pre className="overflow-x-auto whitespace-pre-wrap mb-4 bg-[#1a1a1c] p-3 rounded">
+            {`my-plugin.zpe
+├── plugin.wasm      # Compiled WebAssembly module
+├── manifest.json    # Plugin metadata
+└── README.md        # Optional documentation`}
+          </pre>
+          <p className="mb-2 font-bold text-gray-300">manifest.json Example:</p>
+          <pre className="overflow-x-auto whitespace-pre-wrap bg-[#1a1a1c] p-3 rounded">
             {`{
-  "id": "unique-plugin-id",
-  "name": "Plugin Name",
-  "description": "Description of what the plugin does",
+  "id": "my-provider",
+  "name": "My Provider",
   "version": "1.0.0",
-  "author": "Author Name",
-  "icon": "https://example.com/icon.png",
-  "providers": ["provider1", "provider2"],
-  "formats": ["m3u8", "mp4", "mkv", "webm", "torrent"],
-  "anime4kSupport": true,
+  "targetAyotoVersion": "0.1.0",
+  "author": "Your Name",
+  "description": "A ZPE plugin for anime streaming",
+  "pluginType": "mediaProvider",
   "capabilities": {
     "search": true,
     "getPopular": true,
@@ -440,50 +326,50 @@ export default function Plugins() {
     "getEpisodes": true,
     "getStreams": true
   },
-  "endpoints": {
-    "search": "/api/search",
-    "popular": "/api/popular",
-    "latest": "/api/latest",
-    "episodes": "/api/episodes",
-    "streams": "/api/streams"
-  },
-  "config": {
-    "baseUrl": "https://api.example.com",
-    "customSettings": {}
-  }
+  "abiVersion": 1
 }`}
           </pre>
         </div>
         
-        {/* Stream Formats Documentation */}
+        {/* Supported Languages */}
         <div className="mt-4 rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
-          <p className="mb-2 font-bold text-gray-300">Supported Stream Formats:</p>
+          <p className="mb-2 font-bold text-gray-300">Supported Development Languages:</p>
           <ul className="list-disc pl-4 space-y-1">
-            <li><code className="text-blue-300">m3u8</code> - HLS streaming format (recommended for Anime4K)</li>
-            <li><code className="text-blue-300">mp4</code> - Direct MP4 video files</li>
-            <li><code className="text-blue-300">mkv</code> - Matroska video format</li>
-            <li><code className="text-blue-300">webm</code> - WebM video format</li>
-            <li><code className="text-blue-300">torrent</code> - Torrent magnet links</li>
+            <li><code className="text-cyan-300">Rust</code> - Recommended, best performance</li>
+            <li><code className="text-cyan-300">C/C++</code> - Via Emscripten or wasi-sdk</li>
+            <li><code className="text-cyan-300">AssemblyScript</code> - TypeScript-like syntax</li>
+            <li><code className="text-cyan-300">Go/TinyGo</code> - Go support via TinyGo</li>
+            <li><code className="text-cyan-300">Zig</code> - Systems programming language</li>
           </ul>
         </div>
         
-        {/* Anime4K Info */}
+        {/* ZPE Benefits */}
         <div className="mt-4 rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
-          <p className="mb-2 font-bold text-gray-300">Anime4K Support:</p>
-          <p className="mb-2">
-            Set <code className="text-purple-300">anime4kSupport: true</code> if your plugin provides 
-            streams that work well with Anime4K upscaling shaders.
-          </p>
-          <p>
-            Anime4K works best with high-quality source video (m3u8 1080p streams) on devices 
-            with capable GPUs.
-          </p>
+          <p className="mb-2 font-bold text-gray-300">ZPE Benefits:</p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li><span className="text-green-300">Cross-platform:</span> Compile once, run anywhere</li>
+            <li><span className="text-green-300">Sandboxed:</span> Secure execution environment</li>
+            <li><span className="text-green-300">No recompilation:</span> Same plugin works on all platforms</li>
+            <li><span className="text-green-300">High performance:</span> Near-native execution speed</li>
+          </ul>
         </div>
+
+        {/* ZPE System Info */}
+        {zpeInfo && (
+          <div className="mt-4 rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
+            <p className="mb-2 font-bold text-gray-300">ZPE System Info:</p>
+            <ul className="space-y-1">
+              <li>Version: <code className="text-cyan-300">{zpeInfo.version}</code></li>
+              <li>ABI Version: <code className="text-cyan-300">{zpeInfo.abiVersion}</code></li>
+              <li>Extension: <code className="text-cyan-300">.{zpeInfo.extension}</code></li>
+            </ul>
+          </div>
+        )}
       </div>
 
       <p className="mt-8 text-xs opacity-45">
-        Plugins extend Zenshin&apos;s functionality by adding support for additional providers. Only
-        install plugins from trusted sources.
+        ZPE plugins extend Zenshin&apos;s functionality by adding support for additional providers.
+        Only install plugins from trusted sources. ZPE plugins run in a sandboxed environment for security.
       </p>
     </div>
   )

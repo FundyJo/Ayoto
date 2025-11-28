@@ -41,6 +41,7 @@ export const api = {
     create: (name, avatar, color) => invoke('profile_create', { name, avatar, color }),
     update: (profileId, name, avatar, color) => invoke('profile_update', { profileId, name, avatar, color }),
     updateSettings: (profileId, settings) => invoke('profile_update_settings', { profileId, settings }),
+    updateLinkedAccounts: (profileId, linkedAccounts) => invoke('profile_update_linked_accounts', { profileId, linkedAccounts }),
     delete: (profileId) => invoke('profile_delete', { profileId }),
     getAvatars: () => invoke('profile_get_avatars'),
     getCount: () => invoke('profile_get_count'),

@@ -36,6 +36,18 @@ pub const DEFAULT_AVATARS: &[&str] = &[
     "avatar_cyan",
 ];
 
+/// External account links for a profile
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkedAccounts {
+    /// AniList username
+    pub anilist_username: Option<String>,
+    /// AniWorld/s.to username
+    pub aniworld_username: Option<String>,
+    /// MyAnimeList username
+    pub myanimelist_username: Option<String>,
+}
+
 /// User profile
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +71,9 @@ pub struct UserProfile {
     pub last_used_at: Option<i64>,
     /// Profile-specific settings (JSON)
     pub settings: ProfileSettings,
+    /// Linked external accounts
+    #[serde(default)]
+    pub linked_accounts: LinkedAccounts,
     // Note: Age restriction fields intentionally omitted as per requirements
 }
 
@@ -381,6 +396,7 @@ pub fn profile_create(
         created_at: get_current_timestamp(),
         last_used_at: None,
         settings: ProfileSettings::default(),
+        linked_accounts: LinkedAccounts::default(),
     };
     
     profiles.insert(profile_id.clone(), profile.clone());
@@ -485,6 +501,37 @@ pub fn profile_update_settings(
     save_profiles_to_store(&app, &profiles)?;
     
     log::info!("Profile settings updated: {}", profile_id);
+    
+    Ok(updated_profile)
+}
+
+/// Update profile linked accounts
+#[tauri::command]
+pub fn profile_update_linked_accounts(
+    profile_id: String,
+    linked_accounts: LinkedAccounts,
+    app: AppHandle,
+    state: State<'_, ProfileState>,
+) -> Result<UserProfile, String> {
+    ensure_profiles_loaded(&app, &state);
+    
+    let mut profiles = state
+        .profiles
+        .lock()
+        .map_err(|e| format!("Failed to lock profiles: {}", e))?;
+    
+    let profile = profiles
+        .get_mut(&profile_id)
+        .ok_or_else(|| format!("Profile '{}' not found", profile_id))?;
+    
+    profile.linked_accounts = linked_accounts;
+    
+    let updated_profile = profile.clone();
+    
+    // Persist changes
+    save_profiles_to_store(&app, &profiles)?;
+    
+    log::info!("Profile linked accounts updated: {}", profile_id);
     
     Ok(updated_profile)
 }

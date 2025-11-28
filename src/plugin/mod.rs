@@ -1,65 +1,59 @@
 //! Ayoto Plugin System
 //! 
-//! A universal plugin system for loading .ayoto plugins that work across
-//! desktop and mobile platforms. Plugins can provide anime search, 
-//! streaming sources, and episode information through a standardized API.
+//! A universal plugin system supporting both JSON manifests (.ayoto), native
+//! Rust plugins (.so/.dll/.dylib), and cross-platform WebAssembly plugins (.zpe).
 //! 
-//! # Plugin Format (.ayoto)
+//! # Plugin Types
 //! 
-//! Plugins are JSON files with the `.ayoto` extension that define:
-//! - Plugin metadata (id, name, version, author)
-//! - Target Ayoto version for compatibility checking
-//! - Capabilities (search, getEpisodes, getStreams, etc.)
-//! - Supported stream formats (m3u8, mp4, mkv, webm, torrent)
-//! - Scraping configuration for web-based providers
+//! ## ZPE Universal Plugins (Recommended)
+//! 
+//! ZPE (Zenshine Plugin Extension) plugins are compiled to WebAssembly and can
+//! run on any platform without recompilation. A `.zpe` file is a ZIP archive
+//! containing:
+//! - `plugin.wasm` - The compiled WebAssembly module
+//! - `manifest.json` - Plugin metadata and configuration
+//! 
+//! ZPE plugins can be written in any language that compiles to WebAssembly:
+//! - Rust (recommended)
+//! - C/C++
+//! - AssemblyScript
+//! - Go/TinyGo
+//! - Zig
+//! 
+//! ## Native Rust Plugins (Platform-Specific)
+//! 
+//! Native plugins are compiled Rust dynamic libraries. They require separate
+//! compilation for each target platform:
+//! - **Linux**: `.so` files
+//! - **Windows**: `.dll` files
+//! - **macOS**: `.dylib` files
+//! - **Android**: `.so` files (ARM/ARM64)
+//! 
+//! ## JSON Manifest Plugins (Legacy)
+//! 
+//! JSON plugins are configuration files that define metadata and capabilities.
+//! They are useful for simple configuration but cannot execute code.
 //! 
 //! # Version Compatibility
 //! 
 //! Plugins declare their target Ayoto version using semantic versioning.
 //! - Plugins built for v1.x.x will work with any v1.y.z (same major version)
 //! - Plugins built for v1.x.x may NOT work with v2.x.x due to API changes
-//! - Warnings are shown when plugins are built for older versions
-//! 
-//! # Example Plugin
-//! 
-//! ```json
-//! {
-//!   "id": "my-provider",
-//!   "name": "My Anime Provider",
-//!   "version": "1.0.0",
-//!   "targetAyotoVersion": "2.5.0",
-//!   "description": "A custom anime provider plugin",
-//!   "author": "Your Name",
-//!   "providers": ["MyProvider"],
-//!   "formats": ["m3u8", "mp4"],
-//!   "anime4kSupport": true,
-//!   "capabilities": {
-//!     "search": true,
-//!     "getPopular": true,
-//!     "getEpisodes": true,
-//!     "getStreams": true,
-//!     "scraping": true
-//!   },
-//!   "platforms": ["universal"],
-//!   "scrapingConfig": {
-//!     "baseUrl": "https://example.com",
-//!     "rateLimitMs": 1000,
-//!     "requiresJavascript": false
-//!   }
-//! }
-//! ```
 
 pub mod types;
 pub mod manifest;
 pub mod loader;
 pub mod commands;
+pub mod native;
+pub mod zpe;
 
 // Re-export commonly used types
 pub use types::{
     PopulatedAnime, Episode, PopulatedEpisode, 
     StreamSource, StreamFormat, Subtitle,
     SearchResult, EpisodesResult, 
-    PluginError, PluginResult
+    PluginError, PluginResult,
+    PluginType, StreamProviderConfig, MediaProviderConfig
 };
 
 pub use manifest::{
@@ -71,7 +65,38 @@ pub use loader::{
     PluginLoader, LoadedPlugin, PluginLoadResult,
     PluginCompatibility, PluginSummary,
     AYOTO_VERSION, PLUGIN_EXTENSION,
-    create_sample_plugin
+    create_sample_plugin, create_sample_media_provider, create_sample_stream_provider
+};
+
+// Re-export native plugin types
+pub use native::{
+    AyotoPlugin, PluginCapabilities as NativePluginCapabilities, DefaultPlugin,
+    FfiResult, FfiAnime, FfiAnimeList, FfiEpisode, FfiEpisodeList,
+    FfiStreamSource, FfiStreamSourceList, FfiHttpRequest, FfiHttpResponse,
+    FfiPluginConfig, FfiSubtitle, FfiPopulatedEpisode,
+    PluginMetadata, HttpContext, HosterInfo,
+    NativePluginLoader, NativePluginInfo, NativePluginLoadResult,
+    get_native_plugin_loader, get_plugin_extension, get_platform_name,
+    PluginRuntime, PLUGIN_ABI_VERSION,
+    CAP_SEARCH, CAP_GET_POPULAR, CAP_GET_LATEST, CAP_GET_EPISODES,
+    CAP_GET_STREAMS, CAP_GET_ANIME_DETAILS, CAP_SCRAPING,
+    CAP_EXTRACT_STREAM, CAP_GET_HOSTER_INFO, CAP_DECRYPT_STREAM, CAP_GET_DOWNLOAD_LINK,
+    PLATFORM_LINUX, PLATFORM_WINDOWS, PLATFORM_MACOS, PLATFORM_ANDROID, PLATFORM_IOS, PLATFORM_UNIVERSAL,
+    PLUGIN_TYPE_MEDIA_PROVIDER, PLUGIN_TYPE_STREAM_PROVIDER,
+    STREAM_FORMAT_M3U8, STREAM_FORMAT_MP4, STREAM_FORMAT_MKV, STREAM_FORMAT_WEBM, STREAM_FORMAT_TORRENT,
+    HTTP_METHOD_GET, HTTP_METHOD_POST, HTTP_METHOD_PUT, HTTP_METHOD_DELETE, HTTP_METHOD_HEAD,
+    CAPABILITY_HTTP, CAPABILITY_STORAGE, CAPABILITY_LOGGING, CAPABILITY_CRYPTO,
+};
+
+// Re-export ZPE universal plugin types
+pub use zpe::{
+    ZpeManifest, ZpePluginType, ZpeCapabilities, ZpeValidationResult,
+    ZpeLoadResult, ZpePluginInfo,
+    ZpeAnime, ZpeAnimeList, ZpeEpisode, ZpeEpisodeList,
+    ZpeStreamSource, ZpeStreamSourceList, ZpeHttpRequest, ZpeHttpResponse, ZpeResult,
+    ZpePluginLoader, get_zpe_plugin_loader,
+    ZpeRuntime, ZpeRuntimeConfig, ZpePluginInstance,
+    ZPE_EXTENSION, ZPE_ABI_VERSION,
 };
 
 use std::sync::OnceLock;
@@ -153,6 +178,9 @@ mod tests {
         // Verify version constant
         assert!(!AYOTO_VERSION.is_empty());
         assert_eq!(PLUGIN_EXTENSION, "ayoto");
+        
+        // Verify ZPE extension
+        assert_eq!(ZPE_EXTENSION, "zpe");
     }
 
     #[test]

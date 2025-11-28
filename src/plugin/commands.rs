@@ -1,9 +1,15 @@
 //! Tauri Commands for the Ayoto Plugin System
 //! 
 //! Exposes plugin management functionality to the frontend.
+//! 
+//! # Plugin Types
+//! 
+//! Commands support two types of plugins:
+//! - **StreamProvider**: For video extraction from hosters (Voe, Vidoza, etc.)
+//! - **MediaProvider**: For content listings from sites (aniworld.to, s.to, etc.)
 
 use super::{
-    get_plugin_loader, create_sample_plugin,
+    get_plugin_loader, create_sample_plugin, create_sample_stream_provider,
     LoadedPlugin, PluginLoadResult, PluginSummary, PluginManifest,
     PopulatedAnime, Episode, SearchResult, EpisodesResult,
     AYOTO_VERSION
@@ -98,6 +104,34 @@ pub fn get_anime4k_plugins() -> Vec<LoadedPlugin> {
     loader.get_anime4k_plugins()
 }
 
+/// Get all Stream Provider plugins
+#[tauri::command]
+pub fn get_stream_providers() -> Vec<LoadedPlugin> {
+    let loader = get_plugin_loader();
+    loader.get_stream_providers()
+}
+
+/// Get all Media Provider plugins
+#[tauri::command]
+pub fn get_media_providers() -> Vec<LoadedPlugin> {
+    let loader = get_plugin_loader();
+    loader.get_media_providers()
+}
+
+/// Get stream provider plugins that support a specific hoster
+#[tauri::command]
+pub fn get_stream_providers_for_hoster(hoster: String) -> Vec<LoadedPlugin> {
+    let loader = get_plugin_loader();
+    loader.get_stream_providers_for_hoster(&hoster)
+}
+
+/// Get media provider plugins that support a specific language
+#[tauri::command]
+pub fn get_media_providers_for_language(language: String) -> Vec<LoadedPlugin> {
+    let loader = get_plugin_loader();
+    loader.get_media_providers_for_language(&language)
+}
+
 /// Validate a plugin manifest without loading it
 #[tauri::command]
 pub fn validate_plugin_manifest(json: String) -> Result<super::ValidationResult, String> {
@@ -105,10 +139,17 @@ pub fn validate_plugin_manifest(json: String) -> Result<super::ValidationResult,
     Ok(manifest.validate())
 }
 
-/// Create a sample plugin manifest for reference
+/// Create a sample plugin manifest for reference (Media Provider)
 #[tauri::command]
 pub fn get_sample_plugin_manifest() -> Result<String, String> {
     let sample = create_sample_plugin();
+    sample.to_json()
+}
+
+/// Create a sample Stream Provider plugin manifest for reference
+#[tauri::command]
+pub fn get_sample_stream_provider_manifest() -> Result<String, String> {
+    let sample = create_sample_stream_provider();
     sample.to_json()
 }
 
@@ -384,4 +425,377 @@ pub async fn search_all_plugins(query: String) -> Vec<(String, SearchResult)> {
     }
     
     results
+}
+
+// ============================================================================
+// Native Plugin Commands
+// ============================================================================
+
+use super::native::{
+    get_native_plugin_loader, NativePluginInfo, NativePluginLoadResult,
+    get_plugin_extension, get_platform_name,
+};
+
+/// Get the platform-specific plugin extension
+#[tauri::command]
+pub fn get_native_plugin_extension() -> String {
+    get_plugin_extension().to_string()
+}
+
+/// Get the current platform name
+#[tauri::command]
+pub fn get_current_platform() -> String {
+    get_platform_name().to_string()
+}
+
+/// Load a native plugin from a file path
+#[tauri::command]
+pub fn load_native_plugin(path: String) -> NativePluginLoadResult {
+    let loader = get_native_plugin_loader();
+    loader.load_plugin(&path)
+}
+
+/// Get all loaded native plugins
+#[tauri::command]
+pub fn get_all_native_plugins() -> Vec<NativePluginInfo> {
+    let loader = get_native_plugin_loader();
+    loader.get_all_plugins()
+}
+
+/// Get a native plugin by ID
+#[tauri::command]
+pub fn get_native_plugin(plugin_id: String) -> Option<NativePluginInfo> {
+    let loader = get_native_plugin_loader();
+    loader.get_plugin(&plugin_id)
+}
+
+/// Unload a native plugin
+#[tauri::command]
+pub fn unload_native_plugin(plugin_id: String) -> Result<(), String> {
+    let loader = get_native_plugin_loader();
+    loader.unload_plugin(&plugin_id)
+}
+
+/// Search using a native plugin
+#[tauri::command]
+pub async fn native_plugin_search(
+    plugin_id: String,
+    query: String,
+    page: Option<u32>,
+) -> Result<SearchResult, String> {
+    let loader = get_native_plugin_loader();
+    
+    let result = loader.plugin_search(&plugin_id, &query, page.unwrap_or(1))?;
+    
+    // Convert FFI types to standard types
+    let results: Vec<PopulatedAnime> = result.items
+        .into_iter()
+        .map(|anime| anime.into())
+        .collect();
+    
+    Ok(SearchResult {
+        results,
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_results: result.total_results,
+    })
+}
+
+/// Get episodes using a native plugin
+#[tauri::command]
+pub async fn native_plugin_get_episodes(
+    plugin_id: String,
+    anime_id: String,
+    page: Option<u32>,
+) -> Result<EpisodesResult, String> {
+    let loader = get_native_plugin_loader();
+    
+    let result = loader.plugin_get_episodes(&plugin_id, &anime_id, page.unwrap_or(1))?;
+    
+    // Convert FFI types to standard types
+    let episodes: Vec<Episode> = result.items
+        .into_iter()
+        .map(|ep| ep.into())
+        .collect();
+    
+    Ok(EpisodesResult {
+        episodes,
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_episodes: Some(result.total_episodes),
+    })
+}
+
+/// Get streams using a native plugin
+#[tauri::command]
+pub async fn native_plugin_get_streams(
+    plugin_id: String,
+    anime_id: String,
+    episode_id: String,
+) -> Result<super::PopulatedEpisode, String> {
+    let loader = get_native_plugin_loader();
+    
+    let result = loader.plugin_get_streams(&plugin_id, &anime_id, &episode_id)?;
+    
+    // Convert FFI types to standard types
+    let sources: Vec<super::StreamSource> = result.items
+        .into_iter()
+        .map(|s| s.into())
+        .collect();
+    
+    Ok(super::PopulatedEpisode {
+        episode: Episode {
+            id: episode_id,
+            number: 1,
+            title: None,
+            thumbnail: None,
+            description: None,
+            duration: None,
+            air_date: None,
+            is_filler: None,
+        },
+        sources,
+        subtitles: vec![],
+        intro: None,
+        outro: None,
+    })
+}
+
+/// Get information about native plugin system
+#[tauri::command]
+pub fn get_native_plugin_info() -> serde_json::Value {
+    serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "abiVersion": super::native::PLUGIN_ABI_VERSION,
+        "platform": get_platform_name(),
+        "pluginExtension": get_plugin_extension(),
+        "supportedPlatforms": [
+            { "name": "linux", "extension": "so" },
+            { "name": "windows", "extension": "dll" },
+            { "name": "macos", "extension": "dylib" },
+            { "name": "android", "extension": "so" },
+            { "name": "ios", "extension": "dylib" }
+        ]
+    })
+}
+
+// ============================================================================
+// ZPE Universal Plugin Commands
+// ============================================================================
+
+use super::zpe::{
+    get_zpe_plugin_loader, ZpePluginInfo, ZpeLoadResult,
+    ZPE_EXTENSION, ZPE_ABI_VERSION,
+};
+
+/// Get the ZPE file extension
+#[tauri::command]
+pub fn get_zpe_extension() -> String {
+    ZPE_EXTENSION.to_string()
+}
+
+/// Get ZPE ABI version
+#[tauri::command]
+pub fn get_zpe_abi_version() -> u32 {
+    ZPE_ABI_VERSION
+}
+
+/// Load a ZPE plugin from file
+#[tauri::command]
+pub fn load_zpe_plugin(path: String) -> ZpeLoadResult {
+    let loader = get_zpe_plugin_loader();
+    loader.load_plugin(&path)
+}
+
+/// Get all loaded ZPE plugins
+#[tauri::command]
+pub fn get_all_zpe_plugins() -> Vec<ZpePluginInfo> {
+    let loader = get_zpe_plugin_loader();
+    loader.get_all_plugins()
+}
+
+/// Get a ZPE plugin by ID
+#[tauri::command]
+pub fn get_zpe_plugin(plugin_id: String) -> Option<ZpePluginInfo> {
+    let loader = get_zpe_plugin_loader();
+    loader.get_plugin(&plugin_id)
+}
+
+/// Unload a ZPE plugin
+#[tauri::command]
+pub fn unload_zpe_plugin(plugin_id: String) -> Result<(), String> {
+    let loader = get_zpe_plugin_loader();
+    loader.unload_plugin(&plugin_id)
+}
+
+/// Set ZPE plugin enabled state
+#[tauri::command]
+pub fn set_zpe_plugin_enabled(plugin_id: String, enabled: bool) -> Result<(), String> {
+    let loader = get_zpe_plugin_loader();
+    loader.set_plugin_enabled(&plugin_id, enabled)
+}
+
+/// Search using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_search(
+    plugin_id: String,
+    query: String,
+    page: Option<u32>,
+) -> Result<SearchResult, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_search(&plugin_id, &query, page.unwrap_or(1))?;
+    
+    // Convert ZPE types to standard types
+    let results: Vec<PopulatedAnime> = result.items
+        .into_iter()
+        .map(|anime| anime.into())
+        .collect();
+    
+    Ok(SearchResult {
+        results,
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_results: result.total_results,
+    })
+}
+
+/// Get popular anime using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_get_popular(
+    plugin_id: String,
+    page: Option<u32>,
+) -> Result<SearchResult, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_get_popular(&plugin_id, page.unwrap_or(1))?;
+    
+    let results: Vec<PopulatedAnime> = result.items
+        .into_iter()
+        .map(|anime| anime.into())
+        .collect();
+    
+    Ok(SearchResult {
+        results,
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_results: result.total_results,
+    })
+}
+
+/// Get latest anime using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_get_latest(
+    plugin_id: String,
+    page: Option<u32>,
+) -> Result<SearchResult, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_get_latest(&plugin_id, page.unwrap_or(1))?;
+    
+    let results: Vec<PopulatedAnime> = result.items
+        .into_iter()
+        .map(|anime| anime.into())
+        .collect();
+    
+    Ok(SearchResult {
+        results,
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_results: result.total_results,
+    })
+}
+
+/// Get episodes using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_get_episodes(
+    plugin_id: String,
+    anime_id: String,
+    page: Option<u32>,
+) -> Result<EpisodesResult, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_get_episodes(&plugin_id, &anime_id, page.unwrap_or(1))?;
+    
+    let episodes: Vec<Episode> = result.items
+        .into_iter()
+        .map(|ep| ep.into())
+        .collect();
+    
+    Ok(EpisodesResult {
+        episodes,
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_episodes: Some(result.total_episodes),
+    })
+}
+
+/// Get streams using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_get_streams(
+    plugin_id: String,
+    anime_id: String,
+    episode_id: String,
+) -> Result<super::PopulatedEpisode, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_get_streams(&plugin_id, &anime_id, &episode_id)?;
+    
+    let sources: Vec<super::StreamSource> = result.items
+        .into_iter()
+        .map(|s| s.into())
+        .collect();
+    
+    Ok(super::PopulatedEpisode {
+        episode: Episode {
+            id: episode_id,
+            number: 1,
+            title: None,
+            thumbnail: None,
+            description: None,
+            duration: None,
+            air_date: None,
+            is_filler: None,
+        },
+        sources,
+        subtitles: vec![],
+        intro: None,
+        outro: None,
+    })
+}
+
+/// Get anime details using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_get_anime_details(
+    plugin_id: String,
+    anime_id: String,
+) -> Result<PopulatedAnime, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_get_anime_details(&plugin_id, &anime_id)?;
+    Ok(result.into())
+}
+
+/// Get information about the ZPE plugin system
+#[tauri::command]
+pub fn get_zpe_plugin_info() -> serde_json::Value {
+    serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "abiVersion": ZPE_ABI_VERSION,
+        "extension": ZPE_EXTENSION,
+        "description": "Zenshine Plugin Extension - Universal WebAssembly plugins",
+        "supportedLanguages": [
+            "Rust",
+            "C/C++",
+            "AssemblyScript",
+            "Go/TinyGo",
+            "Zig"
+        ],
+        "benefits": [
+            "Cross-platform: compile once, run anywhere",
+            "No platform-specific compilation needed",
+            "Sandboxed execution for security",
+            "Same plugin works on Windows, macOS, Linux, Android, iOS"
+        ]
+    })
 }
