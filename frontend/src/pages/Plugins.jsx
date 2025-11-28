@@ -109,8 +109,15 @@ export default function Plugins() {
 
     setIsLoading(true)
     try {
-      // Get the file path - in Tauri, we need to use the path property
-      const filePath = file.path || file.name
+      // In Tauri, file.path contains the full file system path
+      // This is a Tauri-specific property not available in web browsers
+      const filePath = file.path
+      
+      if (!filePath) {
+        toast.error('Unable to get file path. Please make sure you are running in the desktop app.')
+        setIsLoading(false)
+        return
+      }
       
       const result = await loadZpePlugin(filePath)
       
