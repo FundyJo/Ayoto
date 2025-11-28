@@ -84,5 +84,9 @@ export {
   zpePluginGetEpisodes,
   zpePluginGetStreams,
   zpePluginGetAnimeDetails,
-  getZpePluginInfo
+  getZpePluginInfo,
+  // ZPE Plugin Persistence Functions
+  saveZpePluginPaths,
+  getSavedZpePluginPaths,
+  reloadSavedZpePlugins
 } from './TauriPluginBridge'
