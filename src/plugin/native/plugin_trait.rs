@@ -325,10 +325,36 @@ impl AyotoPlugin for DefaultPlugin {
 }
 
 // ============================================================================
-// Macros for Plugin Development
+// Plugin Entry Point Functions
 // ============================================================================
 
-/// Macro to export plugin entry points
+// NOTE: The macro below is for internal use within the Ayoto crate only.
+// External plugins should manually implement the entry points as shown
+// in the documentation (docs/NATIVE_PLUGIN_DEVELOPMENT.md).
+//
+// Example for external plugins:
+// ```rust
+// #[no_mangle]
+// pub extern "C" fn create_plugin() -> *mut dyn AyotoPlugin {
+//     Box::into_raw(Box::new(MyPlugin::new())) as *mut dyn AyotoPlugin
+// }
+//
+// #[no_mangle]
+// pub extern "C" fn destroy_plugin(plugin: *mut dyn AyotoPlugin) {
+//     if !plugin.is_null() {
+//         unsafe { let _ = Box::from_raw(plugin); }
+//     }
+// }
+//
+// #[no_mangle]
+// pub extern "C" fn get_plugin_abi_version() -> u32 { 1 }
+// ```
+
+/// Macro to export plugin entry points (internal use only)
+/// 
+/// **Note**: This macro is designed for use within the Ayoto crate.
+/// External plugins should manually implement the entry points.
+/// See `docs/NATIVE_PLUGIN_DEVELOPMENT.md` for examples.
 /// 
 /// Usage:
 /// ```ignore

@@ -95,10 +95,21 @@ impl PluginRuntime {
 /// Execute an HTTP request (sync version for FFI)
 /// 
 /// This is a blocking function that executes HTTP requests.
-/// For async contexts, use the async version.
+/// 
+/// # Current Limitations
+/// 
+/// This implementation uses standard library TCP sockets and does NOT support HTTPS.
+/// For production use with HTTPS websites, plugins should integrate with Tauri's
+/// HTTP plugin which provides full TLS support. This basic implementation is
+/// provided as a fallback for simple HTTP requests during development.
+/// 
+/// # Future Improvements
+/// 
+/// Consider using `reqwest` with a blocking runtime for full HTTP/HTTPS support.
 fn execute_http_request(req: &FfiHttpRequest) -> FfiHttpResponse {
-    // Note: This is a synchronous implementation using std library
-    // In production, you might want to use reqwest with tokio runtime
+    // WARNING: This implementation does NOT support HTTPS.
+    // For HTTPS requests, use Tauri's HTTP plugin instead.
+    // This is a basic implementation for development and testing purposes.
     
     use std::io::{Read, Write};
     use std::net::TcpStream;
@@ -108,6 +119,15 @@ fn execute_http_request(req: &FfiHttpRequest) -> FfiHttpResponse {
         return FfiHttpResponse {
             status_code: 0,
             body: "Empty URL".to_string(),
+            ..Default::default()
+        };
+    }
+
+    // Check for HTTPS - warn that it's not supported
+    if req.url.starts_with("https://") {
+        return FfiHttpResponse {
+            status_code: 0,
+            body: "HTTPS is not supported by the basic HTTP client. Use Tauri HTTP plugin for HTTPS requests.".to_string(),
             ..Default::default()
         };
     }

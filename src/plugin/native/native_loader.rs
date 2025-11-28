@@ -81,9 +81,19 @@ pub fn get_platform_name() -> &'static str {
 /// Container for a loaded native plugin
 /// 
 /// Manages the lifetime of the plugin and its associated library handle.
+/// 
+/// # Safety
+/// 
+/// The Drop implementation ensures proper cleanup order:
+/// 1. Call shutdown() on the plugin
+/// 2. Drop the plugin Box (calls any destructors in the plugin)
+/// 3. Close the library handle
+/// 
+/// This ordering is critical to prevent use-after-free when accessing
+/// plugin code after the library is unloaded.
 pub struct NativePluginContainer {
-    /// The plugin instance
-    plugin: Box<dyn AyotoPlugin>,
+    /// The plugin instance (must be dropped before handle is closed)
+    plugin: Option<Box<dyn AyotoPlugin>>,
     /// Library handle (platform-specific)
     #[cfg(unix)]
     handle: Option<*mut std::ffi::c_void>,
@@ -104,12 +114,12 @@ unsafe impl Sync for NativePluginContainer {}
 impl NativePluginContainer {
     /// Get a reference to the plugin
     pub fn plugin(&self) -> &dyn AyotoPlugin {
-        self.plugin.as_ref()
+        self.plugin.as_ref().expect("Plugin already dropped").as_ref()
     }
 
     /// Get a mutable reference to the plugin
     pub fn plugin_mut(&mut self) -> &mut dyn AyotoPlugin {
-        self.plugin.as_mut()
+        self.plugin.as_mut().expect("Plugin already dropped").as_mut()
     }
 
     /// Get the library path
@@ -130,8 +140,14 @@ impl NativePluginContainer {
 
 impl Drop for NativePluginContainer {
     fn drop(&mut self) {
-        // Shutdown the plugin first
-        self.plugin.shutdown();
+        // Step 1: Shutdown the plugin
+        if let Some(ref mut plugin) = self.plugin {
+            plugin.shutdown();
+        }
+        
+        // Step 2: Drop the plugin Box BEFORE closing the library
+        // This ensures all plugin destructors run while the library is still loaded
+        self.plugin = None;
 
         // Close the library handle
         #[cfg(unix)]
@@ -369,7 +385,7 @@ impl NativePluginLoader {
 
         // Create container
         let container = NativePluginContainer {
-            plugin,
+            plugin: Some(plugin),
             handle: Some(handle),
             library_path: path.to_path_buf(),
             initialized: false,

@@ -488,13 +488,16 @@ pub async fn native_plugin_search(
     let result = loader.plugin_search(&plugin_id, &query, page.unwrap_or(1))?;
     
     // Convert FFI types to standard types
-    // Note: In a full implementation, we would properly convert the FFI list
-    // For now, we return a placeholder showing the API structure
+    let results: Vec<PopulatedAnime> = result.items
+        .into_iter()
+        .map(|anime| anime.into())
+        .collect();
+    
     Ok(SearchResult {
-        results: vec![],
+        results,
         has_next_page: result.has_next_page,
         current_page: result.current_page,
-        total_results: None,
+        total_results: result.total_results,
     })
 }
 
@@ -509,8 +512,14 @@ pub async fn native_plugin_get_episodes(
     
     let result = loader.plugin_get_episodes(&plugin_id, &anime_id, page.unwrap_or(1))?;
     
+    // Convert FFI types to standard types
+    let episodes: Vec<Episode> = result.items
+        .into_iter()
+        .map(|ep| ep.into())
+        .collect();
+    
     Ok(EpisodesResult {
-        episodes: vec![],
+        episodes,
         has_next_page: result.has_next_page,
         current_page: result.current_page,
         total_episodes: Some(result.total_episodes),
@@ -526,9 +535,14 @@ pub async fn native_plugin_get_streams(
 ) -> Result<super::PopulatedEpisode, String> {
     let loader = get_native_plugin_loader();
     
-    let _result = loader.plugin_get_streams(&plugin_id, &anime_id, &episode_id)?;
+    let result = loader.plugin_get_streams(&plugin_id, &anime_id, &episode_id)?;
     
     // Convert FFI types to standard types
+    let sources: Vec<super::StreamSource> = result.items
+        .into_iter()
+        .map(|s| s.into())
+        .collect();
+    
     Ok(super::PopulatedEpisode {
         episode: Episode {
             id: episode_id,
@@ -540,7 +554,7 @@ pub async fn native_plugin_get_streams(
             air_date: None,
             is_filler: None,
         },
-        sources: vec![],
+        sources,
         subtitles: vec![],
         intro: None,
         outro: None,
