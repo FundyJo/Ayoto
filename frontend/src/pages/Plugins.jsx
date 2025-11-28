@@ -1,6 +1,6 @@
 import { Button, Switch } from '@radix-ui/themes'
 import { useZenshinContext } from '../utils/ContextProvider'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
   PlusIcon,
@@ -12,6 +12,7 @@ import {
   ExclamationTriangleIcon
 } from '@radix-ui/react-icons'
 import { loadZpePlugin, getAllZpePlugins, setZpePluginEnabled, unloadZpePlugin, getZpePluginInfo } from '../plugins'
+import { open as openDialog } from '@tauri-apps/plugin-dialog'
 
 // Default plugin icon component
 function DefaultPluginIcon({ className }) {
@@ -35,7 +36,6 @@ export default function Plugins() {
   const [zpePlugins, setZpePlugins] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [zpeInfo, setZpeInfo] = useState(null)
-  const fileInputRef = useRef(null)
 
   // Load ZPE plugins on mount
   useEffect(() => {
@@ -93,29 +93,22 @@ export default function Plugins() {
     }
   }
 
-  // Handle ZPE file upload
-  async function handleFileUpload(event) {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    // Only accept .zpe files
-    if (!file.name.endsWith('.zpe')) {
-      toast.error('Invalid file format. Only .zpe files are supported.')
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-      return
-    }
-
+  // Handle ZPE file selection using Tauri dialog
+  async function handleLoadPlugin() {
     setIsLoading(true)
     try {
-      // In Tauri, file.path contains the full file system path
-      // This is a Tauri-specific property not available in web browsers
-      const filePath = file.path
+      // Use Tauri's dialog API to get the file path
+      const filePath = await openDialog({
+        title: 'Select ZPE Plugin',
+        filters: [{
+          name: 'ZPE Plugin',
+          extensions: ['zpe']
+        }],
+        multiple: false
+      })
       
       if (!filePath) {
-        toast.error('Unable to get file path. Please make sure you are running in the desktop app.')
-        setIsLoading(false)
+        // User cancelled the dialog
         return
       }
       
@@ -132,13 +125,9 @@ export default function Plugins() {
         }
       }
     } catch (error) {
-      toast.error(`Failed to load plugin: ${error}`)
-    }
-    setIsLoading(false)
-
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+      toast.error(`Failed to load plugin: ${error.message || error}`)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -171,19 +160,11 @@ export default function Plugins() {
             <p className="text-xs">Load a plugin from a local .zpe file (Zenshine Plugin Extension)</p>
           </div>
           <div>
-            <input
-              type="file"
-              accept=".zpe"
-              onChange={handleFileUpload}
-              ref={fileInputRef}
-              className="hidden"
-              id="plugin-file-input"
-            />
             <Button
               variant="soft"
               color="blue"
               className="cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleLoadPlugin}
               disabled={isLoading}
             >
               {isLoading ? <ReloadIcon className="animate-spin" /> : <PlusIcon />}
