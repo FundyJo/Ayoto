@@ -59,7 +59,8 @@ pub use types::{
     PopulatedAnime, Episode, PopulatedEpisode, 
     StreamSource, StreamFormat, Subtitle,
     SearchResult, EpisodesResult, 
-    PluginError, PluginResult
+    PluginError, PluginResult,
+    PluginType, StreamProviderConfig, MediaProviderConfig
 };
 
 pub use manifest::{
@@ -71,7 +72,7 @@ pub use loader::{
     PluginLoader, LoadedPlugin, PluginLoadResult,
     PluginCompatibility, PluginSummary,
     AYOTO_VERSION, PLUGIN_EXTENSION,
-    create_sample_plugin
+    create_sample_plugin, create_sample_media_provider, create_sample_stream_provider
 };
 
 use std::sync::OnceLock;

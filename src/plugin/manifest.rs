@@ -2,8 +2,15 @@
 //! 
 //! Defines the plugin manifest structure and version compatibility checking.
 //! Plugins must declare their version and the target Ayoto version they support.
+//! 
+//! # Plugin Types
+//! 
+//! Plugins can be one of two types:
+//! - **StreamProvider**: Handles video extraction from hosters (Voe, Vidoza, etc.)
+//! - **MediaProvider**: Provides anime/media listings from sites (aniworld.to, s.to, etc.)
 
 use serde::{Deserialize, Serialize};
+use super::types::{PluginType, StreamProviderConfig, MediaProviderConfig};
 
 /// Semantic version following semver (major.minor.patch)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -82,6 +89,7 @@ impl Default for SemVer {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginCapabilities {
+    // ============== Media Provider Capabilities ==============
     /// Supports search(query) -> List<PopulatedAnime>
     #[serde(default)]
     pub search: bool,
@@ -103,6 +111,20 @@ pub struct PluginCapabilities {
     /// Supports web scraping for data extraction
     #[serde(default)]
     pub scraping: bool,
+    
+    // ============== Stream Provider Capabilities ==============
+    /// Supports extractStream(url) -> StreamSource - extracts direct video URL from hoster
+    #[serde(default)]
+    pub extract_stream: bool,
+    /// Supports getHosterInfo(url) -> HosterInfo - gets info about a hoster URL
+    #[serde(default)]
+    pub get_hoster_info: bool,
+    /// Supports decryptStream(encryptedData) -> StreamSource - decrypts encrypted streams
+    #[serde(default)]
+    pub decrypt_stream: bool,
+    /// Supports getDownloadLink(url) -> String - gets direct download link
+    #[serde(default)]
+    pub get_download_link: bool,
 }
 
 /// Plugin target platform
@@ -138,12 +160,15 @@ impl Default for TargetPlatform {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginManifest {
-    /// Unique plugin identifier (e.g., "animepahe", "gogoanime")
+    /// Unique plugin identifier (e.g., "animepahe", "gogoanime", "voe-extractor")
     pub id: String,
     /// Display name of the plugin
     pub name: String,
     /// Plugin version (semver format: major.minor.patch)
     pub version: String,
+    /// Type of plugin (stream-provider or media-provider)
+    #[serde(default)]
+    pub plugin_type: PluginType,
     /// Minimum Ayoto version this plugin is compatible with
     pub target_ayoto_version: String,
     /// Maximum Ayoto version this plugin supports (optional)
@@ -173,6 +198,10 @@ pub struct PluginManifest {
     pub platforms: Vec<TargetPlatform>,
     /// Scraping configuration (if capabilities.scraping is true)
     pub scraping_config: Option<ScrapingConfig>,
+    /// Stream provider specific configuration (if plugin_type is StreamProvider)
+    pub stream_provider_config: Option<StreamProviderConfig>,
+    /// Media provider specific configuration (if plugin_type is MediaProvider)
+    pub media_provider_config: Option<MediaProviderConfig>,
     /// Plugin-specific configuration
     #[serde(default)]
     pub config: serde_json::Value,
@@ -319,6 +348,43 @@ impl PluginManifest {
             }
         }
 
+        // Check type-specific configuration
+        match self.plugin_type {
+            PluginType::StreamProvider => {
+                // Stream providers should have stream extraction capabilities
+                let has_stream_cap = self.capabilities.extract_stream
+                    || self.capabilities.get_hoster_info
+                    || self.capabilities.decrypt_stream
+                    || self.capabilities.get_download_link;
+                
+                if !has_stream_cap {
+                    warnings.push("Stream provider plugin has no stream extraction capabilities enabled".to_string());
+                }
+                
+                // Check stream provider config
+                if self.stream_provider_config.is_none() {
+                    warnings.push("Stream provider plugin should have stream_provider_config".to_string());
+                } else if let Some(ref config) = self.stream_provider_config {
+                    if config.supported_hosters.is_empty() {
+                        warnings.push("Stream provider should list supported hosters".to_string());
+                    }
+                }
+            }
+            PluginType::MediaProvider => {
+                // Media providers should have content discovery capabilities
+                let has_media_cap = self.capabilities.search
+                    || self.capabilities.get_popular
+                    || self.capabilities.get_latest
+                    || self.capabilities.get_episodes
+                    || self.capabilities.get_streams
+                    || self.capabilities.get_anime_details;
+                
+                if !has_media_cap {
+                    warnings.push("Media provider plugin has no content capabilities enabled".to_string());
+                }
+            }
+        }
+
         ValidationResult {
             is_valid: errors.is_empty(),
             errors,
@@ -360,6 +426,7 @@ mod tests {
             id: "test-plugin".to_string(),
             name: "Test Plugin".to_string(),
             version: "1.0.0".to_string(),
+            plugin_type: PluginType::MediaProvider,
             target_ayoto_version: "2.5.0".to_string(),
             max_ayoto_version: None,
             description: Some("A test plugin".to_string()),
@@ -377,6 +444,46 @@ mod tests {
             },
             platforms: vec![TargetPlatform::Universal],
             scraping_config: None,
+            stream_provider_config: None,
+            media_provider_config: None,
+            config: serde_json::Value::Null,
+        };
+
+        let result = manifest.validate();
+        assert!(result.is_valid);
+    }
+
+    #[test]
+    fn test_stream_provider_manifest_validation() {
+        let manifest = PluginManifest {
+            id: "voe-extractor".to_string(),
+            name: "Voe Stream Extractor".to_string(),
+            version: "1.0.0".to_string(),
+            plugin_type: PluginType::StreamProvider,
+            target_ayoto_version: "2.5.0".to_string(),
+            max_ayoto_version: None,
+            description: Some("Extracts streams from Voe hoster".to_string()),
+            author: Some("Test Author".to_string()),
+            homepage: None,
+            icon: None,
+            providers: vec!["Voe".to_string()],
+            formats: vec!["m3u8".to_string(), "mp4".to_string()],
+            anime4k_support: false,
+            capabilities: PluginCapabilities {
+                extract_stream: true,
+                get_hoster_info: true,
+                ..Default::default()
+            },
+            platforms: vec![TargetPlatform::Universal],
+            scraping_config: None,
+            stream_provider_config: Some(StreamProviderConfig {
+                supported_hosters: vec!["voe".to_string()],
+                supports_encrypted: true,
+                supports_download: true,
+                url_patterns: vec![r"https?://voe\.sx/.*".to_string()],
+                priority: 10,
+            }),
+            media_provider_config: None,
             config: serde_json::Value::Null,
         };
 
