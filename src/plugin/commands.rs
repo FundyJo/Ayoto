@@ -804,7 +804,7 @@ pub fn get_zpe_plugin_info() -> serde_json::Value {
 // ZPE Plugin Persistence Commands
 // ============================================================================
 
-use tauri::{AppHandle};
+use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
 /// Store file name for ZPE plugins
