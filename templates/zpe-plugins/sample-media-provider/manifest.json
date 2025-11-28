@@ -1,0 +1,21 @@
+{
+  "id": "sample-media-provider",
+  "name": "Sample Media Provider",
+  "version": "1.0.0",
+  "targetAyotoVersion": "2.5.4",
+  "author": "Ayoto Team",
+  "description": "A sample ZPE media provider plugin that demonstrates the plugin API",
+  "homepage": "https://github.com/FundyJo/Ayoto",
+  "pluginType": "mediaProvider",
+  "capabilities": {
+    "search": true,
+    "getPopular": true,
+    "getLatest": true,
+    "getEpisodes": true,
+    "getStreams": true,
+    "getAnimeDetails": true,
+    "extractStream": false,
+    "getHosterInfo": false
+  },
+  "abiVersion": 1
+}

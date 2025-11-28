@@ -2,9 +2,40 @@
 
 ## Overview
 
-The Ayoto Plugin System allows developers to create universal plugins for anime streaming providers. Plugins are written as `.ayoto` files (JSON format) and can work across desktop (Windows, macOS, Linux) and mobile (iOS, Android) platforms.
+The Ayoto Plugin System allows developers to create universal plugins for anime streaming providers. Ayoto supports three plugin formats:
 
-## Plugin Format
+1. **ZPE (Zenshine Plugin Extension)** - Universal WebAssembly plugins (`.zpe`) - **Recommended**
+2. **Native Plugins** - Platform-specific compiled plugins (`.dll/.so/.dylib`)
+3. **JSON Plugins** - Configuration-only plugins (`.ayoto`) - Legacy
+
+## Plugin Formats Comparison
+
+| Feature | ZPE (.zpe) | Native | JSON (.ayoto) |
+|---------|------------|--------|---------------|
+| Cross-platform | ✅ Yes | ❌ Per-platform | ✅ Yes |
+| Execute code | ✅ Yes | ✅ Yes | ❌ No |
+| Performance | Good | Best | N/A |
+| Security | ✅ Sandboxed | ⚠️ Full access | ✅ Safe |
+| Languages | Rust, C/C++, Go, etc. | Rust | JSON |
+| Compile once | ✅ Yes | ❌ No | N/A |
+
+## ZPE Plugins (Recommended)
+
+ZPE plugins use WebAssembly (WASM) to run on any platform. A single `.zpe` file works on Windows, macOS, Linux, Android, and iOS.
+
+See the [ZPE Plugin Development Guide](ZPE_PLUGIN_DEVELOPMENT.md) for detailed instructions.
+
+### Quick Example
+
+```bash
+# Build your ZPE plugin
+cargo build --release --target wasm32-unknown-unknown
+
+# Package it
+zip my-plugin.zpe manifest.json plugin.wasm
+```
+
+## JSON Plugin Format (Legacy)
 
 Plugins use the `.ayoto` file extension and contain a JSON manifest defining the plugin's capabilities, version compatibility, and configuration.
 

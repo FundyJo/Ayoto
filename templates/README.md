@@ -2,14 +2,47 @@
 
 This folder contains example plugin templates for Ayoto. These templates demonstrate how to create custom plugins for the Ayoto application.
 
+## Plugin Formats
+
+Ayoto supports three plugin formats:
+
+### 1. ZPE Universal Plugins (Recommended) - `.zpe`
+
+ZPE (Zenshine Plugin Extension) plugins are **WebAssembly-based** and work on **all platforms** without recompilation.
+
+**Benefits:**
+- ✅ Write once, run anywhere (Windows, macOS, Linux, Android, iOS)
+- ✅ No need for platform-specific compilation
+- ✅ Sandboxed execution for security
+- ✅ Can be written in Rust, C/C++, AssemblyScript, Go, Zig
+
+**Example:** `zpe-plugins/sample-media-provider/`
+
+See [ZPE Plugin Development Guide](../docs/ZPE_PLUGIN_DEVELOPMENT.md) for details.
+
+### 2. Native Rust Plugins - `.so/.dll/.dylib`
+
+Native plugins are compiled Rust dynamic libraries. They offer maximum performance but require separate compilation for each platform.
+
+**When to use:**
+- Maximum performance is critical
+- Platform-specific features are needed
+- You can compile for all target platforms
+
+See [Native Plugin Development Guide](../docs/NATIVE_PLUGIN_DEVELOPMENT.md) for details.
+
+### 3. JSON Manifest Plugins (Legacy) - `.ayoto`
+
+JSON plugins are configuration files that define metadata and capabilities. They cannot execute code directly.
+
+**Examples:** `plugins/aniworld-provider.ayoto`, `plugins/voe-provider.ayoto`
+
 ## Plugin Types
 
-Ayoto supports two types of plugins:
+Both ZPE and native plugins can be either:
 
-### 1. Stream Provider Plugins (`streamProvider`)
+### Stream Provider Plugins (`streamProvider`)
 Stream providers handle video extraction from hosting services like VOE, Vidoza, Streamtape, etc.
-
-**Example:** `voe-provider.ayoto`
 
 Key capabilities:
 - `extractStream` - Extract video stream URLs from hoster pages
@@ -17,10 +50,8 @@ Key capabilities:
 - `decryptStream` - Handle encrypted/obfuscated streams
 - `getDownloadLink` - Provide direct download links
 
-### 2. Media Provider Plugins (`mediaProvider`)
+### Media Provider Plugins (`mediaProvider`)
 Media providers supply anime/series search and listing functionality from sites like Aniworld.to, s.to, etc.
-
-**Example:** `aniworld-provider.ayoto`
 
 Key capabilities:
 - `search` - Search for anime/series
@@ -29,32 +60,15 @@ Key capabilities:
 - `getEpisodes` - Get episode list for a title
 - `getStreams` - Get stream sources for an episode
 - `getAnimeDetails` - Get detailed anime information
-- `scraping` - Web scraping support
 
-## Plugin File Format
+## Quick Start: ZPE Plugin
 
-Plugins use the `.ayoto` file extension and are JSON-formatted files with the following structure:
-
-```json
-{
-  "id": "unique-plugin-id",
-  "name": "Plugin Display Name",
-  "version": "1.0.0",
-  "pluginType": "streamProvider | mediaProvider",
-  "description": "Plugin description",
-  "author": "Author Name",
-  "icon": "https://example.com/icon.png",
-  "providers": ["Provider1", "Provider2"],
-  "formats": ["m3u8", "mp4"],
-  "anime4kSupport": true,
-  "capabilities": {
-    // Capabilities specific to plugin type
-  },
-  "config": {
-    // Plugin-specific configuration
-  }
-}
-```
+1. Copy `zpe-plugins/sample-media-provider/`
+2. Modify `manifest.json` with your plugin info
+3. Implement your logic in `src/lib.rs`
+4. Build: `cargo build --release --target wasm32-unknown-unknown`
+5. Package: `zip my-plugin.zpe manifest.json plugin.wasm`
+6. Load in Ayoto via Settings → Plugins
 
 ## Supported Stream Formats
 
@@ -66,24 +80,25 @@ Plugins use the `.ayoto` file extension and are JSON-formatted files with the fo
 
 ## Installation
 
-1. Create or download a `.ayoto` plugin file
-2. Open Ayoto and navigate to Settings > Plugins
-3. Click "Add Plugin" and select your plugin file
-4. Enable the plugin
+### ZPE Plugins (.zpe)
+1. Download or create a `.zpe` file
+2. Open Ayoto → Settings → Plugins
+3. Click "Load Plugin" and select the file
 
-## Creating Your Own Plugin
+### Native Plugins
+1. Build for your platform (see Native Plugin Development Guide)
+2. Place in the plugins directory
+3. Restart Ayoto
 
-1. Copy one of the template files as a starting point
-2. Modify the `id`, `name`, `version`, and other metadata
-3. Update `capabilities` based on what your plugin supports
-4. Configure `endpoints` and `config` for your target service
-5. Add any service-specific configuration (scraping rules, patterns, etc.)
+### JSON Plugins (.ayoto)
+1. Create or download a `.ayoto` file
+2. Open Ayoto → Settings → Plugins
+3. Click "Add Plugin" and select the file
 
 ## Notes
 
-- The `anime4kSupport` flag indicates if the plugin's streams are compatible with Anime4K shaders
-- Stream providers should specify `supportedHosters` and `urlPatterns`
-- Media providers should specify `baseUrl` and `languages`
+- ZPE plugins are recommended for maximum compatibility
+- The `anime4kSupport` flag indicates Anime4K shader compatibility
 - All plugins should include proper `headers` for web requests
 
 ## License
