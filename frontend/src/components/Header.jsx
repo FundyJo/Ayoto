@@ -8,8 +8,6 @@ import {
   DividerVerticalIcon,
   DownloadIcon,
   GearIcon,
-  GitHubLogoIcon,
-  OpenInNewWindowIcon,
   PersonIcon,
   MixIcon,
   AvatarIcon
@@ -281,6 +279,12 @@ export default function Header() {
                     ))}
                     <DropdownMenu.Separator />
                     <DropdownMenu.Item
+                      onClick={() => navigate('/bookmarks')}
+                      shortcut={<BookmarkIcon />}
+                    >
+                      Watchlist
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
                       onClick={() => navigate('/profiles')}
                       shortcut={<GearIcon />}
                     >
@@ -299,29 +303,11 @@ export default function Header() {
               )}
               <DropdownMenu.Separator />
               <DropdownMenu.Item
-                onClick={
-                  // https://github.com/hitarth-gg
-                  () => window.open('https://github.com/hitarth-gg', '_blank')
-                }
-                // shortcut={<GitHubLogoIcon />}
-                shortcut={<OpenInNewWindowIcon />}
-              >
-                GitHub <GitHubLogoIcon />
-              </DropdownMenu.Item>
-              <DropdownMenu.Item
                 onClick={() => window.api.openFolder(settings.downloadsFolderPath)}
                 shortcut={<DownloadIcon />}
               >
                 Downloads
               </DropdownMenu.Item>
-              {userProfile && (
-                <DropdownMenu.Item
-                  onClick={() => navigate('/bookmarks')}
-                  shortcut={<BookmarkIcon />}
-                >
-                  Watchlist
-                </DropdownMenu.Item>
-              )}
               <DropdownMenu.Item
                 color="gray"
                 onClick={() => navigate('/settings')}
