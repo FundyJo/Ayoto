@@ -8,10 +8,9 @@ import {
   ReloadIcon,
   CheckCircledIcon,
   CrossCircledIcon,
-  RocketIcon,
   ExclamationTriangleIcon
 } from '@radix-ui/react-icons'
-import { loadZpePlugin, getAllZpePlugins, setZpePluginEnabled, unloadZpePlugin, getZpePluginInfo } from '../plugins'
+import { loadZpePlugin, getAllZpePlugins, setZpePluginEnabled, unloadZpePlugin } from '../plugins'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 
 // Default plugin icon component
@@ -35,12 +34,10 @@ export default function Plugins() {
   const { settings } = useZenshinContext()
   const [zpePlugins, setZpePlugins] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  const [zpeInfo, setZpeInfo] = useState(null)
 
   // Load ZPE plugins on mount
   useEffect(() => {
     loadZpePlugins()
-    loadZpeInfo()
   }, [])
 
   // Load all ZPE plugins from backend
@@ -51,16 +48,6 @@ export default function Plugins() {
     } catch (error) {
       console.error('Failed to load ZPE plugins:', error)
       // ZPE system might not be available in web mode
-    }
-  }
-
-  // Load ZPE system info
-  async function loadZpeInfo() {
-    try {
-      const info = await getZpePluginInfo()
-      setZpeInfo(info)
-    } catch (error) {
-      console.error('Failed to load ZPE info:', error)
     }
   }
 
@@ -272,81 +259,6 @@ export default function Plugins() {
           ))}
         </div>
       )}
-
-      {/* ZPE Plugin Format Documentation */}
-      <div className="mt-8">
-        <div className="mb-4 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
-          ZPE Plugin Format (.zpe)
-        </div>
-        <div className="rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
-          <p className="mb-3 text-gray-300">
-            ZPE (Zenshine Plugin Extension) is a cross-platform plugin format using WebAssembly.
-            Plugins are compiled once and run on all platforms (Windows, macOS, Linux, Android, iOS).
-          </p>
-          <p className="mb-2 font-bold text-gray-300">ZPE Archive Structure:</p>
-          <pre className="overflow-x-auto whitespace-pre-wrap mb-4 bg-[#1a1a1c] p-3 rounded">
-            {`my-plugin.zpe
-├── plugin.wasm      # Compiled WebAssembly module
-├── manifest.json    # Plugin metadata
-└── README.md        # Optional documentation`}
-          </pre>
-          <p className="mb-2 font-bold text-gray-300">manifest.json Example:</p>
-          <pre className="overflow-x-auto whitespace-pre-wrap bg-[#1a1a1c] p-3 rounded">
-            {`{
-  "id": "my-provider",
-  "name": "My Provider",
-  "version": "1.0.0",
-  "targetAyotoVersion": "0.1.0",
-  "author": "Your Name",
-  "description": "A ZPE plugin for anime streaming",
-  "pluginType": "mediaProvider",
-  "capabilities": {
-    "search": true,
-    "getPopular": true,
-    "getLatest": true,
-    "getEpisodes": true,
-    "getStreams": true
-  },
-  "abiVersion": 1
-}`}
-          </pre>
-        </div>
-        
-        {/* Supported Languages */}
-        <div className="mt-4 rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
-          <p className="mb-2 font-bold text-gray-300">Supported Development Languages:</p>
-          <ul className="list-disc pl-4 space-y-1">
-            <li><code className="text-cyan-300">Rust</code> - Recommended, best performance</li>
-            <li><code className="text-cyan-300">C/C++</code> - Via Emscripten or wasi-sdk</li>
-            <li><code className="text-cyan-300">AssemblyScript</code> - TypeScript-like syntax</li>
-            <li><code className="text-cyan-300">Go/TinyGo</code> - Go support via TinyGo</li>
-            <li><code className="text-cyan-300">Zig</code> - Systems programming language</li>
-          </ul>
-        </div>
-        
-        {/* ZPE Benefits */}
-        <div className="mt-4 rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
-          <p className="mb-2 font-bold text-gray-300">ZPE Benefits:</p>
-          <ul className="list-disc pl-4 space-y-1">
-            <li><span className="text-green-300">Cross-platform:</span> Compile once, run anywhere</li>
-            <li><span className="text-green-300">Sandboxed:</span> Secure execution environment</li>
-            <li><span className="text-green-300">No recompilation:</span> Same plugin works on all platforms</li>
-            <li><span className="text-green-300">High performance:</span> Near-native execution speed</li>
-          </ul>
-        </div>
-
-        {/* ZPE System Info */}
-        {zpeInfo && (
-          <div className="mt-4 rounded-sm bg-[#202022] p-4 text-xs text-gray-400">
-            <p className="mb-2 font-bold text-gray-300">ZPE System Info:</p>
-            <ul className="space-y-1">
-              <li>Version: <code className="text-cyan-300">{zpeInfo.version}</code></li>
-              <li>ABI Version: <code className="text-cyan-300">{zpeInfo.abiVersion}</code></li>
-              <li>Extension: <code className="text-cyan-300">.{zpeInfo.extension}</code></li>
-            </ul>
-          </div>
-        )}
-      </div>
 
       <p className="mt-8 text-xs opacity-45">
         ZPE plugins extend Zenshin&apos;s functionality by adding support for additional providers.
