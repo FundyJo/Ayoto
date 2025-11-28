@@ -118,6 +118,7 @@ pub fn run() {
       profiles::profile_create,
       profiles::profile_update,
       profiles::profile_update_settings,
+      profiles::profile_update_linked_accounts,
       profiles::profile_delete,
       profiles::profile_get_avatars,
       profiles::profile_get_count,
