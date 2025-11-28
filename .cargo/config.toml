@@ -1,0 +1,23 @@
+# Cargo configuration for Ayoto
+# 
+# This configuration increases the stack size on Windows to prevent stack overflow
+# when loading plugins. The wasmtime WASM runtime uses the Cranelift JIT compiler
+# which requires significant stack space during engine initialization.
+#
+# Windows default stack size is 1MB, which is insufficient for Cranelift.
+# We increase it to 8MB (0x800000 bytes) to ensure stable plugin loading.
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-args=/STACK:8388608"]
+
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-args=-Wl,--stack,8388608"]
+
+[target.i686-pc-windows-msvc]
+rustflags = ["-C", "link-args=/STACK:8388608"]
+
+[target.i686-pc-windows-gnu]
+rustflags = ["-C", "link-args=-Wl,--stack,8388608"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "link-args=/STACK:8388608"]
