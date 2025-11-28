@@ -1,43 +1,38 @@
 //! Ayoto Plugin System
 //! 
-//! A universal plugin system supporting both JSON manifests (.ayoto) and native
-//! Rust plugins (.so/.dll/.dylib) that work across desktop and mobile platforms.
+//! A universal plugin system supporting both JSON manifests (.ayoto), native
+//! Rust plugins (.so/.dll/.dylib), and cross-platform WebAssembly plugins (.zpe).
 //! 
 //! # Plugin Types
 //! 
-//! ## Native Rust Plugins (Recommended)
+//! ## ZPE Universal Plugins (Recommended)
 //! 
-//! Native plugins are compiled Rust dynamic libraries that can perform actual
-//! scraping, HTTP requests, and data processing. They work across all platforms:
+//! ZPE (Zenshine Plugin Extension) plugins are compiled to WebAssembly and can
+//! run on any platform without recompilation. A `.zpe` file is a ZIP archive
+//! containing:
+//! - `plugin.wasm` - The compiled WebAssembly module
+//! - `manifest.json` - Plugin metadata and configuration
+//! 
+//! ZPE plugins can be written in any language that compiles to WebAssembly:
+//! - Rust (recommended)
+//! - C/C++
+//! - AssemblyScript
+//! - Go/TinyGo
+//! - Zig
+//! 
+//! ## Native Rust Plugins (Platform-Specific)
+//! 
+//! Native plugins are compiled Rust dynamic libraries. They require separate
+//! compilation for each target platform:
 //! - **Linux**: `.so` files
 //! - **Windows**: `.dll` files
 //! - **macOS**: `.dylib` files
 //! - **Android**: `.so` files (ARM/ARM64)
 //! 
-//! Native plugins implement the `AyotoPlugin` trait and export standard entry points.
-//! 
 //! ## JSON Manifest Plugins (Legacy)
 //! 
 //! JSON plugins are configuration files that define metadata and capabilities.
 //! They are useful for simple configuration but cannot execute code.
-//! 
-//! # Native Plugin Development
-//! 
-//! ```rust,ignore
-//! use ayoto_plugin_sdk::{AyotoPlugin, ayoto_plugin_export};
-//! 
-//! struct MyProvider {
-//!     // plugin state
-//! }
-//! 
-//! impl AyotoPlugin for MyProvider {
-//!     fn get_metadata(&self) -> PluginMetadata { ... }
-//!     fn search(&self, query: &str, page: u32) -> FfiResult<FfiAnimeList> { ... }
-//!     // ... other methods
-//! }
-//! 
-//! ayoto_plugin_export!(MyProvider);
-//! ```
 //! 
 //! # Version Compatibility
 //! 
@@ -50,6 +45,7 @@ pub mod manifest;
 pub mod loader;
 pub mod commands;
 pub mod native;
+pub mod zpe;
 
 // Re-export commonly used types
 pub use types::{
@@ -90,6 +86,17 @@ pub use native::{
     STREAM_FORMAT_M3U8, STREAM_FORMAT_MP4, STREAM_FORMAT_MKV, STREAM_FORMAT_WEBM, STREAM_FORMAT_TORRENT,
     HTTP_METHOD_GET, HTTP_METHOD_POST, HTTP_METHOD_PUT, HTTP_METHOD_DELETE, HTTP_METHOD_HEAD,
     CAPABILITY_HTTP, CAPABILITY_STORAGE, CAPABILITY_LOGGING, CAPABILITY_CRYPTO,
+};
+
+// Re-export ZPE universal plugin types
+pub use zpe::{
+    ZpeManifest, ZpePluginType, ZpeCapabilities, ZpeValidationResult,
+    ZpeLoadResult, ZpePluginInfo,
+    ZpeAnime, ZpeAnimeList, ZpeEpisode, ZpeEpisodeList,
+    ZpeStreamSource, ZpeStreamSourceList, ZpeHttpRequest, ZpeHttpResponse, ZpeResult,
+    ZpePluginLoader, get_zpe_plugin_loader,
+    ZpeRuntime, ZpeRuntimeConfig, ZpePluginInstance,
+    ZPE_EXTENSION, ZPE_ABI_VERSION,
 };
 
 use std::sync::OnceLock;
@@ -171,6 +178,9 @@ mod tests {
         // Verify version constant
         assert!(!AYOTO_VERSION.is_empty());
         assert_eq!(PLUGIN_EXTENSION, "ayoto");
+        
+        // Verify ZPE extension
+        assert_eq!(ZPE_EXTENSION, "zpe");
     }
 
     #[test]

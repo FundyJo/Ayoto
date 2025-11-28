@@ -578,3 +578,224 @@ pub fn get_native_plugin_info() -> serde_json::Value {
         ]
     })
 }
+
+// ============================================================================
+// ZPE Universal Plugin Commands
+// ============================================================================
+
+use super::zpe::{
+    get_zpe_plugin_loader, ZpePluginInfo, ZpeLoadResult,
+    ZPE_EXTENSION, ZPE_ABI_VERSION,
+};
+
+/// Get the ZPE file extension
+#[tauri::command]
+pub fn get_zpe_extension() -> String {
+    ZPE_EXTENSION.to_string()
+}
+
+/// Get ZPE ABI version
+#[tauri::command]
+pub fn get_zpe_abi_version() -> u32 {
+    ZPE_ABI_VERSION
+}
+
+/// Load a ZPE plugin from file
+#[tauri::command]
+pub fn load_zpe_plugin(path: String) -> ZpeLoadResult {
+    let loader = get_zpe_plugin_loader();
+    loader.load_plugin(&path)
+}
+
+/// Get all loaded ZPE plugins
+#[tauri::command]
+pub fn get_all_zpe_plugins() -> Vec<ZpePluginInfo> {
+    let loader = get_zpe_plugin_loader();
+    loader.get_all_plugins()
+}
+
+/// Get a ZPE plugin by ID
+#[tauri::command]
+pub fn get_zpe_plugin(plugin_id: String) -> Option<ZpePluginInfo> {
+    let loader = get_zpe_plugin_loader();
+    loader.get_plugin(&plugin_id)
+}
+
+/// Unload a ZPE plugin
+#[tauri::command]
+pub fn unload_zpe_plugin(plugin_id: String) -> Result<(), String> {
+    let loader = get_zpe_plugin_loader();
+    loader.unload_plugin(&plugin_id)
+}
+
+/// Set ZPE plugin enabled state
+#[tauri::command]
+pub fn set_zpe_plugin_enabled(plugin_id: String, enabled: bool) -> Result<(), String> {
+    let loader = get_zpe_plugin_loader();
+    loader.set_plugin_enabled(&plugin_id, enabled)
+}
+
+/// Search using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_search(
+    plugin_id: String,
+    query: String,
+    page: Option<u32>,
+) -> Result<SearchResult, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_search(&plugin_id, &query, page.unwrap_or(1))?;
+    
+    // Convert ZPE types to standard types
+    let results: Vec<PopulatedAnime> = result.items
+        .into_iter()
+        .map(|anime| anime.into())
+        .collect();
+    
+    Ok(SearchResult {
+        results,
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_results: result.total_results,
+    })
+}
+
+/// Get popular anime using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_get_popular(
+    plugin_id: String,
+    page: Option<u32>,
+) -> Result<SearchResult, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_get_popular(&plugin_id, page.unwrap_or(1))?;
+    
+    let results: Vec<PopulatedAnime> = result.items
+        .into_iter()
+        .map(|anime| anime.into())
+        .collect();
+    
+    Ok(SearchResult {
+        results,
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_results: result.total_results,
+    })
+}
+
+/// Get latest anime using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_get_latest(
+    plugin_id: String,
+    page: Option<u32>,
+) -> Result<SearchResult, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_get_latest(&plugin_id, page.unwrap_or(1))?;
+    
+    let results: Vec<PopulatedAnime> = result.items
+        .into_iter()
+        .map(|anime| anime.into())
+        .collect();
+    
+    Ok(SearchResult {
+        results,
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_results: result.total_results,
+    })
+}
+
+/// Get episodes using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_get_episodes(
+    plugin_id: String,
+    anime_id: String,
+    page: Option<u32>,
+) -> Result<EpisodesResult, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_get_episodes(&plugin_id, &anime_id, page.unwrap_or(1))?;
+    
+    let episodes: Vec<Episode> = result.items
+        .into_iter()
+        .map(|ep| ep.into())
+        .collect();
+    
+    Ok(EpisodesResult {
+        episodes,
+        has_next_page: result.has_next_page,
+        current_page: result.current_page,
+        total_episodes: Some(result.total_episodes),
+    })
+}
+
+/// Get streams using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_get_streams(
+    plugin_id: String,
+    anime_id: String,
+    episode_id: String,
+) -> Result<super::PopulatedEpisode, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_get_streams(&plugin_id, &anime_id, &episode_id)?;
+    
+    let sources: Vec<super::StreamSource> = result.items
+        .into_iter()
+        .map(|s| s.into())
+        .collect();
+    
+    Ok(super::PopulatedEpisode {
+        episode: Episode {
+            id: episode_id,
+            number: 1,
+            title: None,
+            thumbnail: None,
+            description: None,
+            duration: None,
+            air_date: None,
+            is_filler: None,
+        },
+        sources,
+        subtitles: vec![],
+        intro: None,
+        outro: None,
+    })
+}
+
+/// Get anime details using a ZPE plugin
+#[tauri::command]
+pub async fn zpe_plugin_get_anime_details(
+    plugin_id: String,
+    anime_id: String,
+) -> Result<PopulatedAnime, String> {
+    let loader = get_zpe_plugin_loader();
+    
+    let result = loader.plugin_get_anime_details(&plugin_id, &anime_id)?;
+    Ok(result.into())
+}
+
+/// Get information about the ZPE plugin system
+#[tauri::command]
+pub fn get_zpe_plugin_info() -> serde_json::Value {
+    serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "abiVersion": ZPE_ABI_VERSION,
+        "extension": ZPE_EXTENSION,
+        "description": "Zenshine Plugin Extension - Universal WebAssembly plugins",
+        "supportedLanguages": [
+            "Rust",
+            "C/C++",
+            "AssemblyScript",
+            "Go/TinyGo",
+            "Zig"
+        ],
+        "benefits": [
+            "Cross-platform: compile once, run anywhere",
+            "No platform-specific compilation needed",
+            "Sandboxed execution for security",
+            "Same plugin works on Windows, macOS, Linux, Android, iOS"
+        ]
+    })
+}
