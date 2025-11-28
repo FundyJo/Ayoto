@@ -8,6 +8,16 @@
 //! Plugins can be one of two types:
 //! - **StreamProvider**: Handles video extraction from hosters (Voe, Vidoza, etc.)
 //! - **MediaProvider**: Provides anime/media listings from sites (aniworld.to, s.to, etc.)
+//!
+//! # Native Plugin Support
+//!
+//! Native plugins use a unified `.pl` extension that works across all platforms.
+//! The plugin manifest specifies platform-specific library paths:
+//! - Linux/Android: .so files
+//! - Windows: .dll files  
+//! - macOS/iOS: .dylib files
+//!
+//! The loader automatically selects the correct library based on the current platform.
 
 use serde::{Deserialize, Serialize};
 use super::types::{PluginType, StreamProviderConfig, MediaProviderConfig};
@@ -155,6 +165,149 @@ impl Default for TargetPlatform {
     }
 }
 
+/// Platform-specific native library paths for native plugins
+/// 
+/// Native plugins use a unified `.pl` extension but contain
+/// platform-specific dynamic libraries. This struct specifies
+/// the relative paths to each platform's library within the plugin.
+/// 
+/// # Example
+/// ```json
+/// {
+///   "nativeLibrary": {
+///     "linux": "lib/linux/libplugin.so",
+///     "windows": "lib/windows/plugin.dll",
+///     "macos": "lib/macos/libplugin.dylib",
+///     "android": "lib/android/libplugin.so",
+///     "ios": "lib/ios/libplugin.dylib"
+///   }
+/// }
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeLibraryPaths {
+    /// Path to Linux .so library (relative to plugin root)
+    pub linux: Option<String>,
+    /// Path to Windows .dll library (relative to plugin root)
+    pub windows: Option<String>,
+    /// Path to macOS .dylib library (relative to plugin root)
+    pub macos: Option<String>,
+    /// Path to Android .so library (relative to plugin root)
+    pub android: Option<String>,
+    /// Path to iOS .dylib library (relative to plugin root)
+    pub ios: Option<String>,
+}
+
+impl NativeLibraryPaths {
+    /// Get the library path for the current platform
+    pub fn get_for_platform(&self, platform: &TargetPlatform) -> Option<&String> {
+        match platform {
+            TargetPlatform::Linux => self.linux.as_ref(),
+            TargetPlatform::Windows => self.windows.as_ref(),
+            TargetPlatform::Macos => self.macos.as_ref(),
+            TargetPlatform::Android => self.android.as_ref(),
+            TargetPlatform::Ios => self.ios.as_ref(),
+            TargetPlatform::Desktop => {
+                // Try desktop platforms in order
+                self.linux.as_ref()
+                    .or(self.windows.as_ref())
+                    .or(self.macos.as_ref())
+            }
+            TargetPlatform::Mobile => {
+                // Try mobile platforms in order
+                self.android.as_ref()
+                    .or(self.ios.as_ref())
+            }
+            TargetPlatform::Universal => {
+                // Try all platforms in order of popularity
+                self.linux.as_ref()
+                    .or(self.windows.as_ref())
+                    .or(self.macos.as_ref())
+                    .or(self.android.as_ref())
+                    .or(self.ios.as_ref())
+            }
+        }
+    }
+
+    /// Get the library path for the current runtime platform
+    pub fn get_for_current_platform(&self) -> Option<&String> {
+        #[cfg(target_os = "linux")]
+        return self.linux.as_ref();
+        #[cfg(target_os = "windows")]
+        return self.windows.as_ref();
+        #[cfg(target_os = "macos")]
+        return self.macos.as_ref();
+        #[cfg(target_os = "android")]
+        return self.android.as_ref();
+        #[cfg(target_os = "ios")]
+        return self.ios.as_ref();
+        #[cfg(not(any(
+            target_os = "linux",
+            target_os = "windows",
+            target_os = "macos",
+            target_os = "android",
+            target_os = "ios"
+        )))]
+        return None;
+    }
+
+    /// Check if any platform library is specified
+    pub fn has_any(&self) -> bool {
+        self.linux.is_some()
+            || self.windows.is_some()
+            || self.macos.is_some()
+            || self.android.is_some()
+            || self.ios.is_some()
+    }
+
+    /// Get the expected native library extension for each platform
+    pub fn get_extension_for_platform(platform: &TargetPlatform) -> &'static str {
+        match platform {
+            TargetPlatform::Linux | TargetPlatform::Android => ".so",
+            TargetPlatform::Windows => ".dll",
+            TargetPlatform::Macos | TargetPlatform::Ios => ".dylib",
+            TargetPlatform::Desktop => {
+                #[cfg(target_os = "linux")]
+                return ".so";
+                #[cfg(target_os = "windows")]
+                return ".dll";
+                #[cfg(target_os = "macos")]
+                return ".dylib";
+                #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+                return ".so"
+            }
+            TargetPlatform::Mobile => {
+                #[cfg(target_os = "android")]
+                return ".so";
+                #[cfg(target_os = "ios")]
+                return ".dylib";
+                #[cfg(not(any(target_os = "android", target_os = "ios")))]
+                return ".so"
+            }
+            TargetPlatform::Universal => {
+                #[cfg(target_os = "linux")]
+                return ".so";
+                #[cfg(target_os = "windows")]
+                return ".dll";
+                #[cfg(target_os = "macos")]
+                return ".dylib";
+                #[cfg(target_os = "android")]
+                return ".so";
+                #[cfg(target_os = "ios")]
+                return ".dylib";
+                #[cfg(not(any(
+                    target_os = "linux",
+                    target_os = "windows",
+                    target_os = "macos",
+                    target_os = "android",
+                    target_os = "ios"
+                )))]
+                return ".so"
+            }
+        }
+    }
+}
+
 /// The .ayoto plugin manifest
 /// This is the main configuration for a plugin
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -202,6 +355,9 @@ pub struct PluginManifest {
     pub stream_provider_config: Option<StreamProviderConfig>,
     /// Media provider specific configuration (if plugin_type is MediaProvider)
     pub media_provider_config: Option<MediaProviderConfig>,
+    /// Native library paths for each platform (for native .pl plugins)
+    /// This allows a single .pl file to work across all platforms
+    pub native_library: Option<NativeLibraryPaths>,
     /// Plugin-specific configuration
     #[serde(default)]
     pub config: serde_json::Value,
@@ -284,6 +440,21 @@ impl PluginManifest {
         }
 
         self.platforms.contains(&TargetPlatform::Universal) || self.platforms.contains(platform)
+    }
+
+    /// Check if this is a native plugin (has native library paths defined)
+    pub fn is_native_plugin(&self) -> bool {
+        self.native_library.as_ref().map_or(false, |n| n.has_any())
+    }
+
+    /// Get the native library path for a specific platform
+    pub fn get_native_library_path(&self, platform: &TargetPlatform) -> Option<&String> {
+        self.native_library.as_ref()?.get_for_platform(platform)
+    }
+
+    /// Get the native library path for the current runtime platform
+    pub fn get_native_library_path_for_current_platform(&self) -> Option<&String> {
+        self.native_library.as_ref()?.get_for_current_platform()
     }
 
     /// Validate the plugin manifest
@@ -447,6 +618,7 @@ mod tests {
             stream_provider_config: None,
             media_provider_config: None,
             config: serde_json::Value::Null,
+            native_library: None,
         };
 
         let result = manifest.validate();
@@ -484,10 +656,77 @@ mod tests {
                 priority: 10,
             }),
             media_provider_config: None,
+            native_library: None,
             config: serde_json::Value::Null,
         };
 
         let result = manifest.validate();
         assert!(result.is_valid);
+    }
+
+    #[test]
+    fn test_native_library_paths() {
+        let paths = NativeLibraryPaths {
+            linux: Some("lib/linux/libplugin.so".to_string()),
+            windows: Some("lib/windows/plugin.dll".to_string()),
+            macos: Some("lib/macos/libplugin.dylib".to_string()),
+            android: Some("lib/android/libplugin.so".to_string()),
+            ios: Some("lib/ios/libplugin.dylib".to_string()),
+        };
+
+        assert!(paths.has_any());
+        assert_eq!(paths.get_for_platform(&TargetPlatform::Linux), Some(&"lib/linux/libplugin.so".to_string()));
+        assert_eq!(paths.get_for_platform(&TargetPlatform::Windows), Some(&"lib/windows/plugin.dll".to_string()));
+        assert_eq!(paths.get_for_platform(&TargetPlatform::Macos), Some(&"lib/macos/libplugin.dylib".to_string()));
+        
+        // Test platform extensions
+        assert_eq!(NativeLibraryPaths::get_extension_for_platform(&TargetPlatform::Linux), ".so");
+        assert_eq!(NativeLibraryPaths::get_extension_for_platform(&TargetPlatform::Windows), ".dll");
+        assert_eq!(NativeLibraryPaths::get_extension_for_platform(&TargetPlatform::Macos), ".dylib");
+        assert_eq!(NativeLibraryPaths::get_extension_for_platform(&TargetPlatform::Android), ".so");
+        assert_eq!(NativeLibraryPaths::get_extension_for_platform(&TargetPlatform::Ios), ".dylib");
+    }
+
+    #[test]
+    fn test_native_library_empty() {
+        let paths = NativeLibraryPaths::default();
+        assert!(!paths.has_any());
+        assert!(paths.get_for_platform(&TargetPlatform::Linux).is_none());
+    }
+
+    #[test]
+    fn test_is_native_plugin() {
+        let mut manifest = PluginManifest {
+            id: "test-plugin".to_string(),
+            name: "Test Plugin".to_string(),
+            version: "1.0.0".to_string(),
+            plugin_type: PluginType::MediaProvider,
+            target_ayoto_version: "2.5.0".to_string(),
+            max_ayoto_version: None,
+            description: None,
+            author: None,
+            homepage: None,
+            icon: None,
+            providers: vec![],
+            formats: vec![],
+            anime4k_support: false,
+            capabilities: PluginCapabilities::default(),
+            platforms: vec![],
+            scraping_config: None,
+            stream_provider_config: None,
+            media_provider_config: None,
+            native_library: None,
+            config: serde_json::Value::Null,
+        };
+
+        // Without native library
+        assert!(!manifest.is_native_plugin());
+        
+        // With native library
+        manifest.native_library = Some(NativeLibraryPaths {
+            linux: Some("lib/linux/libplugin.so".to_string()),
+            ..Default::default()
+        });
+        assert!(manifest.is_native_plugin());
     }
 }

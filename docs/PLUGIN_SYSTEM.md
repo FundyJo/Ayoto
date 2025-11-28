@@ -2,13 +2,41 @@
 
 ## Overview
 
-The Ayoto Plugin System allows developers to create universal plugins for anime streaming providers. Plugins are written as `.ayoto` files (JSON format) and can work across desktop (Windows, macOS, Linux) and mobile (iOS, Android) platforms.
+The Ayoto Plugin System allows developers to create universal plugins for anime streaming providers. Plugins can work across desktop (Windows, macOS, Linux) and mobile (iOS, Android) platforms.
 
-## Plugin Format
+## Plugin Formats
 
-Plugins use the `.ayoto` file extension and contain a JSON manifest defining the plugin's capabilities, version compatibility, and configuration.
+Ayoto supports two plugin file formats:
 
-### Basic Structure
+### 1. JSON-based Plugins (`.ayoto`)
+
+Simple JSON manifest files that define plugin capabilities, version compatibility, and configuration. These plugins use web scraping or API calls for data extraction.
+
+### 2. Native Plugins (`.pl`)
+
+**Unified Extension**: Instead of platform-specific extensions (`.so`, `.dll`, `.dylib`), native plugins use the unified `.pl` extension that works across all platforms. The plugin contains platform-specific libraries bundled together:
+
+```text
+my-plugin.pl/
+├── manifest.json       # Plugin manifest with nativeLibrary paths
+└── lib/
+    ├── linux/
+    │   └── libplugin.so
+    ├── windows/
+    │   └── plugin.dll
+    ├── macos/
+    │   └── libplugin.dylib
+    ├── android/
+    │   └── libplugin.so
+    └── ios/
+        └── libplugin.dylib
+```
+
+The loader automatically selects the correct library based on the current platform.
+
+## Plugin Manifest Structure
+
+### Basic Structure (`.ayoto`)
 
 ```json
 {
@@ -33,6 +61,34 @@ Plugins use the `.ayoto` file extension and contain a JSON manifest defining the
     "baseUrl": "https://example.com",
     "rateLimitMs": 1000,
     "requiresJavascript": false
+  }
+}
+```
+
+### Native Plugin Structure (`.pl`)
+
+```json
+{
+  "id": "my-native-provider",
+  "name": "My Native Provider",
+  "version": "1.0.0",
+  "targetAyotoVersion": "2.5.0",
+  "description": "A native plugin with platform-specific libraries",
+  "author": "Your Name",
+  "providers": ["NativeProvider"],
+  "formats": ["m3u8", "mp4"],
+  "capabilities": {
+    "search": true,
+    "getEpisodes": true,
+    "getStreams": true
+  },
+  "platforms": ["universal"],
+  "nativeLibrary": {
+    "linux": "lib/linux/libplugin.so",
+    "windows": "lib/windows/plugin.dll",
+    "macos": "lib/macos/libplugin.dylib",
+    "android": "lib/android/libplugin.so",
+    "ios": "lib/ios/libplugin.dylib"
   }
 }
 ```

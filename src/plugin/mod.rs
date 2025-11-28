@@ -65,14 +65,15 @@ pub use types::{
 
 pub use manifest::{
     PluginManifest, PluginCapabilities, ScrapingConfig,
-    SemVer, TargetPlatform, ValidationResult
+    SemVer, TargetPlatform, ValidationResult, NativeLibraryPaths
 };
 
 pub use loader::{
     PluginLoader, LoadedPlugin, PluginLoadResult,
     PluginCompatibility, PluginSummary,
-    AYOTO_VERSION, PLUGIN_EXTENSION,
-    create_sample_plugin, create_sample_media_provider, create_sample_stream_provider
+    AYOTO_VERSION, PLUGIN_EXTENSION, NATIVE_PLUGIN_EXTENSION, SUPPORTED_EXTENSIONS,
+    create_sample_plugin, create_sample_media_provider, create_sample_stream_provider,
+    create_sample_native_plugin
 };
 
 use std::sync::OnceLock;
@@ -100,7 +101,10 @@ pub fn init_plugin_system(plugin_dirs: Vec<std::path::PathBuf>) -> Vec<PluginLoa
             if let Ok(entries) = std::fs::read_dir(&dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.extension().map(|e| e.to_str()) == Some(Some(PLUGIN_EXTENSION)) {
+                    let ext = path.extension().and_then(|e| e.to_str());
+                    
+                    // Check if extension matches any supported extension
+                    if SUPPORTED_EXTENSIONS.iter().any(|&e| Some(e) == ext) {
                         results.push(loader.load_from_file(&path));
                     }
                 }
@@ -154,6 +158,9 @@ mod tests {
         // Verify version constant
         assert!(!AYOTO_VERSION.is_empty());
         assert_eq!(PLUGIN_EXTENSION, "ayoto");
+        assert_eq!(NATIVE_PLUGIN_EXTENSION, "pl");
+        assert!(SUPPORTED_EXTENSIONS.contains(&"ayoto"));
+        assert!(SUPPORTED_EXTENSIONS.contains(&"pl"));
     }
 
     #[test]

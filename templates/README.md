@@ -31,9 +31,13 @@ Key capabilities:
 - `getAnimeDetails` - Get detailed anime information
 - `scraping` - Web scraping support
 
-## Plugin File Format
+## Plugin File Formats
 
-Plugins use the `.ayoto` file extension and are JSON-formatted files with the following structure:
+Ayoto supports two plugin formats:
+
+### JSON Plugins (`.ayoto`)
+
+Simple JSON-formatted manifest files. Example:
 
 ```json
 {
@@ -52,6 +56,45 @@ Plugins use the `.ayoto` file extension and are JSON-formatted files with the fo
   },
   "config": {
     // Plugin-specific configuration
+  }
+}
+```
+
+### Native Plugins (`.pl`)
+
+**Unified Extension**: Instead of platform-specific extensions (`.so`, `.dll`, `.dylib`), native plugins use the unified `.pl` extension that works across all platforms.
+
+Native plugins are directories containing a `manifest.json` and platform-specific libraries:
+
+```text
+my-native-plugin.pl/
+├── manifest.json
+└── lib/
+    ├── linux/
+    │   └── libplugin.so
+    ├── windows/
+    │   └── plugin.dll
+    ├── macos/
+    │   └── libplugin.dylib
+    ├── android/
+    │   └── libplugin.so
+    └── ios/
+        └── libplugin.dylib
+```
+
+The manifest includes a `nativeLibrary` field specifying paths for each platform:
+
+```json
+{
+  "id": "my-native-plugin",
+  "name": "My Native Plugin",
+  "version": "1.0.0",
+  "nativeLibrary": {
+    "linux": "lib/linux/libplugin.so",
+    "windows": "lib/windows/plugin.dll",
+    "macos": "lib/macos/libplugin.dylib",
+    "android": "lib/android/libplugin.so",
+    "ios": "lib/ios/libplugin.dylib"
   }
 }
 ```

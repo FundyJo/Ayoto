@@ -101,6 +101,27 @@ zanshin/
 - VLC external player integration
 - Deep linking support (zanshin://)
 - Persistent window state
+- **Plugin System** - Extend functionality with custom plugins
+
+## Plugin System
+
+Ayoto features a universal plugin system that allows extending functionality through plugins. This enables:
+
+- **Cross-Platform Compatibility**: Plugins work on Linux, Windows, macOS, Android, and iOS
+- **Web Scraping**: Plugins can perform scraping on provider websites using the built-in HTTP context
+- **Media Providers**: Add new anime sources (aniworld.to, s.to, etc.)
+- **Stream Providers**: Add support for new video hosters (Voe, Vidoza, etc.)
+
+### Plugin Types
+
+1. **JSON Plugins (`.ayoto`)** - Simple manifest-based plugins for content discovery
+2. **Native Plugins (`.pl`)** - Rust plugins compiled as dynamic libraries
+
+### Unified Native Plugin Extension
+
+Instead of platform-specific extensions (`.so`, `.dll`, `.dylib`), native plugins use the **unified `.pl` extension** that works across all platforms. The plugin loader automatically selects the correct library based on the current platform.
+
+See [docs/PLUGIN_SYSTEM.md](docs/PLUGIN_SYSTEM.md) for a complete guide on creating plugins.
 
 ## Development
 

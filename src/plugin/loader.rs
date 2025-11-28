@@ -1,13 +1,40 @@
 //! Ayoto Plugin Loader
 //! 
-//! Handles loading, validating, and managing .ayoto plugins.
+//! Handles loading, validating, and managing plugins.
 //! Plugins can be loaded from files or directories.
 //! 
+//! # Plugin Extensions
+//! 
+//! The loader supports two types of plugin files:
+//! - `.ayoto` - JSON-based manifest plugins (cross-platform by design)
+//! - `.pl` - Native plugins with platform-specific libraries bundled inside
+//!
 //! # Plugin Types
 //! 
-//! The loader supports two types of plugins:
+//! Both extensions support two types of plugins:
 //! - **StreamProvider**: For video extraction from hosters (Voe, Vidoza, etc.)
 //! - **MediaProvider**: For content listings from sites (aniworld.to, s.to, etc.)
+//!
+//! # Native Plugin (.pl) Structure
+//!
+//! Native plugins use a unified `.pl` extension that works across all platforms.
+//! The plugin contains a manifest.json and platform-specific libraries:
+//!
+//! ```text
+//! my-plugin.pl/
+//! ├── manifest.json       # Plugin manifest with nativeLibrary paths
+//! └── lib/
+//!     ├── linux/
+//!     │   └── libplugin.so
+//!     ├── windows/
+//!     │   └── plugin.dll
+//!     ├── macos/
+//!     │   └── libplugin.dylib
+//!     ├── android/
+//!     │   └── libplugin.so
+//!     └── ios/
+//!         └── libplugin.dylib
+//! ```
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -20,8 +47,16 @@ use super::types::{PluginError, PluginType};
 /// Current Ayoto version (from Cargo.toml)
 pub const AYOTO_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Plugin file extension
+/// Plugin file extension for JSON-based plugins
 pub const PLUGIN_EXTENSION: &str = "ayoto";
+
+/// Native plugin file extension (unified across all platforms)
+/// Instead of platform-specific extensions (.so, .dll, .dylib),
+/// native plugins use the unified .pl extension
+pub const NATIVE_PLUGIN_EXTENSION: &str = "pl";
+
+/// All supported plugin extensions
+pub const SUPPORTED_EXTENSIONS: &[&str] = &[PLUGIN_EXTENSION, NATIVE_PLUGIN_EXTENSION];
 
 /// Loaded plugin with runtime state
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -202,23 +237,31 @@ impl PluginLoader {
         }
     }
 
-    /// Load a plugin from a file
+    /// Load a plugin from a file (.ayoto or .pl)
     pub fn load_from_file<P: AsRef<Path>>(&self, path: P) -> PluginLoadResult {
         let path = path.as_ref();
         
-        // Check file extension
-        if path.extension().map(|e| e.to_str()) != Some(Some(PLUGIN_EXTENSION)) {
-            return PluginLoadResult {
+        // Get file extension
+        let extension = path.extension().and_then(|e| e.to_str());
+        
+        match extension {
+            Some(PLUGIN_EXTENSION) => self.load_ayoto_plugin(path),
+            Some(NATIVE_PLUGIN_EXTENSION) => self.load_native_plugin(path),
+            _ => PluginLoadResult {
                 success: false,
                 plugin_id: None,
                 errors: vec![format!(
-                    "Invalid plugin file extension. Expected .{}", 
-                    PLUGIN_EXTENSION
+                    "Invalid plugin file extension. Expected .{} or .{}", 
+                    PLUGIN_EXTENSION,
+                    NATIVE_PLUGIN_EXTENSION
                 )],
                 warnings: vec![],
-            };
+            },
         }
+    }
 
+    /// Load a JSON-based .ayoto plugin
+    fn load_ayoto_plugin(&self, path: &Path) -> PluginLoadResult {
         // Read file content
         let content = match std::fs::read_to_string(path) {
             Ok(c) => c,
@@ -233,6 +276,68 @@ impl PluginLoader {
         };
 
         self.load_from_json(&content, &path.display().to_string())
+    }
+
+    /// Load a native .pl plugin (directory with manifest.json and platform-specific libraries)
+    fn load_native_plugin(&self, path: &Path) -> PluginLoadResult {
+        let mut warnings = Vec::new();
+        
+        // Native plugins can be either a directory or a zip-like archive
+        // For now, we support directory format
+        let manifest_path = if path.is_dir() {
+            path.join("manifest.json")
+        } else {
+            // Single file - treat as JSON manifest with native library paths
+            return self.load_ayoto_plugin(path);
+        };
+
+        // Read manifest
+        let content = match std::fs::read_to_string(&manifest_path) {
+            Ok(c) => c,
+            Err(e) => {
+                return PluginLoadResult {
+                    success: false,
+                    plugin_id: None,
+                    errors: vec![format!("Failed to read plugin manifest: {}", e)],
+                    warnings: vec![],
+                };
+            }
+        };
+
+        // Parse manifest
+        let manifest = match PluginManifest::from_json(&content) {
+            Ok(m) => m,
+            Err(e) => {
+                return PluginLoadResult {
+                    success: false,
+                    plugin_id: None,
+                    errors: vec![e],
+                    warnings: vec![],
+                };
+            }
+        };
+
+        // Validate that native library exists for current platform
+        if let Some(ref native_lib) = manifest.native_library {
+            if let Some(lib_path) = native_lib.get_for_current_platform() {
+                let full_lib_path = path.join(lib_path);
+                if !full_lib_path.exists() {
+                    warnings.push(format!(
+                        "Native library not found for current platform: {}",
+                        full_lib_path.display()
+                    ));
+                }
+            } else {
+                warnings.push(
+                    "No native library path defined for current platform".to_string()
+                );
+            }
+        }
+
+        // Load the plugin using the JSON loader
+        let mut result = self.load_from_json(&content, &path.display().to_string());
+        result.warnings.extend(warnings);
+        result
     }
 
     /// Check plugin compatibility with current Ayoto version and platform
@@ -423,6 +528,7 @@ impl PluginLoader {
     }
 
     /// Load all plugins from configured directories
+    /// Supports both .ayoto (JSON-based) and .pl (native) plugins
     pub fn load_all_from_dirs(&self) -> Vec<PluginLoadResult> {
         let mut results = Vec::new();
 
@@ -434,8 +540,19 @@ impl PluginLoader {
             if let Ok(entries) = std::fs::read_dir(dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.extension().map(|e| e.to_str()) == Some(Some(PLUGIN_EXTENSION)) {
+                    let ext = path.extension().and_then(|e| e.to_str());
+                    
+                    // Check if extension matches any supported extension
+                    if SUPPORTED_EXTENSIONS.iter().any(|&e| Some(e) == ext) {
                         results.push(self.load_from_file(&path));
+                    }
+                    // Also check for .pl directories (native plugins)
+                    else if path.is_dir() {
+                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                            if name.ends_with(&format!(".{}", NATIVE_PLUGIN_EXTENSION)) {
+                                results.push(self.load_from_file(&path));
+                            }
+                        }
                     }
                 }
             }
@@ -553,6 +670,7 @@ pub fn create_sample_media_provider() -> PluginManifest {
             requires_auth: false,
             has_nsfw: false,
         }),
+        native_library: None,
         config: serde_json::json!({
             "defaultQuality": "1080p",
             "preferredServer": "main"
@@ -597,9 +715,49 @@ pub fn create_sample_stream_provider() -> PluginManifest {
             priority: 10,
         }),
         media_provider_config: None,
+        native_library: None,
         config: serde_json::json!({
             "timeout": 30,
             "retries": 3
+        }),
+    }
+}
+
+/// Create a sample native plugin manifest with platform-specific library paths
+pub fn create_sample_native_plugin() -> PluginManifest {
+    PluginManifest {
+        id: "sample-native-plugin".to_string(),
+        name: "Sample Native Plugin".to_string(),
+        version: "1.0.0".to_string(),
+        plugin_type: PluginType::MediaProvider,
+        target_ayoto_version: AYOTO_VERSION.to_string(),
+        max_ayoto_version: None,
+        description: Some("A sample native plugin with platform-specific libraries".to_string()),
+        author: Some("Ayoto Team".to_string()),
+        homepage: Some("https://github.com/FundyJo/Ayoto".to_string()),
+        icon: None,
+        providers: vec!["Native Provider".to_string()],
+        formats: vec!["m3u8".to_string(), "mp4".to_string()],
+        anime4k_support: true,
+        capabilities: super::manifest::PluginCapabilities {
+            search: true,
+            get_episodes: true,
+            get_streams: true,
+            ..Default::default()
+        },
+        platforms: vec![TargetPlatform::Universal],
+        scraping_config: None,
+        stream_provider_config: None,
+        media_provider_config: None,
+        native_library: Some(super::manifest::NativeLibraryPaths {
+            linux: Some("lib/linux/libplugin.so".to_string()),
+            windows: Some("lib/windows/plugin.dll".to_string()),
+            macos: Some("lib/macos/libplugin.dylib".to_string()),
+            android: Some("lib/android/libplugin.so".to_string()),
+            ios: Some("lib/ios/libplugin.dylib".to_string()),
+        }),
+        config: serde_json::json!({
+            "nativeFeature": true
         }),
     }
 }
@@ -671,5 +829,50 @@ mod tests {
         // Should not find for unknown hoster
         let unknown_providers = loader.get_stream_providers_for_hoster("unknown");
         assert_eq!(unknown_providers.len(), 0);
+    }
+
+    #[test]
+    fn test_native_plugin_extension() {
+        // Verify the native plugin extension constant
+        assert_eq!(NATIVE_PLUGIN_EXTENSION, "pl");
+        assert!(SUPPORTED_EXTENSIONS.contains(&"ayoto"));
+        assert!(SUPPORTED_EXTENSIONS.contains(&"pl"));
+    }
+
+    #[test]
+    fn test_native_plugin_manifest() {
+        let sample = create_sample_native_plugin();
+        assert!(sample.is_native_plugin());
+        assert!(sample.native_library.is_some());
+        
+        let native_lib = sample.native_library.as_ref().unwrap();
+        assert_eq!(native_lib.linux, Some("lib/linux/libplugin.so".to_string()));
+        assert_eq!(native_lib.windows, Some("lib/windows/plugin.dll".to_string()));
+        assert_eq!(native_lib.macos, Some("lib/macos/libplugin.dylib".to_string()));
+    }
+
+    #[test]
+    fn test_load_native_plugin_from_json() {
+        let loader = PluginLoader::new();
+        let sample = create_sample_native_plugin();
+        let json = sample.to_json().unwrap();
+        
+        let result = loader.load_from_json(&json, "test.pl");
+        assert!(result.success, "Errors: {:?}", result.errors);
+        assert_eq!(result.plugin_id, Some("sample-native-plugin".to_string()));
+        
+        // Verify it's marked as a native plugin
+        let plugin = loader.get_plugin("sample-native-plugin").unwrap();
+        assert!(plugin.manifest.is_native_plugin());
+    }
+
+    #[test]
+    fn test_invalid_extension_rejected() {
+        let loader = PluginLoader::new();
+        
+        // Try loading with invalid extension
+        let result = loader.load_from_file("/tmp/test.invalid");
+        assert!(!result.success);
+        assert!(result.errors[0].contains("Invalid plugin file extension"));
     }
 }
