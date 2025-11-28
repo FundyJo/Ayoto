@@ -88,20 +88,20 @@ pub struct ZpePluginInstance {
 /// Host state passed to WASM functions
 struct HostState {
     /// HTTP responses for async operations
-    http_responses: Arc<Mutex<HashMap<u32, ZpeHttpResponse>>>,
+    _http_responses: Arc<Mutex<HashMap<u32, ZpeHttpResponse>>>,
     /// Next request ID
-    next_request_id: u32,
+    _next_request_id: u32,
     /// Runtime config
-    config: ZpeRuntimeConfig,
+    _config: ZpeRuntimeConfig,
 }
 
 impl ZpePluginInstance {
     /// Create a new plugin instance
     fn new(engine: &Engine, module: &Module, config: &ZpeRuntimeConfig) -> Result<Self, String> {
         let mut store = Store::new(engine, HostState {
-            http_responses: Arc::new(Mutex::new(HashMap::new())),
-            next_request_id: 1,
-            config: config.clone(),
+            _http_responses: Arc::new(Mutex::new(HashMap::new())),
+            _next_request_id: 1,
+            _config: config.clone(),
         });
 
         // Create linker with host functions
