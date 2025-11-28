@@ -69,5 +69,20 @@ export {
   pluginGetEpisodes,
   pluginGetStreams,
   pluginGetAnimeDetails,
-  searchAllPlugins
+  searchAllPlugins,
+  // ZPE Plugin Functions
+  getZpeExtension,
+  getZpeAbiVersion,
+  loadZpePlugin,
+  getAllZpePlugins,
+  getZpePlugin,
+  unloadZpePlugin,
+  setZpePluginEnabled,
+  zpePluginSearch,
+  zpePluginGetPopular,
+  zpePluginGetLatest,
+  zpePluginGetEpisodes,
+  zpePluginGetStreams,
+  zpePluginGetAnimeDetails,
+  getZpePluginInfo
 } from './TauriPluginBridge'

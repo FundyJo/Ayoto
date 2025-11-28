@@ -259,6 +259,142 @@ export async function searchAllPlugins(query) {
 }
 
 // ============================================================================
+// ZPE (Zenshine Plugin Extension) Functions
+// ============================================================================
+
+/**
+ * Get the ZPE file extension
+ * @returns {Promise<string>} ZPE extension (e.g., "zpe")
+ */
+export async function getZpeExtension() {
+  return await invoke('get_zpe_extension')
+}
+
+/**
+ * Get ZPE ABI version
+ * @returns {Promise<number>} ZPE ABI version number
+ */
+export async function getZpeAbiVersion() {
+  return await invoke('get_zpe_abi_version')
+}
+
+/**
+ * Load a ZPE plugin from file path
+ * @param {string} path - Path to the .zpe file
+ * @returns {Promise<Object>} ZPE load result with success status and errors
+ */
+export async function loadZpePlugin(path) {
+  return await invoke('load_zpe_plugin', { path })
+}
+
+/**
+ * Get all loaded ZPE plugins
+ * @returns {Promise<Object[]>} Array of ZPE plugin info objects
+ */
+export async function getAllZpePlugins() {
+  return await invoke('get_all_zpe_plugins')
+}
+
+/**
+ * Get a ZPE plugin by ID
+ * @param {string} pluginId - Plugin ID
+ * @returns {Promise<Object|null>} ZPE plugin info or null if not found
+ */
+export async function getZpePlugin(pluginId) {
+  return await invoke('get_zpe_plugin', { pluginId })
+}
+
+/**
+ * Unload a ZPE plugin
+ * @param {string} pluginId - Plugin ID to unload
+ * @returns {Promise<void>}
+ */
+export async function unloadZpePlugin(pluginId) {
+  return await invoke('unload_zpe_plugin', { pluginId })
+}
+
+/**
+ * Set ZPE plugin enabled state
+ * @param {string} pluginId - Plugin ID
+ * @param {boolean} enabled - Whether to enable or disable the plugin
+ * @returns {Promise<void>}
+ */
+export async function setZpePluginEnabled(pluginId, enabled) {
+  return await invoke('set_zpe_plugin_enabled', { pluginId, enabled })
+}
+
+/**
+ * Search using a ZPE plugin
+ * @param {string} pluginId - Plugin ID
+ * @param {string} query - Search query
+ * @param {number} [page] - Page number
+ * @returns {Promise<Object>} Search results
+ */
+export async function zpePluginSearch(pluginId, query, page = 1) {
+  return await invoke('zpe_plugin_search', { pluginId, query, page })
+}
+
+/**
+ * Get popular anime using a ZPE plugin
+ * @param {string} pluginId - Plugin ID
+ * @param {number} [page] - Page number
+ * @returns {Promise<Object>} Popular anime list
+ */
+export async function zpePluginGetPopular(pluginId, page = 1) {
+  return await invoke('zpe_plugin_get_popular', { pluginId, page })
+}
+
+/**
+ * Get latest anime using a ZPE plugin
+ * @param {string} pluginId - Plugin ID
+ * @param {number} [page] - Page number
+ * @returns {Promise<Object>} Latest anime list
+ */
+export async function zpePluginGetLatest(pluginId, page = 1) {
+  return await invoke('zpe_plugin_get_latest', { pluginId, page })
+}
+
+/**
+ * Get episodes using a ZPE plugin
+ * @param {string} pluginId - Plugin ID
+ * @param {string} animeId - Anime ID
+ * @param {number} [page] - Page number
+ * @returns {Promise<Object>} Episodes list
+ */
+export async function zpePluginGetEpisodes(pluginId, animeId, page = 1) {
+  return await invoke('zpe_plugin_get_episodes', { pluginId, animeId, page })
+}
+
+/**
+ * Get stream sources using a ZPE plugin
+ * @param {string} pluginId - Plugin ID
+ * @param {string} animeId - Anime ID
+ * @param {string} episodeId - Episode ID
+ * @returns {Promise<Object>} Stream sources
+ */
+export async function zpePluginGetStreams(pluginId, animeId, episodeId) {
+  return await invoke('zpe_plugin_get_streams', { pluginId, animeId, episodeId })
+}
+
+/**
+ * Get anime details using a ZPE plugin
+ * @param {string} pluginId - Plugin ID
+ * @param {string} animeId - Anime ID
+ * @returns {Promise<Object>} Anime details
+ */
+export async function zpePluginGetAnimeDetails(pluginId, animeId) {
+  return await invoke('zpe_plugin_get_anime_details', { pluginId, animeId })
+}
+
+/**
+ * Get information about the ZPE plugin system
+ * @returns {Promise<Object>} ZPE system info
+ */
+export async function getZpePluginInfo() {
+  return await invoke('get_zpe_plugin_info')
+}
+
+// ============================================================================
 // Unified Plugin Bridge Class
 // ============================================================================
 
@@ -288,58 +424,65 @@ export class TauriPluginBridge {
   }
 
   /**
-   * Load a plugin from a file dialog selection
+   * Load a ZPE plugin from a file dialog selection
    */
-  async loadPluginFromDialog() {
+  async loadZpePluginFromDialog() {
     const file = await openDialog({
-      title: 'Select Ayoto Plugin',
+      title: 'Select ZPE Plugin',
       filters: [{
-        name: 'Ayoto Plugin',
-        extensions: ['ayoto']
+        name: 'ZPE Plugin',
+        extensions: ['zpe']
       }],
       multiple: false
     })
 
     if (file) {
-      return await loadPluginFromFile(file)
+      return await loadZpePlugin(file)
     }
     
     return null
   }
 
   /**
-   * Get all plugins with full details
+   * Get all ZPE plugins with full details
    */
-  async getPlugins() {
-    return await getAllPlugins()
+  async getZpePlugins() {
+    return await getAllZpePlugins()
   }
 
   /**
-   * Search using a specific plugin
+   * Search using a ZPE plugin
    */
-  async search(pluginId, query) {
-    return await pluginSearch(pluginId, query)
+  async zpeSearch(pluginId, query) {
+    return await zpePluginSearch(pluginId, query)
   }
 
   /**
-   * Search across all plugins
+   * Get episodes using a ZPE plugin
    */
-  async searchAll(query) {
-    return await searchAllPlugins(query)
+  async zpeGetEpisodes(pluginId, animeId) {
+    return await zpePluginGetEpisodes(pluginId, animeId)
   }
 
   /**
-   * Get episodes using a specific plugin
+   * Get stream sources using a ZPE plugin
    */
-  async getEpisodes(pluginId, animeId) {
-    return await pluginGetEpisodes(pluginId, animeId)
+  async zpeGetStreams(pluginId, animeId, episodeId) {
+    return await zpePluginGetStreams(pluginId, animeId, episodeId)
   }
 
   /**
-   * Get stream sources using a specific plugin
+   * Toggle ZPE plugin enabled state
    */
-  async getStreams(pluginId, animeId, episodeId) {
-    return await pluginGetStreams(pluginId, animeId, episodeId)
+  async toggleZpePlugin(pluginId, enabled) {
+    return await setZpePluginEnabled(pluginId, enabled)
+  }
+
+  /**
+   * Unload a ZPE plugin
+   */
+  async removeZpePlugin(pluginId) {
+    return await unloadZpePlugin(pluginId)
   }
 }
 
