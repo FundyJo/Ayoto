@@ -187,15 +187,20 @@ export default function Header() {
           {/* <DashboardIcon /> */}
           <AniListLogo style="h-5 w-5" />
         </Button>
-        {/* <Button
-          className="nodrag"
-          size="1"
-          color="gray"
-          variant="soft"
-          onClick={() => navigate('/bookmarks')}
-        >
-          <BookmarkIcon />
-        </Button> */}
+        
+        {/* Watchlist Button - visible when logged in */}
+        {userProfile && (
+          <Button
+            className="nodrag"
+            size="1"
+            color="blue"
+            variant="soft"
+            onClick={() => navigate('/bookmarks')}
+          >
+            <BookmarkIcon />
+            <span className="font-space-mono text-[.8rem]">Watchlist</span>
+          </Button>
+        )}
       </div>
 
       <div className="nodrag mx-5 w-2/6">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>

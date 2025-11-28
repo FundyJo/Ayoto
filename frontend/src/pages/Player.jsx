@@ -4,7 +4,7 @@ import { useLocation, useParams } from 'react-router-dom'
 // import VideoJS, { PlyrPlayer } from './VideoJs'
 // import videojs from 'video.js'
 import StreamStats from '../components/StreamStats'
-import { Button } from '@radix-ui/themes'
+import { Button, Switch } from '@radix-ui/themes'
 import { toast } from 'sonner'
 import { ExclamationTriangleIcon, LightningBoltIcon, TrashIcon } from '@radix-ui/react-icons'
 import EpisodesPlayer from '../components/EpisodesPlayer'
@@ -12,6 +12,7 @@ import StreamStatsEpisode from '../components/StreamStatsEpisode'
 import 'plyr-react/plyr.css'
 import Plyr from 'plyr-react'
 import { useZenshinContext } from '../utils/ContextProvider'
+import VidstackPlayer from '../components/VidstackPlayer'
 
 export default function Player(query) {
   const magnetURI = useParams().magnetId
@@ -206,8 +207,34 @@ export default function Player(query) {
   console.log(videoSrc)
 
   const playerRef = useRef(null)
+  const vidstackRef = useRef(null)
   const [isActive, setIsActive] = useState(false)
   const [currentEpisode, setCurrentEpisode] = useState('')
+  
+  // Player type selection: 'plyr' or 'vidstack'
+  const [playerType, setPlayerType] = useState(
+    localStorage.getItem('preferred_player') || 'vidstack'
+  )
+  
+  // Anime4K settings
+  const [anime4kEnabled, setAnime4kEnabled] = useState(
+    localStorage.getItem('anime4k_enabled') === 'true'
+  )
+  const [anime4kPreset, setAnime4kPreset] = useState(
+    localStorage.getItem('anime4k_preset') || 'mode-b'
+  )
+  
+  // Save player preference
+  const handlePlayerTypeChange = (type) => {
+    setPlayerType(type)
+    localStorage.setItem('preferred_player', type)
+  }
+  
+  // Toggle Anime4K
+  const handleAnime4kToggle = (enabled) => {
+    setAnime4kEnabled(enabled)
+    localStorage.setItem('anime4k_enabled', enabled ? 'true' : 'false')
+  }
 
   const plyrProps = {
     source: {
@@ -340,10 +367,61 @@ export default function Player(query) {
   return (
     <div className="mb-32 flex items-center justify-center px-8 font-space-mono">
       <div className="w-full">
+        {/* Player Type Selection */}
+        <div className="mb-4 flex items-center justify-center gap-4">
+          <span className="text-sm opacity-70">Player:</span>
+          <Button 
+            size="1" 
+            variant={playerType === 'vidstack' ? 'solid' : 'soft'}
+            color={playerType === 'vidstack' ? 'blue' : 'gray'}
+            onClick={() => handlePlayerTypeChange('vidstack')}
+          >
+            Vidstack
+          </Button>
+          <Button 
+            size="1" 
+            variant={playerType === 'plyr' ? 'solid' : 'soft'}
+            color={playerType === 'plyr' ? 'blue' : 'gray'}
+            onClick={() => handlePlayerTypeChange('plyr')}
+          >
+            Plyr
+          </Button>
+          
+          {playerType === 'vidstack' && (
+            <>
+              <div className="mx-2 h-5 w-[1px] bg-gray-600" />
+              <div className="flex items-center gap-2">
+                <span className="text-sm opacity-70">Anime4K:</span>
+                <Switch
+                  checked={anime4kEnabled}
+                  onCheckedChange={handleAnime4kToggle}
+                  size="1"
+                />
+              </div>
+            </>
+          )}
+        </div>
+        
+        {/* Video Player */}
         {videoSrc && (
           <div className="flex w-full justify-center">
             <div className="mx-0 aspect-video w-4/6 lg2:mx-32">
-              <Plyr {...plyrProps} ref={ref} />
+              {playerType === 'vidstack' ? (
+                <VidstackPlayer
+                  ref={vidstackRef}
+                  src={videoSrc}
+                  format="mp4"
+                  title={`${animeTitle} - Episode ${episodeNumber}`}
+                  autoPlay={true}
+                  anime4kEnabled={anime4kEnabled}
+                  anime4kPreset={anime4kPreset}
+                  showAnime4KControls={true}
+                  showMiracastControls={true}
+                  className="rounded-lg overflow-hidden"
+                />
+              ) : (
+                <Plyr {...plyrProps} ref={ref} />
+              )}
             </div>
           </div>
         )}
