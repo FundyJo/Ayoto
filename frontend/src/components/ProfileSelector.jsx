@@ -72,6 +72,13 @@ function AvatarSelector({ currentAvatar, onSelect }) {
 
 // Profile card component
 function ProfileCard({ profile, onSelect, onEdit, isEditing }) {
+  // Check if profile has any linked accounts
+  const hasLinkedAccounts = profile.linkedAccounts && (
+    profile.linkedAccounts.anilistUsername ||
+    profile.linkedAccounts.aniworldUsername ||
+    profile.linkedAccounts.myanimelistUsername
+  )
+
   return (
     <div
       className="flex flex-col items-center group cursor-pointer"
@@ -93,6 +100,20 @@ function ProfileCard({ profile, onSelect, onEdit, isEditing }) {
           >
             <Pencil1Icon className="w-4 h-4" />
           </button>
+        )}
+        {/* Linked accounts indicators */}
+        {hasLinkedAccounts && (
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-1">
+            {profile.linkedAccounts.anilistUsername && (
+              <span className="w-2 h-2 rounded-full bg-blue-500" title="AniList linked"></span>
+            )}
+            {profile.linkedAccounts.aniworldUsername && (
+              <span className="w-2 h-2 rounded-full bg-purple-500" title="AniWorld linked"></span>
+            )}
+            {profile.linkedAccounts.myanimelistUsername && (
+              <span className="w-2 h-2 rounded-full bg-green-500" title="MyAnimeList linked"></span>
+            )}
+          </div>
         )}
       </div>
       <span className="mt-3 text-gray-300 text-lg group-hover:text-white transition-colors">
@@ -128,6 +149,12 @@ function ProfileEditor({ profile, onSave, onDelete, onClose, isNew }) {
   const [name, setName] = useState(profile?.name || '')
   const [avatar, setAvatar] = useState(profile?.avatar || 'avatar_blue')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showLinkedAccounts, setShowLinkedAccounts] = useState(false)
+  
+  // Linked accounts state
+  const [anilistUsername, setAnilistUsername] = useState(profile?.linkedAccounts?.anilistUsername || '')
+  const [aniworldUsername, setAniworldUsername] = useState(profile?.linkedAccounts?.aniworldUsername || '')
+  const [myanimelistUsername, setMyanimelistUsername] = useState(profile?.linkedAccounts?.myanimelistUsername || '')
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -138,7 +165,15 @@ function ProfileEditor({ profile, onSave, onDelete, onClose, isNew }) {
       toast.error('Profile name must be 20 characters or less')
       return
     }
-    onSave({ name: name.trim(), avatar })
+    onSave({ 
+      name: name.trim(), 
+      avatar,
+      linkedAccounts: {
+        anilistUsername: anilistUsername.trim() || null,
+        aniworldUsername: aniworldUsername.trim() || null,
+        myanimelistUsername: myanimelistUsername.trim() || null,
+      }
+    })
   }
 
   const handleDelete = () => {
@@ -152,7 +187,7 @@ function ProfileEditor({ profile, onSave, onDelete, onClose, isNew }) {
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-[#1a1a1d] rounded-lg p-6 w-96 max-w-[90vw]">
+      <div className="bg-[#1a1a1d] rounded-lg p-6 w-[28rem] max-w-[90vw] max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-white">
             {isNew ? 'Create Profile' : 'Edit Profile'}
@@ -186,6 +221,70 @@ function ProfileEditor({ profile, onSave, onDelete, onClose, isNew }) {
               currentAvatar={avatar}
               onSelect={setAvatar}
             />
+          </div>
+
+          {/* Linked Accounts Section */}
+          <div className="border-t border-gray-700 pt-4 mt-4">
+            <button
+              type="button"
+              onClick={() => setShowLinkedAccounts(!showLinkedAccounts)}
+              className="flex items-center justify-between w-full text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              <span className="font-medium">Link External Accounts</span>
+              <span className={`transform transition-transform ${showLinkedAccounts ? 'rotate-180' : ''}`}>
+                ▼
+              </span>
+            </button>
+            
+            {showLinkedAccounts && (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs text-gray-500 mb-3">
+                  Link your external accounts to sync your watchlist and track progress across platforms.
+                </p>
+                
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    AniList Username
+                  </label>
+                  <TextField.Root
+                    placeholder="Your AniList username"
+                    value={anilistUsername}
+                    onChange={(e) => setAnilistUsername(e.target.value)}
+                    className="w-full"
+                    size="1"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                    AniWorld / s.to Username
+                  </label>
+                  <TextField.Root
+                    placeholder="Your AniWorld/s.to username"
+                    value={aniworldUsername}
+                    onChange={(e) => setAniworldUsername(e.target.value)}
+                    className="w-full"
+                    size="1"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    MyAnimeList Username
+                  </label>
+                  <TextField.Root
+                    placeholder="Your MyAnimeList username"
+                    value={myanimelistUsername}
+                    onChange={(e) => setMyanimelistUsername(e.target.value)}
+                    className="w-full"
+                    size="1"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -273,7 +372,17 @@ export default function ProfileSelector({ onProfileSelect, showManageOption = tr
           data.avatar,
           AVATAR_COLORS[data.avatar]?.bg || '#3b82f6'
         )
-        setProfiles([...profiles, newProfile])
+        
+        // If linked accounts are provided, update them separately
+        if (data.linkedAccounts && window.api?.profiles?.updateLinkedAccounts) {
+          const updatedProfile = await window.api.profiles.updateLinkedAccounts(
+            newProfile.id,
+            data.linkedAccounts
+          )
+          setProfiles([...profiles, updatedProfile])
+        } else {
+          setProfiles([...profiles, newProfile])
+        }
         setCanCreate(profiles.length + 1 < 5)
       }
       toast.success(`Profile "${data.name}" created!`)
@@ -287,12 +396,21 @@ export default function ProfileSelector({ onProfileSelect, showManageOption = tr
   const handleUpdateProfile = async (data) => {
     try {
       if (window.api?.profiles && editingProfile) {
-        const updated = await window.api.profiles.update(
+        let updated = await window.api.profiles.update(
           editingProfile.id,
           data.name,
           data.avatar,
           AVATAR_COLORS[data.avatar]?.bg || '#3b82f6'
         )
+        
+        // If linked accounts are provided, update them
+        if (data.linkedAccounts && window.api?.profiles?.updateLinkedAccounts) {
+          updated = await window.api.profiles.updateLinkedAccounts(
+            editingProfile.id,
+            data.linkedAccounts
+          )
+        }
+        
         setProfiles(profiles.map(p => p.id === editingProfile.id ? updated : p))
       }
       toast.success('Profile updated!')
