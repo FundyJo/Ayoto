@@ -282,13 +282,20 @@ impl PluginLoader {
     fn load_native_plugin(&self, path: &Path) -> PluginLoadResult {
         let mut warnings = Vec::new();
         
-        // Native plugins can be either a directory or a zip-like archive
-        // For now, we support directory format
+        // Native plugins should be directories containing a manifest.json and lib/ folder
+        // If a single .pl file is provided, we treat it as a JSON manifest
         let manifest_path = if path.is_dir() {
             path.join("manifest.json")
         } else {
-            // Single file - treat as JSON manifest with native library paths
-            return self.load_ayoto_plugin(path);
+            // Single .pl file - treat as JSON manifest with native library paths
+            // Add a warning to clarify this behavior
+            warnings.push(
+                "Loading .pl file as JSON manifest. For full native plugin support, \
+                 use a directory structure with manifest.json and platform-specific libraries.".to_string()
+            );
+            let mut result = self.load_ayoto_plugin(path);
+            result.warnings.extend(warnings);
+            return result;
         };
 
         // Read manifest
@@ -531,6 +538,9 @@ impl PluginLoader {
     /// Supports both .ayoto (JSON-based) and .pl (native) plugins
     pub fn load_all_from_dirs(&self) -> Vec<PluginLoadResult> {
         let mut results = Vec::new();
+        
+        // Pre-compute the native plugin directory suffix to avoid repeated allocations
+        let native_dir_suffix = format!(".{}", NATIVE_PLUGIN_EXTENSION);
 
         for dir in &self.plugin_dirs {
             if !dir.exists() {
@@ -549,7 +559,7 @@ impl PluginLoader {
                     // Also check for .pl directories (native plugins)
                     else if path.is_dir() {
                         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                            if name.ends_with(&format!(".{}", NATIVE_PLUGIN_EXTENSION)) {
+                            if name.ends_with(&native_dir_suffix) {
                                 results.push(self.load_from_file(&path));
                             }
                         }
