@@ -70,6 +70,7 @@ export const ANIME4K_PRESETS = {
  * @property {string} [thumbnail] - Episode thumbnail URL
  * @property {string} [airDate] - Air date
  * @property {number} [duration] - Duration in seconds
+ * @property {StreamSource[]} [sources] - Available stream sources (optional, can be fetched separately via getStreams)
  */
 
 /**
