@@ -6,6 +6,16 @@
 import { jsPluginManager, STREAM_FORMAT } from './JSPluginRuntime'
 
 /**
+ * Check if the plugin manager is available
+ * @throws {Error} If plugin manager is not available
+ */
+function ensurePluginManagerAvailable() {
+  if (!jsPluginManager) {
+    throw new Error('Plugin system not initialized. JSPluginManager is not available.')
+  }
+}
+
+/**
  * Provider API interface
  * This defines the standard methods that providers should implement
  */
@@ -21,9 +31,15 @@ export class ProviderAPI {
   /**
    * Get the plugin instance
    * @returns {Promise<Object>} Plugin instance
+   * @throws {Error} If plugin manager is not available or plugin not found
    */
   async getPluginInstance() {
-    return await jsPluginManager.getPlugin(this.pluginId)
+    ensurePluginManagerAvailable()
+    try {
+      return await jsPluginManager.getPlugin(this.pluginId)
+    } catch (error) {
+      throw new Error(`Failed to get plugin '${this.pluginId}': ${error.message}`)
+    }
   }
   
   /**
