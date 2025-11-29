@@ -36,7 +36,7 @@ zip sample-media-provider.zpe manifest.json plugin.wasm
 
 ## Plugin Structure
 
-- `manifest.json` - Plugin metadata and capabilities
+- `manifest.json` - Plugin metadata and capabilities (including the `icon` field for display in UI)
 - `src/lib.rs` - Plugin implementation in Rust
 - `Cargo.toml` - Rust project configuration
 
@@ -45,14 +45,46 @@ zip sample-media-provider.zpe manifest.json plugin.wasm
 To create your own media provider:
 
 1. Copy this template
-2. Update `manifest.json` with your plugin's information
+2. Update `manifest.json` with your plugin's information:
+   - Set `id`, `name`, `version`, `author`, `description`
+   - Set `icon` to a URL for your plugin's icon (displayed in the plugins UI)
+   - Configure `capabilities` based on what your plugin supports
 3. Implement the plugin functions in `src/lib.rs`:
    - `zpe_search` - Search for anime
    - `zpe_get_popular` - Get popular anime
    - `zpe_get_latest` - Get latest releases
-   - `zpe_get_episodes` - Get episode list
-   - `zpe_get_streams` - Get stream URLs
+   - `zpe_get_episodes` - Get episode list (supports multiple streaming links per episode via the `sources` field)
+   - `zpe_get_streams` - Get stream URLs for a specific episode
    - `zpe_get_anime_details` - Get detailed info
+
+## Episode Streaming Links
+
+Each episode can have multiple streaming links (sources) directly attached to it. This allows users to choose from different servers, qualities, or formats:
+
+```rust
+Episode {
+    id: "ep-1".to_string(),
+    number: 1,
+    title: Some("Episode 1".to_string()),
+    sources: vec![
+        StreamSource {
+            url: "https://server1.example.com/ep1/1080p.m3u8".to_string(),
+            quality: "1080p".to_string(),
+            server: Some("Server 1".to_string()),
+            format: "m3u8".to_string(),
+            ..Default::default()
+        },
+        StreamSource {
+            url: "https://server2.example.com/ep1/720p.mp4".to_string(),
+            quality: "720p".to_string(),
+            server: Some("Server 2".to_string()),
+            format: "mp4".to_string(),
+            ..Default::default()
+        },
+    ],
+    ..Default::default()
+}
+```
 
 ## HTTP Requests
 

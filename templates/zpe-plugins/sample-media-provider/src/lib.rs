@@ -58,6 +58,18 @@ struct AnimeList {
     total_results: Option<u32>,
 }
 
+#[derive(Serialize, Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+struct StreamSource {
+    url: String,
+    quality: String,
+    server: Option<String>,
+    format: String,
+    anime4k_support: bool,
+    is_default: bool,
+    headers: std::collections::HashMap<String, String>,
+}
+
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct Episode {
@@ -69,6 +81,14 @@ struct Episode {
     duration: Option<u32>,
     air_date: Option<String>,
     is_filler: Option<bool>,
+    /// Multiple streaming links/sources for this episode.
+    /// 
+    /// This field can be populated with streaming sources when returning episodes from `zpe_get_episodes`.
+    /// Alternatively, sources can be fetched separately via `zpe_get_streams` for lazy loading.
+    /// 
+    /// When `sources` is empty, the client should call `zpe_get_streams` to fetch stream URLs.
+    /// When `sources` is populated, the client can use these directly without an additional call.
+    sources: Vec<StreamSource>,
 }
 
 #[derive(Serialize, Default)]
@@ -78,18 +98,6 @@ struct EpisodeList {
     has_next_page: bool,
     current_page: u32,
     total_episodes: u32,
-}
-
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct StreamSource {
-    url: String,
-    quality: String,
-    server: Option<String>,
-    format: String,
-    anime4k_support: bool,
-    is_default: bool,
-    headers: std::collections::HashMap<String, String>,
 }
 
 #[derive(Serialize, Default)]
@@ -327,8 +335,12 @@ pub extern "C" fn zpe_get_latest(input_ptr: i32, input_len: i32) -> i64 {
 pub extern "C" fn zpe_get_episodes(input_ptr: i32, input_len: i32) -> i64 {
     let input = read_input(input_ptr, input_len);
     let params: serde_json::Value = serde_json::from_str(&input).unwrap_or_default();
-    let _anime_id = params["animeId"].as_str().unwrap_or("");
+    let anime_id = params["animeId"].as_str().unwrap_or("");
     let page = params["page"].as_u64().unwrap_or(1) as u32;
+    
+    // Create sample headers for streaming sources
+    let mut headers = std::collections::HashMap::new();
+    headers.insert("Referer".to_string(), "https://example.com".to_string());
     
     let results = EpisodeList {
         items: vec![
@@ -338,6 +350,36 @@ pub extern "C" fn zpe_get_episodes(input_ptr: i32, input_len: i32) -> i64 {
                 title: Some("Episode 1: The Beginning".to_string()),
                 duration: Some(1440), // 24 minutes in seconds
                 is_filler: Some(false),
+                // Multiple streaming links for this episode
+                sources: vec![
+                    StreamSource {
+                        url: format!("https://example.com/stream/{}/ep-1/1080p.m3u8", anime_id),
+                        quality: "1080p".to_string(),
+                        server: Some("Server 1".to_string()),
+                        format: "m3u8".to_string(),
+                        anime4k_support: true,
+                        is_default: true,
+                        headers: headers.clone(),
+                    },
+                    StreamSource {
+                        url: format!("https://example.com/stream/{}/ep-1/720p.m3u8", anime_id),
+                        quality: "720p".to_string(),
+                        server: Some("Server 1".to_string()),
+                        format: "m3u8".to_string(),
+                        anime4k_support: true,
+                        is_default: false,
+                        headers: headers.clone(),
+                    },
+                    StreamSource {
+                        url: format!("https://backup.example.com/stream/{}/ep-1/1080p.mp4", anime_id),
+                        quality: "1080p".to_string(),
+                        server: Some("Backup Server".to_string()),
+                        format: "mp4".to_string(),
+                        anime4k_support: false,
+                        is_default: false,
+                        headers: headers.clone(),
+                    },
+                ],
                 ..Default::default()
             },
             Episode {
@@ -346,6 +388,27 @@ pub extern "C" fn zpe_get_episodes(input_ptr: i32, input_len: i32) -> i64 {
                 title: Some("Episode 2: The Journey".to_string()),
                 duration: Some(1440),
                 is_filler: Some(false),
+                // Multiple streaming links for this episode
+                sources: vec![
+                    StreamSource {
+                        url: format!("https://example.com/stream/{}/ep-2/1080p.m3u8", anime_id),
+                        quality: "1080p".to_string(),
+                        server: Some("Server 1".to_string()),
+                        format: "m3u8".to_string(),
+                        anime4k_support: true,
+                        is_default: true,
+                        headers: headers.clone(),
+                    },
+                    StreamSource {
+                        url: format!("https://example.com/stream/{}/ep-2/720p.mp4", anime_id),
+                        quality: "720p".to_string(),
+                        server: Some("Server 2".to_string()),
+                        format: "mp4".to_string(),
+                        anime4k_support: false,
+                        is_default: false,
+                        headers: headers.clone(),
+                    },
+                ],
                 ..Default::default()
             },
             Episode {
@@ -354,6 +417,18 @@ pub extern "C" fn zpe_get_episodes(input_ptr: i32, input_len: i32) -> i64 {
                 title: Some("Episode 3: The Challenge".to_string()),
                 duration: Some(1440),
                 is_filler: Some(true),
+                // Multiple streaming links for this episode
+                sources: vec![
+                    StreamSource {
+                        url: format!("https://example.com/stream/{}/ep-3/720p.m3u8", anime_id),
+                        quality: "720p".to_string(),
+                        server: Some("Server 1".to_string()),
+                        format: "m3u8".to_string(),
+                        anime4k_support: true,
+                        is_default: true,
+                        headers: headers.clone(),
+                    },
+                ],
                 ..Default::default()
             },
         ],

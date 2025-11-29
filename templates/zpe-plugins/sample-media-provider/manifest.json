@@ -6,6 +6,7 @@
   "author": "Ayoto Team",
   "description": "A sample ZPE media provider plugin that demonstrates the plugin API",
   "homepage": "https://github.com/FundyJo/Ayoto",
+  "icon": "https://example.com/plugin-icon.png",
   "pluginType": "mediaProvider",
   "capabilities": {
     "search": true,
