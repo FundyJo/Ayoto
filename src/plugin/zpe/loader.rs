@@ -200,7 +200,7 @@ impl ZpePluginLoader {
         };
 
         // Try to read embedded icon file (takes precedence over URL in manifest)
-        if let Some(icon_data_uri) = self.read_icon(&mut archive) {
+        if let Some(icon_data_uri) = self.read_icon_from_archive(&mut archive) {
             manifest.icon = Some(icon_data_uri);
         }
 
@@ -327,40 +327,38 @@ impl ZpePluginLoader {
         Ok(bytes)
     }
 
+    /// Maximum icon file size (1MB) to prevent loading excessively large files
+    const MAX_ICON_SIZE: u64 = 1024 * 1024;
+
     /// Read icon file from archive and convert to base64 data URI
     ///
     /// Looks for icon files in the following order: icon.png, icon.ico, icon.jpg, icon.jpeg, icon.svg, icon.webp
-    /// Returns None if no icon file is found in the archive.
-    fn read_icon(&self, archive: &mut zip::ZipArchive<File>) -> Option<String> {
-        use base64::{engine::general_purpose::STANDARD, Engine as _};
-
-        for (filename, mime_type) in ICON_FILES {
-            if let Ok(mut file) = archive.by_name(filename) {
-                let mut bytes = Vec::new();
-                if file.read_to_end(&mut bytes).is_ok() && !bytes.is_empty() {
-                    // Convert to base64 data URI
-                    let base64_str = STANDARD.encode(&bytes);
-                    return Some(format!("data:{};base64,{}", mime_type, base64_str));
-                }
-            }
-        }
-        None
-    }
-
-    /// Read icon file from archive (cursor version) and convert to base64 data URI
-    fn read_icon_from_cursor<R: std::io::Read + std::io::Seek>(
+    /// Returns None if no icon file is found in the archive or if the file exceeds MAX_ICON_SIZE.
+    fn read_icon_from_archive<R: std::io::Read + std::io::Seek>(
         &self,
         archive: &mut zip::ZipArchive<R>,
     ) -> Option<String> {
         use base64::{engine::general_purpose::STANDARD, Engine as _};
 
         for (filename, mime_type) in ICON_FILES {
-            if let Ok(mut file) = archive.by_name(filename) {
-                let mut bytes = Vec::new();
-                if file.read_to_end(&mut bytes).is_ok() && !bytes.is_empty() {
-                    // Convert to base64 data URI
-                    let base64_str = STANDARD.encode(&bytes);
-                    return Some(format!("data:{};base64,{}", mime_type, base64_str));
+            if let Ok(file) = archive.by_name(filename) {
+                // Check file size before reading to avoid loading very large files
+                let size = file.size();
+                if size == 0 || size > Self::MAX_ICON_SIZE {
+                    continue;
+                }
+
+                // We need to drop the borrow before accessing again
+                drop(file);
+
+                // Re-access the file to read its contents
+                if let Ok(mut file) = archive.by_name(filename) {
+                    let mut bytes = Vec::with_capacity(size as usize);
+                    if file.read_to_end(&mut bytes).is_ok() && !bytes.is_empty() {
+                        // Convert to base64 data URI
+                        let base64_str = STANDARD.encode(&bytes);
+                        return Some(format!("data:{};base64,{}", mime_type, base64_str));
+                    }
                 }
             }
         }
@@ -427,7 +425,7 @@ impl ZpePluginLoader {
         };
 
         // Try to read embedded icon file (takes precedence over URL in manifest)
-        if let Some(icon_data_uri) = self.read_icon_from_cursor(&mut archive) {
+        if let Some(icon_data_uri) = self.read_icon_from_archive(&mut archive) {
             manifest.icon = Some(icon_data_uri);
         }
 
@@ -858,5 +856,11 @@ mod tests {
 
         assert!(data_uri.starts_with("data:image/png;base64,"));
         assert!(!data_uri.is_empty());
+    }
+
+    #[test]
+    fn test_max_icon_size() {
+        // Verify that MAX_ICON_SIZE is a reasonable limit (1MB)
+        assert_eq!(ZpePluginLoader::MAX_ICON_SIZE, 1024 * 1024);
     }
 }
