@@ -2,99 +2,207 @@
 
 ## Overview
 
-The Ayoto Plugin System allows developers to create universal plugins for anime streaming providers. Ayoto supports three plugin formats:
+The Ayoto Plugin System allows developers to create JavaScript/TypeScript plugins for anime streaming providers. Plugins run in the frontend and can perform web scraping to fetch anime data from various sources.
 
-1. **ZPE (Zenshine Plugin Extension)** - Universal WebAssembly plugins (`.zpe`) - **Recommended**
-2. **Native Plugins** - Platform-specific compiled plugins (`.dll/.so/.dylib`)
-3. **JSON Plugins** - Configuration-only plugins (`.ayoto`) - Legacy
+## Plugin Format
 
-## Plugin Formats Comparison
+Plugins are JavaScript files that export a set of functions for searching, fetching episodes, and extracting streams.
 
-| Feature | ZPE (.zpe) | Native | JSON (.ayoto) |
-|---------|------------|--------|---------------|
-| Cross-platform | ✅ Yes | ❌ Per-platform | ✅ Yes |
-| Execute code | ✅ Yes | ✅ Yes | ❌ No |
-| Performance | Good | Best | N/A |
-| Security | ✅ Sandboxed | ⚠️ Full access | ✅ Safe |
-| Languages | Rust, C/C++, Go, etc. | Rust | JSON |
-| Compile once | ✅ Yes | ❌ No | N/A |
+## JavaScript Plugin Format
 
-## ZPE Plugins (Recommended)
+Plugins are written in JavaScript/TypeScript and run in a sandboxed environment in the browser. They have access to:
 
-ZPE plugins use WebAssembly (WASM) to run on any platform. A single `.zpe` file works on Windows, macOS, Linux, Android, and iOS.
-
-See the [ZPE Plugin Development Guide](ZPE_PLUGIN_DEVELOPMENT.md) for detailed instructions.
-
-### Quick Example
-
-```bash
-# Build your ZPE plugin
-cargo build --release --target wasm32-unknown-unknown
-
-# Package it
-zip my-plugin.zpe manifest.json plugin.wasm
-```
-
-## JSON Plugin Format (Legacy)
-
-Plugins use the `.ayoto` file extension and contain a JSON manifest defining the plugin's capabilities, version compatibility, and configuration.
+- HTTP client for web scraping (via Tauri's HTTP plugin with full TLS support)
+- HTML parsing utilities for extracting data from web pages
+- Local storage for caching data
+- Logging facilities
 
 ### Basic Structure
 
-```json
-{
-  "id": "my-provider",
-  "name": "My Anime Provider",
-  "version": "1.0.0",
-  "targetAyotoVersion": "2.5.0",
-  "description": "A custom anime provider plugin",
-  "author": "Your Name",
-  "providers": ["MyProvider"],
-  "formats": ["m3u8", "mp4"],
-  "anime4kSupport": true,
-  "capabilities": {
-    "search": true,
-    "getPopular": true,
-    "getEpisodes": true,
-    "getStreams": true,
-    "scraping": true
+```javascript
+// Plugin manifest is defined as an object
+const manifest = {
+  id: 'my-provider',
+  name: 'My Anime Provider',
+  version: '1.0.0',
+  pluginType: 'mediaProvider', // or 'streamProvider'
+  description: 'A custom anime provider plugin',
+  author: 'Your Name',
+  capabilities: {
+    search: true,
+    getPopular: true,
+    getLatest: true,
+    getEpisodes: true,
+    getStreams: true,
+    getAnimeDetails: true
   },
-  "platforms": ["universal"],
-  "scrapingConfig": {
-    "baseUrl": "https://example.com",
-    "rateLimitMs": 1000,
-    "requiresJavascript": false
+  scrapingConfig: {
+    baseUrl: 'https://example.com',
+    userAgent: 'Ayoto/2.5.4',
+    rateLimitMs: 1000
+  }
+}
+
+// Plugin implementation
+module.exports = {
+  // Called when the plugin is loaded
+  async init(context) {
+    this.http = context.http
+    this.html = context.html
+    this.storage = context.storage
+  },
+
+  // Search for anime by query
+  async search(query, page = 1) {
+    const response = await this.http.get(`https://example.com/search?q=${encodeURIComponent(query)}&page=${page}`)
+    const results = this.html.extractByClass(response.body, 'anime-card')
+    
+    return {
+      results: results.map(item => ({
+        id: 'anime-id',
+        title: 'Anime Title',
+        cover: 'https://example.com/cover.jpg',
+        description: 'Description...'
+      })),
+      hasNextPage: true,
+      currentPage: page
+    }
+  },
+
+  // Get popular anime
+  async getPopular(page = 1) {
+    // Implementation...
+  },
+
+  // Get latest anime/episodes
+  async getLatest(page = 1) {
+    // Implementation...
+  },
+
+  // Get episodes for an anime
+  async getEpisodes(animeId, page = 1) {
+    // Implementation...
+  },
+
+  // Get stream sources for an episode
+  async getStreams(animeId, episodeId) {
+    // Implementation...
+  },
+
+  // Get detailed anime information
+  async getAnimeDetails(animeId) {
+    // Implementation...
+  },
+
+  // Called when the plugin is unloaded
+  async shutdown() {
+    // Cleanup...
   }
 }
 ```
 
-## Version Compatibility
+## Plugin Types
 
-Plugins use semantic versioning (semver) for version management:
+### Media Provider
 
-- **Plugin Version**: The version of your plugin (e.g., `1.0.0`)
-- **Target Ayoto Version**: The minimum Ayoto version your plugin is compatible with
-- **Max Ayoto Version** (optional): The maximum Ayoto version supported
+Media providers fetch anime listings, episodes, and metadata from websites like aniworld.to, s.to, etc.
 
-### Compatibility Rules
+Capabilities:
+- `search` - Search for anime by title
+- `getPopular` - Get popular anime list
+- `getLatest` - Get latest episodes/anime
+- `getEpisodes` - Get episode list for an anime
+- `getStreams` - Get stream sources for an episode
+- `getAnimeDetails` - Get detailed anime information
 
-1. Plugins built for `v1.x.x` will work with any `v1.y.z` (same major version)
-2. Plugins built for `v1.x.x` may NOT work with `v2.x.x` due to API changes
-3. Users see warnings when using plugins built for older versions
+### Stream Provider
 
-## Capabilities
+Stream providers extract direct video URLs from hoster websites like Voe, Vidoza, etc.
 
-Plugins can implement any combination of these capabilities:
+Capabilities:
+- `extractStream` - Extract direct stream URL from hoster page
+- `getHosterInfo` - Get information about a hoster
 
-| Capability | Function Signature | Description |
-|------------|-------------------|-------------|
-| `search` | `search(query: string) -> List<PopulatedAnime>` | Search for anime by title |
-| `getPopular` | `getPopular(page: number) -> List<PopulatedAnime>` | Get popular anime list |
-| `getLatest` | `getLatest(page: number) -> List<PopulatedAnime>` | Get latest anime/episodes |
-| `getEpisodes` | `getEpisodes(animeId: string, page: number) -> List<Episode>` | Get episode list for an anime |
-| `getStreams` | `getStreams(animeId: string, episodeId: string) -> PopulatedEpisode` | Get stream sources for an episode |
-| `getAnimeDetails` | `getAnimeDetails(animeId: string) -> PopulatedAnime` | Get detailed anime information |
-| `scraping` | - | Plugin uses web scraping for data extraction |
+## Web Scraping Features
+
+### HTTP Client
+
+The plugin context provides an HTTP client for making requests:
+
+```javascript
+// Simple GET request
+const response = await context.http.get('https://example.com/page')
+
+// GET with options
+const response = await context.http.get('https://example.com/api', {
+  headers: {
+    'Accept': 'application/json'
+  },
+  timeout: 60000
+})
+
+// POST request
+const response = await context.http.post('https://example.com/api', {
+  data: { key: 'value' }
+})
+
+// Response object
+{
+  status: 200,
+  statusText: 'OK',
+  headers: { 'content-type': 'text/html' },
+  body: '<html>...</html>',
+  ok: true,
+  url: 'https://example.com/page'
+}
+```
+
+### HTML Parser
+
+Built-in HTML parsing utilities for extracting data:
+
+```javascript
+const html = context.html
+
+// Extract text by CSS selector
+const titles = html.extractText(response.body, '.anime-title')
+
+// Extract attribute values
+const links = html.extractAttribute(response.body, 'a', 'href')
+const images = html.extractAttribute(response.body, 'img', 'src')
+
+// Extract by class name
+const cards = html.extractByClass(response.body, 'anime-card')
+
+// Extract by ID
+const content = html.extractById(response.body, 'main-content')
+
+// Decode HTML entities
+const text = html.decodeEntities('&amp;lt;Hello&amp;gt;')
+
+// Extract JSON from script tag
+const data = html.extractJsonFromScript(response.body, 'window.__DATA__')
+```
+
+### Storage
+
+Plugins can store data locally:
+
+```javascript
+const storage = context.storage
+
+// Store a value
+storage.set('lastSearch', 'naruto')
+
+// Get a value
+const value = storage.get('lastSearch', 'default')
+
+// Remove a value
+storage.remove('lastSearch')
+
+// Clear all plugin storage
+storage.clear()
+```
 
 ## Return Types
 
@@ -104,20 +212,19 @@ Plugins can implement any combination of these capabilities:
 interface PopulatedAnime {
   id: string;              // Unique identifier
   title: string;           // Anime title
-  altTitles: string[];     // Alternative titles
+  altTitles?: string[];    // Alternative titles
   cover?: string;          // Cover image URL
   banner?: string;         // Banner image URL
   description?: string;    // Synopsis
-  anilistId?: number;      // AniList ID for cross-referencing
+  anilistId?: number;      // AniList ID
   malId?: number;          // MyAnimeList ID
-  status?: string;         // AIRING, FINISHED, NOT_YET_RELEASED
-  episodeCount?: number;   // Total episode count
-  genres: string[];        // Genre list
+  status?: string;         // AIRING, FINISHED, etc.
+  episodeCount?: number;   // Total episodes
+  genres?: string[];       // Genre list
   year?: number;           // Release year
   rating?: number;         // Rating (0-100)
-  mediaType?: string;      // TV, MOVIE, OVA, ONA, SPECIAL
+  mediaType?: string;      // TV, MOVIE, OVA, etc.
   isAiring?: boolean;      // Currently airing
-  nextAiring?: NextAiringEpisode;
 }
 ```
 
@@ -141,12 +248,12 @@ interface Episode {
 ```typescript
 interface StreamSource {
   url: string;             // Stream URL
-  format: StreamFormat;    // m3u8, mp4, mkv, webm, torrent
+  format: string;          // m3u8, mp4, mkv, webm, torrent
   quality: string;         // 1080p, 720p, 480p, etc.
-  anime4kSupport: boolean; // Supports Anime4K upscaling
+  anime4kSupport?: boolean; // Supports Anime4K upscaling
   isDefault?: boolean;     // Default source
   server?: string;         // Server name
-  headers: Record<string, string>; // Required headers
+  headers?: Record<string, string>; // Required headers
 }
 ```
 
@@ -158,101 +265,32 @@ interface StreamSource {
 - `webm` - WebM format
 - `torrent` - Torrent magnet links
 
-## Target Platforms
+## Loading Plugins
 
-Plugins can specify which platforms they support:
-
-- `universal` - All platforms (default)
-- `desktop` - Windows, macOS, Linux
-- `mobile` - iOS, Android
-- `windows` - Windows only
-- `macos` - macOS only
-- `linux` - Linux only
-- `ios` - iOS only
-- `android` - Android only
-
-## Scraping Configuration
-
-For plugins that use web scraping:
-
-```json
-{
-  "scrapingConfig": {
-    "baseUrl": "https://example.com",
-    "userAgent": "Ayoto/2.5.0",
-    "rateLimitMs": 1000,
-    "requiresJavascript": false,
-    "selectors": {
-      "searchResults": ".anime-card",
-      "title": ".anime-title",
-      "cover": ".anime-cover img"
-    }
-  }
-}
-```
-
-## Using Plugins in Frontend
-
-### JavaScript/React
+Plugins can be loaded programmatically:
 
 ```javascript
-import { 
-  pluginBridge, 
-  loadPluginFromFile, 
-  pluginSearch 
-} from './plugins'
+import { jsPluginManager } from './plugins'
 
-// Initialize the bridge
-await pluginBridge.init()
+// Load a plugin with manifest and code
+const result = await jsPluginManager.loadPlugin(manifest, pluginCode)
 
-// Load a plugin
-const result = await loadPluginFromFile('/path/to/plugin.ayoto')
 if (result.success) {
-  console.log(`Loaded plugin: ${result.pluginId}`)
+  console.log(`Plugin ${result.pluginId} loaded successfully`)
 }
 
-// Search using a plugin
-const searchResults = await pluginSearch('my-provider', 'Naruto')
-console.log(searchResults.results) // Array of PopulatedAnime
+// Get all loaded plugins
+const plugins = jsPluginManager.getAllPlugins()
+
+// Use a plugin
+const plugin = await jsPluginManager.getPlugin('my-provider')
+const results = await plugin.search('naruto')
 ```
-
-### Loading Plugins via Dialog
-
-```javascript
-import { pluginBridge } from './plugins'
-
-// Open file dialog and load selected plugin
-const result = await pluginBridge.loadPluginFromDialog()
-```
-
-## Plugin Management Commands
-
-From the Rust backend (via Tauri):
-
-- `get_ayoto_version()` - Get current Ayoto version
-- `load_plugin_from_json(json, source)` - Load from JSON
-- `load_plugin_from_file(path)` - Load from file
-- `get_all_plugins()` - List all plugins
-- `get_enabled_plugins()` - List enabled plugins
-- `set_plugin_enabled(pluginId, enabled)` - Enable/disable
-- `unload_plugin(pluginId)` - Unload a plugin
-- `validate_plugin_manifest(json)` - Validate without loading
-
-## Example Plugin
-
-See `resources/plugins/sample-provider.ayoto` for a complete example.
-
-## Development Workflow
-
-1. Create your `.ayoto` manifest file
-2. Define capabilities your plugin supports
-3. Set appropriate `targetAyotoVersion` for compatibility
-4. Test loading with `validate_plugin_manifest`
-5. Distribute the `.ayoto` file to users
 
 ## Security Considerations
 
-- Plugins cannot execute arbitrary code
+- Plugins run in a sandboxed environment
 - All network requests go through Tauri's HTTP plugin
-- Scraping respects rate limits defined in configuration
-- User consent is required before loading plugins
+- Plugins can only access their own local storage
+- No access to the file system except through approved APIs
+- Rate limiting is enforced to prevent abuse

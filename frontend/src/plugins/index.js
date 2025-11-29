@@ -7,20 +7,21 @@
  *    like Voe, Vidoza, Filestream, etc.
  * 2. MediaProvider - Provides anime/media search and listings from sites
  *    like aniworld.to, s.to, etc.
+ * 
+ * Plugins are written in JavaScript/TypeScript and run in a sandboxed environment.
+ * They can perform web scraping using the built-in HTTP client.
  */
 
+// JavaScript Plugin Runtime - the main plugin system
 export {
-  PluginManager,
-  pluginManager,
-  parseAyotoPlugin,
-  validatePlugin,
-  createPluginTemplate,
-  createMediaProviderTemplate,
-  createStreamProviderTemplate,
-  STREAM_FORMATS,
-  ANIME4K_PRESETS,
-  PLUGIN_TYPES
-} from './PluginManager'
+  JSPluginManager,
+  jsPluginManager,
+  JSPlugin,
+  PluginContext,
+  HtmlParser,
+  PLUGIN_TYPE,
+  STREAM_FORMAT
+} from './JSPluginRuntime'
 
 export {
   ProviderAPI,
@@ -39,54 +40,13 @@ export {
   PERFORMANCE_REQUIREMENTS
 } from './Anime4KConfig'
 
-// Tauri Plugin Bridge - connects to Rust backend
+// Legacy support - re-export from JSPluginRuntime with old names
+export { STREAM_FORMAT as STREAM_FORMATS } from './JSPluginRuntime'
+export { PLUGIN_TYPE as PLUGIN_TYPES } from './JSPluginRuntime'
+
+// Tauri Plugin Bridge - simplified for JS plugins
 export {
   TauriPluginBridge,
   pluginBridge,
-  getAyotoVersion,
-  loadPluginFromJson,
-  loadPluginFromFile,
-  getAllPlugins,
-  getEnabledPlugins,
-  getPlugin,
-  getPluginsSummary,
-  setPluginEnabled,
-  unloadPlugin,
-  getPluginsWithCapability,
-  getPluginsByFormat,
-  getAnime4kPlugins,
-  getStreamProviders,
-  getMediaProviders,
-  getStreamProvidersForHoster,
-  getMediaProvidersForLanguage,
-  validatePluginManifest,
-  getSamplePluginManifest,
-  getSampleStreamProviderManifest,
-  checkPluginCompatibility,
-  pluginSearch,
-  pluginGetPopular,
-  pluginGetLatest,
-  pluginGetEpisodes,
-  pluginGetStreams,
-  pluginGetAnimeDetails,
-  searchAllPlugins,
-  // ZPE Plugin Functions
-  getZpeExtension,
-  getZpeAbiVersion,
-  loadZpePlugin,
-  getAllZpePlugins,
-  getZpePlugin,
-  unloadZpePlugin,
-  setZpePluginEnabled,
-  zpePluginSearch,
-  zpePluginGetPopular,
-  zpePluginGetLatest,
-  zpePluginGetEpisodes,
-  zpePluginGetStreams,
-  zpePluginGetAnimeDetails,
-  getZpePluginInfo,
-  // ZPE Plugin Persistence Functions
-  saveZpePluginPaths,
-  getSavedZpePluginPaths,
-  reloadSavedZpePlugins
+  getAyotoVersion
 } from './TauriPluginBridge'

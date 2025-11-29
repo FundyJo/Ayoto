@@ -1,6 +1,6 @@
 import { Button, Switch } from '@radix-ui/themes'
 import { useZenshinContext } from '../utils/ContextProvider'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   PlusIcon,
@@ -8,10 +8,10 @@ import {
   ReloadIcon,
   CheckCircledIcon,
   CrossCircledIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  CodeIcon
 } from '@radix-ui/react-icons'
-import { loadZpePlugin, getAllZpePlugins, setZpePluginEnabled, unloadZpePlugin, saveZpePluginPaths, reloadSavedZpePlugins } from '../plugins'
-import { open as openDialog } from '@tauri-apps/plugin-dialog'
+import { jsPluginManager, PLUGIN_TYPE } from '../plugins'
 
 // Default plugin icon component
 function DefaultPluginIcon({ className }) {
@@ -50,109 +50,108 @@ function PluginIcon({ icon, name }) {
 
 export default function Plugins() {
   const { settings } = useZenshinContext()
-  const [zpePlugins, setZpePlugins] = useState([])
+  const [plugins, setPlugins] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const fileInputRef = useRef(null)
 
-  // Load ZPE plugins on mount
+  // Load plugins on mount
   useEffect(() => {
-    loadSavedAndCurrentPlugins()
+    loadPlugins()
   }, [])
 
-  // Load saved plugins first, then get all plugins
-  async function loadSavedAndCurrentPlugins() {
+  // Load all plugins
+  function loadPlugins() {
     try {
-      // Try to reload any saved plugins first
-      await reloadSavedZpePlugins()
+      const allPlugins = jsPluginManager.getAllPlugins()
+      setPlugins(allPlugins || [])
     } catch (error) {
-      console.error('Failed to reload saved ZPE plugins:', error)
-      // This is expected in web mode or when no plugins are saved
-    }
-    // Then load the current list of plugins
-    await loadZpePlugins()
-  }
-
-  // Load all ZPE plugins from backend
-  async function loadZpePlugins() {
-    try {
-      const plugins = await getAllZpePlugins()
-      setZpePlugins(plugins || [])
-    } catch (error) {
-      console.error('Failed to load ZPE plugins:', error)
-      // ZPE system might not be available in web mode
+      console.error('Failed to load plugins:', error)
     }
   }
 
-  // Toggle ZPE plugin enabled state
-  async function togglePlugin(pluginId) {
-    const plugin = zpePlugins.find((p) => p.id === pluginId)
+  // Toggle plugin enabled state
+  function togglePlugin(pluginId) {
+    const plugin = plugins.find((p) => p.id === pluginId)
     if (!plugin) return
 
     const newEnabled = !plugin.enabled
     try {
-      await setZpePluginEnabled(pluginId, newEnabled)
+      jsPluginManager.setPluginEnabled(pluginId, newEnabled)
       toast.success(`Plugin ${newEnabled ? 'enabled' : 'disabled'}: ${plugin.name}`)
-      await loadZpePlugins() // Reload plugins to get updated state
-      // Save the updated plugin states
-      try {
-        await saveZpePluginPaths()
-      } catch (saveError) {
-        console.error('Failed to save plugin state:', saveError)
-      }
+      loadPlugins() // Reload plugins to get updated state
     } catch (error) {
       toast.error(`Failed to ${newEnabled ? 'enable' : 'disable'} plugin: ${error}`)
     }
   }
 
-  // Remove a ZPE plugin
+  // Remove a plugin
   async function removePlugin(pluginId) {
-    const plugin = zpePlugins.find((p) => p.id === pluginId)
+    const plugin = plugins.find((p) => p.id === pluginId)
     if (!plugin) return
 
     try {
-      await unloadZpePlugin(pluginId)
+      await jsPluginManager.unloadPlugin(pluginId)
       toast.success(`Plugin removed: ${plugin.name}`)
-      await loadZpePlugins() // Reload plugins
-      // Save the updated plugin list
-      try {
-        await saveZpePluginPaths()
-      } catch (saveError) {
-        console.error('Failed to save plugin state:', saveError)
-      }
+      loadPlugins() // Reload plugins
     } catch (error) {
       toast.error(`Failed to remove plugin: ${error}`)
     }
   }
 
-  // Handle ZPE file selection using Tauri dialog
-  async function handleLoadPlugin() {
+  // Handle JavaScript file selection
+  async function handleLoadPlugin(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
     setIsLoading(true)
     try {
-      // Use Tauri's dialog API to get the file path
-      const filePath = await openDialog({
-        title: 'Select ZPE Plugin',
-        filters: [{
-          name: 'ZPE Plugin',
-          extensions: ['zpe']
-        }],
-        multiple: false
-      })
+      const code = await file.text()
       
-      if (!filePath) {
-        // User cancelled the dialog
-        return
+      // Try to extract manifest from the code
+      // The manifest should be defined as a `manifest` const/var/let at the start
+      let manifest = null
+      
+      // Try to parse manifest from comment or variable
+      const manifestMatch = code.match(/(?:const|let|var)\s+manifest\s*=\s*({[\s\S]*?});/)
+      if (manifestMatch) {
+        try {
+          // eslint-disable-next-line no-eval
+          manifest = eval(`(${manifestMatch[1]})`)
+        } catch (e) {
+          // Try JSON parse as fallback
+          try {
+            manifest = JSON.parse(manifestMatch[1])
+          } catch (e2) {
+            console.error('Failed to parse manifest:', e2)
+          }
+        }
       }
       
-      const result = await loadZpePlugin(filePath)
+      // If no manifest found in code, create a basic one from filename
+      if (!manifest) {
+        const fileName = file.name.replace(/\.(js|ts)$/, '')
+        manifest = {
+          id: fileName.toLowerCase().replace(/[^a-z0-9-_]/g, '-'),
+          name: fileName,
+          version: '1.0.0',
+          pluginType: PLUGIN_TYPE.MEDIA_PROVIDER,
+          description: `Plugin loaded from ${file.name}`,
+          capabilities: {
+            search: true,
+            getPopular: true,
+            getLatest: true,
+            getEpisodes: true,
+            getStreams: true
+          }
+        }
+        toast.warning('No manifest found in plugin, using defaults')
+      }
+
+      const result = await jsPluginManager.loadPlugin(manifest, code)
       
       if (result.success) {
         toast.success(`Plugin installed: ${result.pluginId}`)
-        await loadZpePlugins() // Reload plugins list
-        // Save the updated plugin list
-        try {
-          await saveZpePluginPaths()
-        } catch (saveError) {
-          console.error('Failed to save plugin state:', saveError)
-        }
+        loadPlugins() // Reload plugins list
       } else {
         const errorMsg = result.errors?.join(', ') || 'Unknown error'
         toast.error(`Failed to load plugin: ${errorMsg}`)
@@ -164,7 +163,16 @@ export default function Plugins() {
       toast.error(`Failed to load plugin: ${error.message || error}`)
     } finally {
       setIsLoading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
+  }
+
+  // Trigger file input click
+  function handleLoadClick() {
+    fileInputRef.current?.click()
   }
 
   // Get capability display name
@@ -185,26 +193,33 @@ export default function Plugins() {
   return (
     <div className="w-full animate-fade select-none px-16 py-10 font-space-mono animate-duration-500">
       <div className="mb-8 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
-        ZPE Plugins
+        JavaScript Plugins
       </div>
 
       {/* Add Plugin Section */}
       <div className="mb-8 flex flex-col gap-4 tracking-wide text-[#b5b5b5ff]">
         <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-3">
           <div className="flex-1">
-            <p className="font-bold">Load ZPE Plugin</p>
-            <p className="text-xs">Load a plugin from a local .zpe file (Zenshine Plugin Extension)</p>
+            <p className="font-bold">Load JavaScript Plugin</p>
+            <p className="text-xs">Load a plugin from a local .js or .ts file</p>
           </div>
           <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".js,.ts,.mjs"
+              onChange={handleLoadPlugin}
+              className="hidden"
+            />
             <Button
               variant="soft"
               color="blue"
               className="cursor-pointer"
-              onClick={handleLoadPlugin}
+              onClick={handleLoadClick}
               disabled={isLoading}
             >
               {isLoading ? <ReloadIcon className="animate-spin" /> : <PlusIcon />}
-              Load .zpe File
+              Load Plugin
             </Button>
           </div>
         </div>
@@ -212,18 +227,18 @@ export default function Plugins() {
 
       {/* Installed Plugins Section */}
       <div className="mb-4 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
-        Installed ZPE Plugins ({zpePlugins.length})
+        Installed Plugins ({plugins.length})
       </div>
 
-      {zpePlugins.length === 0 ? (
+      {plugins.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-gray-500">
           <DefaultPluginIcon className="mb-4 h-16 w-16 opacity-50" />
-          <p className="text-lg">No ZPE plugins installed</p>
-          <p className="text-sm">Load a .zpe plugin file to get started</p>
+          <p className="text-lg">No plugins installed</p>
+          <p className="text-sm">Load a JavaScript plugin file to get started</p>
         </div>
       ) : (
         <div className="flex flex-col gap-4 tracking-wide text-[#b5b5b5ff]">
-          {zpePlugins.map((plugin) => (
+          {plugins.map((plugin) => (
             <div
               key={plugin.id}
               className={`flex w-full items-center justify-between rounded-sm bg-[#202022] px-4 py-3 transition-opacity ${
@@ -233,7 +248,7 @@ export default function Plugins() {
               <div className="flex items-center gap-4">
                 {/* Plugin Icon */}
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md bg-[#2a2a2d]">
-                  <PluginIcon icon={plugin.icon} name={plugin.name} />
+                  <CodeIcon className="h-6 w-6 text-yellow-400" />
                 </div>
 
                 {/* Plugin Info */}
@@ -243,15 +258,9 @@ export default function Plugins() {
                     <span className="rounded bg-[#2a2a2d] px-2 py-0.5 text-xs text-gray-400">
                       v{plugin.version}
                     </span>
-                    <span className="rounded bg-cyan-900/50 px-1.5 py-0.5 text-xs text-cyan-300">
-                      ZPE
+                    <span className="rounded bg-yellow-900/50 px-1.5 py-0.5 text-xs text-yellow-300">
+                      JS
                     </span>
-                    {!plugin.isCompatible && (
-                      <span className="flex items-center gap-1 rounded bg-yellow-900/50 px-1.5 py-0.5 text-xs text-yellow-300">
-                        <ExclamationTriangleIcon className="h-3 w-3" />
-                        Incompatible
-                      </span>
-                    )}
                     {plugin.enabled ? (
                       <CheckCircledIcon className="h-4 w-4 text-green-500" />
                     ) : (
@@ -264,7 +273,7 @@ export default function Plugins() {
                   {/* Plugin Type Tag */}
                   <div className="mt-1 flex flex-wrap gap-1">
                     <span className="rounded bg-[#3a3a3d] px-1.5 py-0.5 text-xs text-gray-300">
-                      {plugin.pluginType === 'streamProvider' ? 'Stream Provider' : 'Media Provider'}
+                      {plugin.pluginType === PLUGIN_TYPE.STREAM_PROVIDER ? 'Stream Provider' : 'Media Provider'}
                     </span>
                   </div>
                   
@@ -310,8 +319,8 @@ export default function Plugins() {
       )}
 
       <p className="mt-8 text-xs opacity-45">
-        ZPE plugins extend Zenshin&apos;s functionality by adding support for additional providers.
-        Only install plugins from trusted sources. ZPE plugins run in a sandboxed environment for security.
+        JavaScript plugins extend Zenshin&apos;s functionality by adding support for additional providers.
+        Only install plugins from trusted sources. Plugins can perform web scraping to fetch anime data.
       </p>
     </div>
   )

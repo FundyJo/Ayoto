@@ -35,11 +35,3 @@ tauri-plugin-window-state = "2"
 tauri-plugin-store = "2.4"
 tauri-plugin-opener = "2"
 discord-rich-presence = "1.0.0"
-
-# Universal plugin system (WebAssembly runtime for .zpe files)
-wasmtime = { version = "27.0.0", default-features = false, features = ["runtime", "cranelift"] }
-zip = { version = "2.2.0", default-features = false, features = ["deflate"] }
-
-# Native plugin system dependencies
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"

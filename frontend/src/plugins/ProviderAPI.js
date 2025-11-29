@@ -3,7 +3,7 @@
  * Plugins implement these methods to provide search, streaming, etc.
  */
 
-import { STREAM_FORMATS, pluginManager } from './PluginManager'
+import { jsPluginManager, STREAM_FORMAT } from './JSPluginRuntime'
 
 /**
  * Provider API interface
@@ -15,112 +15,96 @@ export class ProviderAPI {
    */
   constructor(plugin) {
     this.plugin = plugin
-    this.config = plugin.config || {}
-    this.baseUrl = this.config.baseUrl || ''
+    this.pluginId = plugin.id
+  }
+  
+  /**
+   * Get the plugin instance
+   * @returns {Promise<Object>} Plugin instance
+   */
+  async getPluginInstance() {
+    return await jsPluginManager.getPlugin(this.pluginId)
   }
   
   /**
    * Search for anime
    * @param {string} query - Search query
-   * @returns {Promise<AnimeResult[]>} Search results
+   * @param {number} page - Page number
+   * @returns {Promise<Object>} Search results
    */
-  async search(query) {
-    if (!this.plugin.capabilities.search) {
-      throw new Error('Search capability not supported by this plugin')
+  async search(query, page = 1) {
+    const plugin = await this.getPluginInstance()
+    if (!plugin) {
+      throw new Error(`Plugin '${this.pluginId}' not found`)
     }
-    
-    const endpoint = this.plugin.endpoints?.search || '/search'
-    const response = await fetch(`${this.baseUrl}${endpoint}?q=${encodeURIComponent(query)}`)
-    
-    if (!response.ok) {
-      throw new Error(`Search failed: ${response.status}`)
-    }
-    
-    return response.json()
+    return plugin.search(query, page)
   }
   
   /**
    * Get popular anime
    * @param {number} page - Page number
-   * @returns {Promise<AnimeResult[]>} Popular anime list
+   * @returns {Promise<Object>} Popular anime list
    */
   async getPopular(page = 1) {
-    if (!this.plugin.capabilities.getPopular) {
-      throw new Error('getPopular capability not supported by this plugin')
+    const plugin = await this.getPluginInstance()
+    if (!plugin) {
+      throw new Error(`Plugin '${this.pluginId}' not found`)
     }
-    
-    const endpoint = this.plugin.endpoints?.popular || '/popular'
-    const response = await fetch(`${this.baseUrl}${endpoint}?page=${page}`)
-    
-    if (!response.ok) {
-      throw new Error(`getPopular failed: ${response.status}`)
-    }
-    
-    return response.json()
+    return plugin.getPopular(page)
   }
   
   /**
    * Get latest anime/episodes
    * @param {number} page - Page number
-   * @returns {Promise<AnimeResult[]>} Latest anime/episodes
+   * @returns {Promise<Object>} Latest anime/episodes
    */
   async getLatest(page = 1) {
-    if (!this.plugin.capabilities.getLatest) {
-      throw new Error('getLatest capability not supported by this plugin')
+    const plugin = await this.getPluginInstance()
+    if (!plugin) {
+      throw new Error(`Plugin '${this.pluginId}' not found`)
     }
-    
-    const endpoint = this.plugin.endpoints?.latest || '/latest'
-    const response = await fetch(`${this.baseUrl}${endpoint}?page=${page}`)
-    
-    if (!response.ok) {
-      throw new Error(`getLatest failed: ${response.status}`)
-    }
-    
-    return response.json()
+    return plugin.getLatest(page)
   }
   
   /**
    * Get episodes for an anime
    * @param {string} animeId - Anime ID
    * @param {number} page - Page number
-   * @returns {Promise<Episode[]>} Episode list
+   * @returns {Promise<Object>} Episode list
    */
   async getEpisodes(animeId, page = 1) {
-    if (!this.plugin.capabilities.getEpisodes) {
-      throw new Error('getEpisodes capability not supported by this plugin')
+    const plugin = await this.getPluginInstance()
+    if (!plugin) {
+      throw new Error(`Plugin '${this.pluginId}' not found`)
     }
-    
-    const endpoint = this.plugin.endpoints?.episodes || '/episodes'
-    const response = await fetch(`${this.baseUrl}${endpoint}?id=${encodeURIComponent(animeId)}&page=${page}`)
-    
-    if (!response.ok) {
-      throw new Error(`getEpisodes failed: ${response.status}`)
-    }
-    
-    return response.json()
+    return plugin.getEpisodes(animeId, page)
   }
   
   /**
    * Get stream sources for an episode
    * @param {string} animeId - Anime ID
    * @param {string} episodeId - Episode ID
-   * @returns {Promise<StreamSource[]>} Stream sources
+   * @returns {Promise<Object>} Stream sources
    */
   async getStreams(animeId, episodeId) {
-    if (!this.plugin.capabilities.getStreams) {
-      throw new Error('getStreams capability not supported by this plugin')
+    const plugin = await this.getPluginInstance()
+    if (!plugin) {
+      throw new Error(`Plugin '${this.pluginId}' not found`)
     }
-    
-    const endpoint = this.plugin.endpoints?.streams || '/streams'
-    const response = await fetch(
-      `${this.baseUrl}${endpoint}?animeId=${encodeURIComponent(animeId)}&episodeId=${encodeURIComponent(episodeId)}`
-    )
-    
-    if (!response.ok) {
-      throw new Error(`getStreams failed: ${response.status}`)
+    return plugin.getStreams(animeId, episodeId)
+  }
+  
+  /**
+   * Get anime details
+   * @param {string} animeId - Anime ID
+   * @returns {Promise<Object>} Anime details
+   */
+  async getAnimeDetails(animeId) {
+    const plugin = await this.getPluginInstance()
+    if (!plugin) {
+      throw new Error(`Plugin '${this.pluginId}' not found`)
     }
-    
-    return response.json()
+    return plugin.getAnimeDetails(animeId)
   }
   
   /**
@@ -132,28 +116,18 @@ export class ProviderAPI {
       id: this.plugin.id,
       name: this.plugin.name,
       version: this.plugin.version,
-      providers: this.plugin.providers,
-      formats: this.plugin.formats,
-      anime4kSupport: this.plugin.anime4kSupport,
+      pluginType: this.plugin.pluginType,
       capabilities: this.plugin.capabilities
     }
   }
   
   /**
-   * Check if a specific format is supported
-   * @param {string} format - Stream format
+   * Check if a specific capability is supported
+   * @param {string} capability - Capability name
    * @returns {boolean}
    */
-  supportsFormat(format) {
-    return this.plugin.formats.includes(format)
-  }
-  
-  /**
-   * Check if Anime4K is supported
-   * @returns {boolean}
-   */
-  supportsAnime4K() {
-    return this.plugin.anime4kSupport === true
+  hasCapability(capability) {
+    return this.plugin.capabilities?.[capability] === true
   }
 }
 
@@ -206,7 +180,7 @@ class ProviderRegistry {
    */
   async searchAll(query) {
     const results = []
-    const providers = this.getAllProviders().filter(p => p.plugin.capabilities.search)
+    const providers = this.getAllProviders().filter(p => p.hasCapability('search'))
     
     await Promise.allSettled(
       providers.map(async (provider) => {
@@ -215,8 +189,6 @@ class ProviderRegistry {
           results.push({
             providerId: provider.plugin.id,
             providerName: provider.plugin.name,
-            formats: provider.plugin.formats,
-            anime4kSupport: provider.plugin.anime4kSupport,
             results: providerResults
           })
         } catch (error) {
@@ -229,20 +201,12 @@ class ProviderRegistry {
   }
   
   /**
-   * Get providers that support a specific format
-   * @param {string} format - Stream format
+   * Get providers that have a specific capability
+   * @param {string} capability - Capability name
    * @returns {ProviderAPI[]}
    */
-  getProvidersByFormat(format) {
-    return this.getAllProviders().filter(p => p.supportsFormat(format))
-  }
-  
-  /**
-   * Get providers that support Anime4K
-   * @returns {ProviderAPI[]}
-   */
-  getAnime4KProviders() {
-    return this.getAllProviders().filter(p => p.supportsAnime4K())
+  getProvidersWithCapability(capability) {
+    return this.getAllProviders().filter(p => p.hasCapability(capability))
   }
   
   /**
@@ -254,10 +218,10 @@ class ProviderRegistry {
   }
   
   /**
-   * Initialize providers from plugin manager
+   * Initialize providers from JS plugin manager
    */
   initializeFromPluginManager() {
-    const plugins = pluginManager.getEnabledPlugins()
+    const plugins = jsPluginManager.getEnabledPlugins()
     plugins.forEach(plugin => {
       this.registerProvider(plugin)
     })
@@ -274,23 +238,23 @@ export const providerRegistry = new ProviderRegistry()
  */
 export function getVidstackFormatInfo(format) {
   const formatMap = {
-    [STREAM_FORMATS.M3U8]: {
+    [STREAM_FORMAT.M3U8]: {
       type: 'hls',
       mimeType: 'application/x-mpegURL'
     },
-    [STREAM_FORMATS.MP4]: {
+    [STREAM_FORMAT.MP4]: {
       type: 'video/mp4',
       mimeType: 'video/mp4'
     },
-    [STREAM_FORMATS.MKV]: {
+    [STREAM_FORMAT.MKV]: {
       type: 'video/x-matroska',
       mimeType: 'video/x-matroska'
     },
-    [STREAM_FORMATS.WEBM]: {
+    [STREAM_FORMAT.WEBM]: {
       type: 'video/webm',
       mimeType: 'video/webm'
     },
-    [STREAM_FORMATS.TORRENT]: {
+    [STREAM_FORMAT.TORRENT]: {
       type: 'torrent',
       mimeType: 'application/x-bittorrent'
     }
