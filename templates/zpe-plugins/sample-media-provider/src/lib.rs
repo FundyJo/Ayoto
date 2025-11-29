@@ -81,7 +81,13 @@ struct Episode {
     duration: Option<u32>,
     air_date: Option<String>,
     is_filler: Option<bool>,
-    /// Multiple streaming links for this episode (optional, can be fetched separately via zpe_get_streams)
+    /// Multiple streaming links/sources for this episode.
+    /// 
+    /// This field can be populated with streaming sources when returning episodes from `zpe_get_episodes`.
+    /// Alternatively, sources can be fetched separately via `zpe_get_streams` for lazy loading.
+    /// 
+    /// When `sources` is empty, the client should call `zpe_get_streams` to fetch stream URLs.
+    /// When `sources` is populated, the client can use these directly without an additional call.
     sources: Vec<StreamSource>,
 }
 
