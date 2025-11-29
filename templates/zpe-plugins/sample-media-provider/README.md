@@ -23,8 +23,8 @@ cargo build --release --target wasm32-unknown-unknown
 # Copy the WASM file
 cp target/wasm32-unknown-unknown/release/sample_media_provider.wasm plugin.wasm
 
-# Create the ZPE archive
-zip sample-media-provider.zpe manifest.json plugin.wasm
+# Create the ZPE archive (include icon.ico for embedded icon support)
+zip sample-media-provider.zpe manifest.json plugin.wasm icon.ico
 ```
 
 ## Installing in Ayoto
@@ -36,9 +36,28 @@ zip sample-media-provider.zpe manifest.json plugin.wasm
 
 ## Plugin Structure
 
-- `manifest.json` - Plugin metadata and capabilities (including the `icon` field for display in UI)
+- `manifest.json` - Plugin metadata and capabilities
 - `src/lib.rs` - Plugin implementation in Rust
 - `Cargo.toml` - Rust project configuration
+- `icon.ico` - Plugin icon (optional, can also be icon.png, icon.jpg, icon.svg, or icon.webp)
+
+## Plugin Icon
+
+Plugins can include an icon in two ways:
+
+1. **Embedded icon file (recommended)**: Include an icon file in the ZPE archive with one of these names:
+   - `icon.png` (PNG format)
+   - `icon.ico` (ICO format)
+   - `icon.jpg` or `icon.jpeg` (JPEG format)
+   - `icon.svg` (SVG format)
+   - `icon.webp` (WebP format)
+
+2. **URL in manifest**: Set the `icon` field in manifest.json to a URL:
+   ```json
+   "icon": "https://example.com/plugin-icon.png"
+   ```
+
+When an embedded icon file is present in the archive, it takes precedence over the URL in the manifest. The embedded icon is automatically converted to a base64 data URI for display in the UI.
 
 ## Customizing
 
@@ -47,9 +66,10 @@ To create your own media provider:
 1. Copy this template
 2. Update `manifest.json` with your plugin's information:
    - Set `id`, `name`, `version`, `author`, `description`
-   - Set `icon` to a URL for your plugin's icon (displayed in the plugins UI)
+   - Optionally set `icon` to a URL (or include an icon file in the archive)
    - Configure `capabilities` based on what your plugin supports
-3. Implement the plugin functions in `src/lib.rs`:
+3. Add your plugin icon as `icon.png`, `icon.ico`, etc.
+4. Implement the plugin functions in `src/lib.rs`:
    - `zpe_search` - Search for anime
    - `zpe_get_popular` - Get popular anime
    - `zpe_get_latest` - Get latest releases
