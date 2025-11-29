@@ -2,15 +2,34 @@
 //!
 //! Handles loading, managing, and unloading ZPE plugins.
 //! ZPE files are ZIP archives containing a WASM module and manifest.
+//!
+//! # Plugin Icon Support
+//!
+//! Plugins can include icons in two ways:
+//! 1. URL in manifest.json: `"icon": "https://example.com/icon.png"`
+//! 2. Embedded file in the archive: `icon.png`, `icon.ico`, `icon.jpg`, `icon.jpeg`, `icon.svg`, or `icon.webp`
+//!
+//! When an icon file is present in the archive, it takes precedence over the URL in the manifest.
+//! The embedded icon is converted to a base64 data URI for display in the UI.
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Read, Cursor};
+use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
+use super::runtime::{ZpePluginInstance, ZpeRuntime, ZpeRuntimeConfig};
 use super::types::*;
-use super::runtime::{ZpeRuntime, ZpePluginInstance, ZpeRuntimeConfig};
+
+/// Supported icon file names and their MIME types
+const ICON_FILES: &[(&str, &str)] = &[
+    ("icon.png", "image/png"),
+    ("icon.ico", "image/x-icon"),
+    ("icon.jpg", "image/jpeg"),
+    ("icon.jpeg", "image/jpeg"),
+    ("icon.svg", "image/svg+xml"),
+    ("icon.webp", "image/webp"),
+];
 
 /// Container for a loaded ZPE plugin
 pub struct ZpePluginContainer {
@@ -167,7 +186,7 @@ impl ZpePluginLoader {
         };
 
         // Read manifest.json
-        let manifest = match self.read_manifest(&mut archive) {
+        let mut manifest = match self.read_manifest(&mut archive) {
             Ok(m) => m,
             Err(e) => {
                 errors.push(e);
@@ -179,6 +198,11 @@ impl ZpePluginLoader {
                 };
             }
         };
+
+        // Try to read embedded icon file (takes precedence over URL in manifest)
+        if let Some(icon_data_uri) = self.read_icon(&mut archive) {
+            manifest.icon = Some(icon_data_uri);
+        }
 
         // Validate manifest
         let validation = manifest.validate();
@@ -303,6 +327,46 @@ impl ZpePluginLoader {
         Ok(bytes)
     }
 
+    /// Read icon file from archive and convert to base64 data URI
+    ///
+    /// Looks for icon files in the following order: icon.png, icon.ico, icon.jpg, icon.jpeg, icon.svg, icon.webp
+    /// Returns None if no icon file is found in the archive.
+    fn read_icon(&self, archive: &mut zip::ZipArchive<File>) -> Option<String> {
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
+
+        for (filename, mime_type) in ICON_FILES {
+            if let Ok(mut file) = archive.by_name(filename) {
+                let mut bytes = Vec::new();
+                if file.read_to_end(&mut bytes).is_ok() && !bytes.is_empty() {
+                    // Convert to base64 data URI
+                    let base64_str = STANDARD.encode(&bytes);
+                    return Some(format!("data:{};base64,{}", mime_type, base64_str));
+                }
+            }
+        }
+        None
+    }
+
+    /// Read icon file from archive (cursor version) and convert to base64 data URI
+    fn read_icon_from_cursor<R: std::io::Read + std::io::Seek>(
+        &self,
+        archive: &mut zip::ZipArchive<R>,
+    ) -> Option<String> {
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
+
+        for (filename, mime_type) in ICON_FILES {
+            if let Ok(mut file) = archive.by_name(filename) {
+                let mut bytes = Vec::new();
+                if file.read_to_end(&mut bytes).is_ok() && !bytes.is_empty() {
+                    // Convert to base64 data URI
+                    let base64_str = STANDARD.encode(&bytes);
+                    return Some(format!("data:{};base64,{}", mime_type, base64_str));
+                }
+            }
+        }
+        None
+    }
+
     /// Load plugin from bytes (for embedded plugins)
     pub fn load_plugin_from_bytes(&self, bytes: &[u8], source: &str) -> ZpeLoadResult {
         let mut errors = Vec::new();
@@ -349,7 +413,7 @@ impl ZpePluginLoader {
             contents
         };
 
-        let manifest = match ZpeManifest::from_json(&manifest_content) {
+        let mut manifest = match ZpeManifest::from_json(&manifest_content) {
             Ok(m) => m,
             Err(e) => {
                 errors.push(e);
@@ -361,6 +425,11 @@ impl ZpePluginLoader {
                 };
             }
         };
+
+        // Try to read embedded icon file (takes precedence over URL in manifest)
+        if let Some(icon_data_uri) = self.read_icon_from_cursor(&mut archive) {
+            manifest.icon = Some(icon_data_uri);
+        }
 
         let validation = manifest.validate();
         if !validation.valid {
@@ -476,11 +545,7 @@ impl ZpePluginLoader {
 
     /// Get a plugin by ID
     pub fn get_plugin(&self, plugin_id: &str) -> Option<ZpePluginInfo> {
-        self.plugins
-            .read()
-            .ok()?
-            .get(plugin_id)
-            .map(|c| c.info())
+        self.plugins.read().ok()?.get(plugin_id).map(|c| c.info())
     }
 
     /// Set plugin enabled state
@@ -498,11 +563,17 @@ impl ZpePluginLoader {
     }
 
     /// Search using a plugin
-    pub fn plugin_search(&self, plugin_id: &str, query: &str, page: u32) -> Result<ZpeAnimeList, String> {
+    pub fn plugin_search(
+        &self,
+        plugin_id: &str,
+        query: &str,
+        page: u32,
+    ) -> Result<ZpeAnimeList, String> {
         if let Ok(mut plugins) = self.plugins.write() {
-            let container = plugins.get_mut(plugin_id)
+            let container = plugins
+                .get_mut(plugin_id)
                 .ok_or_else(|| format!("Plugin '{}' not found", plugin_id))?;
-            
+
             if !container.is_enabled() {
                 return Err(format!("Plugin '{}' is disabled", plugin_id));
             }
@@ -520,15 +591,19 @@ impl ZpePluginLoader {
     /// Get popular anime using a plugin
     pub fn plugin_get_popular(&self, plugin_id: &str, page: u32) -> Result<ZpeAnimeList, String> {
         if let Ok(mut plugins) = self.plugins.write() {
-            let container = plugins.get_mut(plugin_id)
+            let container = plugins
+                .get_mut(plugin_id)
                 .ok_or_else(|| format!("Plugin '{}' not found", plugin_id))?;
-            
+
             if !container.is_enabled() {
                 return Err(format!("Plugin '{}' is disabled", plugin_id));
             }
 
             if !container.manifest().capabilities.get_popular {
-                return Err(format!("Plugin '{}' does not support get_popular", plugin_id));
+                return Err(format!(
+                    "Plugin '{}' does not support get_popular",
+                    plugin_id
+                ));
             }
 
             container.instance_mut().get_popular(page)
@@ -540,15 +615,19 @@ impl ZpePluginLoader {
     /// Get latest anime using a plugin
     pub fn plugin_get_latest(&self, plugin_id: &str, page: u32) -> Result<ZpeAnimeList, String> {
         if let Ok(mut plugins) = self.plugins.write() {
-            let container = plugins.get_mut(plugin_id)
+            let container = plugins
+                .get_mut(plugin_id)
                 .ok_or_else(|| format!("Plugin '{}' not found", plugin_id))?;
-            
+
             if !container.is_enabled() {
                 return Err(format!("Plugin '{}' is disabled", plugin_id));
             }
 
             if !container.manifest().capabilities.get_latest {
-                return Err(format!("Plugin '{}' does not support get_latest", plugin_id));
+                return Err(format!(
+                    "Plugin '{}' does not support get_latest",
+                    plugin_id
+                ));
             }
 
             container.instance_mut().get_latest(page)
@@ -558,17 +637,26 @@ impl ZpePluginLoader {
     }
 
     /// Get episodes using a plugin
-    pub fn plugin_get_episodes(&self, plugin_id: &str, anime_id: &str, page: u32) -> Result<ZpeEpisodeList, String> {
+    pub fn plugin_get_episodes(
+        &self,
+        plugin_id: &str,
+        anime_id: &str,
+        page: u32,
+    ) -> Result<ZpeEpisodeList, String> {
         if let Ok(mut plugins) = self.plugins.write() {
-            let container = plugins.get_mut(plugin_id)
+            let container = plugins
+                .get_mut(plugin_id)
                 .ok_or_else(|| format!("Plugin '{}' not found", plugin_id))?;
-            
+
             if !container.is_enabled() {
                 return Err(format!("Plugin '{}' is disabled", plugin_id));
             }
 
             if !container.manifest().capabilities.get_episodes {
-                return Err(format!("Plugin '{}' does not support get_episodes", plugin_id));
+                return Err(format!(
+                    "Plugin '{}' does not support get_episodes",
+                    plugin_id
+                ));
             }
 
             container.instance_mut().get_episodes(anime_id, page)
@@ -578,17 +666,26 @@ impl ZpePluginLoader {
     }
 
     /// Get streams using a plugin
-    pub fn plugin_get_streams(&self, plugin_id: &str, anime_id: &str, episode_id: &str) -> Result<ZpeStreamSourceList, String> {
+    pub fn plugin_get_streams(
+        &self,
+        plugin_id: &str,
+        anime_id: &str,
+        episode_id: &str,
+    ) -> Result<ZpeStreamSourceList, String> {
         if let Ok(mut plugins) = self.plugins.write() {
-            let container = plugins.get_mut(plugin_id)
+            let container = plugins
+                .get_mut(plugin_id)
                 .ok_or_else(|| format!("Plugin '{}' not found", plugin_id))?;
-            
+
             if !container.is_enabled() {
                 return Err(format!("Plugin '{}' is disabled", plugin_id));
             }
 
             if !container.manifest().capabilities.get_streams {
-                return Err(format!("Plugin '{}' does not support get_streams", plugin_id));
+                return Err(format!(
+                    "Plugin '{}' does not support get_streams",
+                    plugin_id
+                ));
             }
 
             container.instance_mut().get_streams(anime_id, episode_id)
@@ -598,17 +695,25 @@ impl ZpePluginLoader {
     }
 
     /// Get anime details using a plugin
-    pub fn plugin_get_anime_details(&self, plugin_id: &str, anime_id: &str) -> Result<ZpeAnime, String> {
+    pub fn plugin_get_anime_details(
+        &self,
+        plugin_id: &str,
+        anime_id: &str,
+    ) -> Result<ZpeAnime, String> {
         if let Ok(mut plugins) = self.plugins.write() {
-            let container = plugins.get_mut(plugin_id)
+            let container = plugins
+                .get_mut(plugin_id)
                 .ok_or_else(|| format!("Plugin '{}' not found", plugin_id))?;
-            
+
             if !container.is_enabled() {
                 return Err(format!("Plugin '{}' is disabled", plugin_id));
             }
 
             if !container.manifest().capabilities.get_anime_details {
-                return Err(format!("Plugin '{}' does not support get_anime_details", plugin_id));
+                return Err(format!(
+                    "Plugin '{}' does not support get_anime_details",
+                    plugin_id
+                ));
             }
 
             container.instance_mut().get_anime_details(anime_id)
@@ -618,17 +723,25 @@ impl ZpePluginLoader {
     }
 
     /// Extract stream using a plugin
-    pub fn plugin_extract_stream(&self, plugin_id: &str, url: &str) -> Result<ZpeStreamSource, String> {
+    pub fn plugin_extract_stream(
+        &self,
+        plugin_id: &str,
+        url: &str,
+    ) -> Result<ZpeStreamSource, String> {
         if let Ok(mut plugins) = self.plugins.write() {
-            let container = plugins.get_mut(plugin_id)
+            let container = plugins
+                .get_mut(plugin_id)
                 .ok_or_else(|| format!("Plugin '{}' not found", plugin_id))?;
-            
+
             if !container.is_enabled() {
                 return Err(format!("Plugin '{}' is disabled", plugin_id));
             }
 
             if !container.manifest().capabilities.extract_stream {
-                return Err(format!("Plugin '{}' does not support extract_stream", plugin_id));
+                return Err(format!(
+                    "Plugin '{}' does not support extract_stream",
+                    plugin_id
+                ));
             }
 
             container.instance_mut().extract_stream(url)
@@ -663,7 +776,7 @@ impl ZpePluginLoader {
 /// Check version compatibility
 fn check_version_compatibility(target_version: &str) -> bool {
     let current = env!("CARGO_PKG_VERSION");
-    
+
     let parse_version = |v: &str| -> Option<(u32, u32, u32)> {
         let parts: Vec<&str> = v.split('-').next()?.split('.').collect();
         if parts.len() != 3 {
@@ -677,9 +790,7 @@ fn check_version_compatibility(target_version: &str) -> bool {
     };
 
     match (parse_version(current), parse_version(target_version)) {
-        (Some((cur_major, _, _)), Some((target_major, _, _))) => {
-            cur_major == target_major
-        }
+        (Some((cur_major, _, _)), Some((target_major, _, _))) => cur_major == target_major,
         _ => false,
     }
 }
@@ -707,5 +818,45 @@ mod tests {
         let current = env!("CARGO_PKG_VERSION");
         assert!(check_version_compatibility(current));
         assert!(!check_version_compatibility("99.0.0"));
+    }
+
+    #[test]
+    fn test_icon_files_constant() {
+        // Verify that all expected icon formats are supported
+        let supported_formats: Vec<&str> = ICON_FILES.iter().map(|(name, _)| *name).collect();
+        assert!(supported_formats.contains(&"icon.png"));
+        assert!(supported_formats.contains(&"icon.ico"));
+        assert!(supported_formats.contains(&"icon.jpg"));
+        assert!(supported_formats.contains(&"icon.jpeg"));
+        assert!(supported_formats.contains(&"icon.svg"));
+        assert!(supported_formats.contains(&"icon.webp"));
+    }
+
+    #[test]
+    fn test_icon_mime_types() {
+        // Verify MIME types are correctly mapped
+        for (filename, mime_type) in ICON_FILES {
+            match *filename {
+                "icon.png" => assert_eq!(*mime_type, "image/png"),
+                "icon.ico" => assert_eq!(*mime_type, "image/x-icon"),
+                "icon.jpg" | "icon.jpeg" => assert_eq!(*mime_type, "image/jpeg"),
+                "icon.svg" => assert_eq!(*mime_type, "image/svg+xml"),
+                "icon.webp" => assert_eq!(*mime_type, "image/webp"),
+                _ => panic!("Unexpected icon filename: {}", filename),
+            }
+        }
+    }
+
+    #[test]
+    fn test_base64_encoding() {
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
+
+        // Test that base64 encoding works correctly
+        let test_data = b"test icon data";
+        let encoded = STANDARD.encode(test_data);
+        let data_uri = format!("data:image/png;base64,{}", encoded);
+
+        assert!(data_uri.starts_with("data:image/png;base64,"));
+        assert!(!data_uri.is_empty());
     }
 }
