@@ -35,7 +35,13 @@ npm install
 
 ### Development
 
+**Linux/macOS:**
 ```bash
+npm run tauri:dev
+```
+
+**Windows (PowerShell/cmd):**
+```powershell
 npm run tauri:dev
 ```
 
@@ -43,6 +49,7 @@ This will start the development server and launch the Tauri application window.
 
 ### Build
 
+**Linux/macOS:**
 ```bash
 # Build for your current platform
 npm run tauri:build
@@ -51,6 +58,15 @@ npm run tauri:build
 npm run tauri:build:win      # Windows
 npm run tauri:build:mac      # macOS
 npm run tauri:build:linux    # Linux
+```
+
+**Windows (PowerShell/cmd):**
+```powershell
+# Build for your current platform
+npm run tauri:build
+
+# Or build for Windows specifically:
+npm run tauri:build:win
 ```
 
 The built application will be in the `src-tauri/target/release/bundle/` directory.
@@ -125,14 +141,27 @@ See [docs/NATIVE_PLUGIN_DEVELOPMENT.md](docs/NATIVE_PLUGIN_DEVELOPMENT.md) for a
 
 ### Linting and Formatting
 
+**Linux/macOS:**
 ```bash
+npm run lint      # Run ESLint
+npm run format    # Run Prettier
+```
+
+**Windows (PowerShell/cmd):**
+```powershell
 npm run lint      # Run ESLint
 npm run format    # Run Prettier
 ```
 
 ### Building Frontend Only
 
+**Linux/macOS:**
 ```bash
+npm run build
+```
+
+**Windows (PowerShell/cmd):**
+```powershell
 npm run build
 ```
 

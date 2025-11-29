@@ -7,6 +7,8 @@ const DISCORD_CLIENT_ID: &str = "1334161510120816680";
 const DISCORD_DEFAULT_DETAILS: &str = "Browsing Anime";
 const DISCORD_DEFAULT_STATE: &str = "Looking for anime to watch";
 const DISCORD_DOWNLOAD_URL: &str = "https://github.com/hitarth-gg/zenshin/releases/latest";
+const DISCORD_LARGE_IMAGE: &str = "icon";
+const DISCORD_LARGE_IMAGE_TEXT: &str = "zanshin";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
@@ -43,6 +45,11 @@ fn create_activity<'a>(details: &'a str, state: &'a str) -> activity::Activity<'
     activity::Activity::new()
         .details(details)
         .state(state)
+        .assets(
+            activity::Assets::new()
+                .large_image(DISCORD_LARGE_IMAGE)
+                .large_text(DISCORD_LARGE_IMAGE_TEXT)
+        )
         .buttons(vec![
             activity::Button::new("Download app", DISCORD_DOWNLOAD_URL)
         ])
