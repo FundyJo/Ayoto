@@ -117,25 +117,55 @@ zanshin/
 - VLC external player integration
 - Deep linking support (zanshin://)
 - Persistent window state
-- **Native Plugin System** - Extend functionality with Rust plugins
+- **ZPE Plugin System** - Secure JavaScript/TypeScript plugin extensions
 
-## Native Plugin System
+## ZPE Plugin System
 
-Ayoto features a universal native plugin system that allows extending functionality through Rust plugins compiled as dynamic libraries. This enables:
+Ayoto features the ZPE (Zanshin Plugin Extension) system - a secure, extensible plugin framework for JavaScript/TypeScript plugins:
 
-- **Cross-Platform Compatibility**: Plugins work on Linux, Windows, macOS, Android, and iOS
-- **Web Scraping**: Plugins can perform scraping on provider websites using the built-in HTTP context
-- **Media Providers**: Add new anime sources (aniworld.to, s.to, etc.)
-- **Stream Providers**: Add support for new video hosters (Voe, Vidoza, etc.)
-
-### Plugin Development
-
-See [docs/NATIVE_PLUGIN_DEVELOPMENT.md](docs/NATIVE_PLUGIN_DEVELOPMENT.md) for a complete guide on creating native plugins.
+- **Secure Execution**: Sandboxed JavaScript runtime with permission-based access control
+- **Encrypted Packages**: AES-GCM encrypted `.zpe` plugin files with code signing
+- **GitHub Integration**: Automatic version checking and update notifications
+- **Type Safety**: Full TypeScript support with comprehensive type definitions
+- **Web Scraping**: Built-in HTTP client and HTML parsing utilities
+- **Rate Limiting**: Automatic request throttling and domain allowlists
 
 ### Plugin Types
 
-1. **Media Provider Plugins** - Provide anime search, episode listings, and stream sources
+1. **Media Provider Plugins** - Search, browse, and stream anime from various sources
 2. **Stream Provider Plugins** - Extract video URLs from hosting services
+3. **Utility Plugins** - General purpose extensions
+4. **Theme Plugins** - Custom UI themes
+5. **Integration Plugins** - Third-party service integrations
+
+### Plugin Development
+
+See [docs/ZPE_PLUGIN_SYSTEM.md](docs/ZPE_PLUGIN_SYSTEM.md) for a complete guide on creating ZPE plugins.
+
+### Quick Start
+
+```javascript
+// manifest.json
+{
+  "id": "my-provider",
+  "name": "My Provider",
+  "version": "1.0.0",
+  "pluginType": "media-provider",
+  "permissions": ["network:http", "storage:local"],
+  "capabilities": { "search": true }
+}
+
+// plugin.js
+module.exports = {
+  async init(ctx) { this.http = ctx.http; },
+  async search(query) {
+    const res = await this.http.get(`https://api.example.com/search?q=${query}`);
+    return { results: [], hasNextPage: false, currentPage: 1 };
+  }
+};
+```
+
+Example templates are available in the `templates/` directory.
 
 ## Development
 
