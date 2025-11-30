@@ -1,0 +1,56 @@
+{
+  "id": "example-stream-provider",
+  "name": "Example Stream Provider",
+  "version": "1.0.0",
+  "description": "An example ZPE stream provider plugin for extracting video URLs from hosters",
+  "pluginType": "stream-provider",
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com",
+    "github": "yourusername",
+    "url": "https://yourwebsite.com"
+  },
+  "icon": "icon.svg",
+  "homepage": "https://github.com/yourusername/example-stream-provider",
+  "license": "MIT",
+  "repository": {
+    "type": "github",
+    "owner": "yourusername",
+    "repo": "example-stream-provider",
+    "branch": "main",
+    "manifestPath": "manifest.json"
+  },
+  "permissions": [
+    "network:http",
+    "storage:cache"
+  ],
+  "capabilities": {
+    "extractStream": true,
+    "getHosterInfo": true
+  },
+  "config": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "rateLimitMs": 500,
+    "timeout": 30000
+  },
+  "security": {
+    "sandboxed": true,
+    "cspEnabled": true,
+    "allowedDomains": [
+      "*.vidstream.pro",
+      "*.mp4upload.com",
+      "*.streamtape.com"
+    ]
+  },
+  "minAppVersion": "2.5.0",
+  "keywords": [
+    "stream",
+    "extractor",
+    "hoster"
+  ],
+  "main": "src/index.js",
+  "scripts": {
+    "extractors": "src/extractors.js",
+    "utils": "src/utils.js"
+  }
+}
