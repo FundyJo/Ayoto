@@ -87,6 +87,7 @@ export const ZPE_PLUGIN_STATE = {
  * @property {string} [homepage] - Plugin homepage URL
  * @property {ZPEManifestRepository} [repository] - GitHub repository for version checking
  * @property {string} [license] - License identifier (e.g., "MIT")
+ * @property {string[]} [supportedLanguages] - ISO 639-1 language codes supported by this plugin (e.g., ["de", "en"])
  * @property {string[]} [permissions] - Required permissions from ZPE_PERMISSION
  * @property {ZPEManifestCapabilities} [capabilities] - Plugin capabilities
  * @property {ZPEManifestConfig} [config] - Plugin configuration options
@@ -290,6 +291,19 @@ export function validateZPEManifest(manifest) {
       errors.push('Keywords must be an array')
     } else if (manifest.keywords.length > 10) {
       warnings.push('Maximum 10 keywords are recommended')
+    }
+  }
+
+  // Supported languages validation (ISO 639-1 codes)
+  if (manifest.supportedLanguages) {
+    if (!Array.isArray(manifest.supportedLanguages)) {
+      errors.push('Supported languages must be an array')
+    } else {
+      for (const lang of manifest.supportedLanguages) {
+        if (typeof lang !== 'string' || !/^[a-z]{2}(-[A-Z]{2})?$/.test(lang)) {
+          errors.push(`Invalid language code: ${lang}. Must be ISO 639-1 format (e.g., "de", "en", "en-US")`)
+        }
+      }
     }
   }
 
