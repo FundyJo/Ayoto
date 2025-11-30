@@ -29,6 +29,16 @@ import {
 // ============================================================================
 
 /**
+ * ZPE header size in bytes
+ */
+const ZPE_HEADER_SIZE = 16
+
+/**
+ * Section wrapper size (type byte + 4 length bytes)
+ */
+const ZPE_SECTION_WRAPPER_SIZE = 5
+
+/**
  * ZPE file sections
  */
 const ZPE_SECTION = {
@@ -262,7 +272,7 @@ export class ZPEBuilder {
    * @returns {Uint8Array} Header data
    */
   _buildHeader(opts) {
-    const header = new Uint8Array(16)
+    const header = new Uint8Array(ZPE_HEADER_SIZE)
     
     // Magic bytes (4 bytes): "ZPE!"
     header.set(ZPE_MAGIC_BYTES, 0)
@@ -482,41 +492,25 @@ export class ZPEParser {
     const decoder = new TextDecoder()
     
     // Validate file has minimum size
-    if (bytes.length < 16) {
+    if (bytes.length < ZPE_HEADER_SIZE) {
       const errorDetails = this._createDetailedError(
         'File too small',
         bytes,
-        `File size: ${bytes.length} bytes (minimum required: 16 bytes)`
+        `File size: ${bytes.length} bytes (minimum required: ${ZPE_HEADER_SIZE} bytes)`
       )
       throw new Error(errorDetails)
     }
     
-    // Verify magic bytes with detailed error
-    const actualMagic = Array.from(bytes.slice(0, 4))
-    const expectedMagic = ZPE_MAGIC_BYTES
-    let magicMismatch = false
-    
-    for (let i = 0; i < 4; i++) {
-      if (bytes[i] !== ZPE_MAGIC_BYTES[i]) {
-        magicMismatch = true
-        break
-      }
-    }
-    
-    if (magicMismatch) {
-      const errorDetails = this._createDetailedError(
-        'Invalid magic bytes',
-        bytes,
-        this._formatMagicBytesError(actualMagic, expectedMagic)
-      )
-      throw new Error(errorDetails)
-    }
+    // Detect file format and extract header data
+    // Format 1 (correct): Magic bytes at position 0, header is raw (16 bytes), sections start at offset 16
+    // Format 2 (legacy): Header is wrapped as a section, magic bytes at position 5, sections start at offset 21
+    const { headerBytes, sectionsOffset } = this._detectFormatAndExtractHeader(bytes)
 
-    // Parse header
-    const header = this._parseHeader(bytes)
+    // Parse header from the extracted header bytes
+    const header = this._parseHeader(headerBytes)
     
-    // Parse sections
-    const sections = this._parseSections(bytes, 16)
+    // Parse sections starting from the detected offset
+    const sections = this._parseSections(bytes, sectionsOffset)
     
     // Extract manifest
     const manifestSection = sections.find(s => s.type === ZPE_SECTION.MANIFEST)
@@ -566,8 +560,81 @@ export class ZPEParser {
   }
 
   /**
-   * Parse the ZPE header
+   * Detect the file format and extract header bytes
+   * Supports both raw header format (magic at offset 0) and wrapped header format (legacy)
    * @param {Uint8Array} bytes - File bytes
+   * @returns {Object} Object containing headerBytes, sectionsOffset, and formatVersion
+   * @private
+   */
+  static _detectFormatAndExtractHeader(bytes) {
+    // Check for Format 1 (correct): Magic bytes at position 0-3
+    const magicAtStart = this._checkMagicBytes(bytes, 0)
+    if (magicAtStart) {
+      return {
+        headerBytes: bytes.slice(0, ZPE_HEADER_SIZE),
+        sectionsOffset: ZPE_HEADER_SIZE,
+        formatVersion: 'standard'
+      }
+    }
+    
+    // Check for Format 2 (legacy/wrapped): Header wrapped as a section
+    // Structure: [section_type(1)][length(4)][header_data(16)]
+    // Section type for HEADER is 0x01
+    if (bytes[0] === ZPE_SECTION.HEADER) {
+      // Read section length (little-endian 32-bit unsigned)
+      const sectionLength = (bytes[1] |
+                            (bytes[2] << 8) |
+                            (bytes[3] << 16) |
+                            (bytes[4] << 24)) >>> 0
+      
+      const legacyHeaderDataOffset = ZPE_SECTION_WRAPPER_SIZE
+      const legacySectionsOffset = ZPE_SECTION_WRAPPER_SIZE + ZPE_HEADER_SIZE
+      
+      // Header should be 16 bytes
+      if (sectionLength === ZPE_HEADER_SIZE && bytes.length >= legacySectionsOffset) {
+        // Check magic bytes at position 5 (after section wrapper)
+        const magicInWrapped = this._checkMagicBytes(bytes, legacyHeaderDataOffset)
+        if (magicInWrapped) {
+          console.warn('[ZPE Parser] Detected legacy wrapped header format. Consider rebuilding the plugin.')
+          return {
+            headerBytes: bytes.slice(legacyHeaderDataOffset, legacySectionsOffset),
+            sectionsOffset: legacySectionsOffset,
+            formatVersion: 'legacy-wrapped'
+          }
+        }
+      }
+    }
+    
+    // Neither format detected - create detailed error
+    const actualMagic = Array.from(bytes.slice(0, 4))
+    const errorDetails = this._createDetailedError(
+      'Invalid magic bytes',
+      bytes,
+      this._formatMagicBytesError(actualMagic, ZPE_MAGIC_BYTES)
+    )
+    throw new Error(errorDetails)
+  }
+
+  /**
+   * Check if magic bytes are at the specified offset
+   * @param {Uint8Array} bytes - File bytes
+   * @param {number} offset - Offset to check
+   * @returns {boolean} True if magic bytes match
+   * @private
+   */
+  static _checkMagicBytes(bytes, offset) {
+    if (bytes.length < offset + 4) return false
+    for (let i = 0; i < 4; i++) {
+      if (bytes[offset + i] !== ZPE_MAGIC_BYTES[i]) {
+        return false
+      }
+    }
+    return true
+  }
+
+  /**
+   * Parse the ZPE header
+   * @param {Uint8Array} bytes - Header bytes (16 bytes)
    * @returns {Object} Parsed header
    */
   static _parseHeader(bytes) {
