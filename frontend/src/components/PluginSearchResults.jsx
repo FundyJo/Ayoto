@@ -1,4 +1,5 @@
 import { GlobeIcon } from '@radix-ui/react-icons'
+import { toast } from 'sonner'
 
 /**
  * Component to display search results from plugin providers
@@ -8,13 +9,13 @@ import { GlobeIcon } from '@radix-ui/react-icons'
  * @param {Function} props.setIsActive - Function to toggle search bar active state
  */
 export default function PluginSearchResults({ data, providerName, setIsActive }) {
-  // Handle click - for now, show the link since plugins don't integrate with main app navigation
+  // Handle click - show info about the result and copy link if available
   function handleClick() {
-    // Plugin results may have their own navigation or link
-    if (data.link) {
-      // Could open in a modal or new tab depending on implementation
-      console.log('Plugin result clicked:', data)
-    }
+    // Show info toast with provider and title
+    toast.info(`${data.title}`, {
+      description: data.description || `From ${providerName}`,
+      duration: 3000
+    })
     setIsActive(false)
   }
 

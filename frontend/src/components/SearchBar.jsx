@@ -43,38 +43,50 @@ export default function SearchBar() {
     if (searchText) {
       setSearching(true)
       
-      // Search Anilist
-      const data = await searchAnime(searchText)
-      setSearchData(data)
+      // Run Anilist search and plugin search in parallel
+      const anilistPromise = searchAnime(searchText).catch(err => {
+        console.error('Anilist search error:', err)
+        return []
+      })
       
-      // Search enabled plugins with search capability
-      try {
-        const pluginResults = []
-        const enabledPlugins = zpePluginManager.getPluginsWithCapability('search')
-        
-        for (const pluginInfo of enabledPlugins) {
-          try {
-            const plugin = await zpePluginManager.getPlugin(pluginInfo.id)
-            if (plugin && typeof plugin.search === 'function') {
-              const result = await plugin.search(searchText)
-              if (result && result.results && result.results.length > 0) {
-                pluginResults.push({
-                  providerId: pluginInfo.id,
-                  providerName: pluginInfo.name,
-                  results: result.results
-                })
+      const pluginsPromise = (async () => {
+        try {
+          const pluginResults = []
+          const enabledPlugins = zpePluginManager.getPluginsWithCapability('search')
+          
+          // Run plugin searches in parallel
+          const pluginSearchPromises = enabledPlugins.map(async (pluginInfo) => {
+            try {
+              const plugin = await zpePluginManager.getPlugin(pluginInfo.id)
+              if (plugin && typeof plugin.search === 'function') {
+                const result = await plugin.search(searchText)
+                if (result && result.results && result.results.length > 0) {
+                  return {
+                    providerId: pluginInfo.id,
+                    providerName: pluginInfo.name,
+                    results: result.results
+                  }
+                }
               }
+            } catch (pluginError) {
+              console.error(`Plugin search error for ${pluginInfo.id}:`, pluginError)
             }
-          } catch (pluginError) {
-            console.error(`Plugin search error for ${pluginInfo.id}:`, pluginError)
-          }
+            return null
+          })
+          
+          const searchResults = await Promise.all(pluginSearchPromises)
+          return searchResults.filter(Boolean)
+        } catch (error) {
+          console.error('Error searching plugins:', error)
+          return []
         }
-        
-        setPluginSearchData(pluginResults)
-      } catch (error) {
-        console.error('Error searching plugins:', error)
-      }
+      })()
       
+      // Wait for both to complete
+      const [data, pluginResults] = await Promise.all([anilistPromise, pluginsPromise])
+      
+      setSearchData(data)
+      setPluginSearchData(pluginResults)
       setSearching(false)
     } else {
       toast.error('Invalid search query', {
