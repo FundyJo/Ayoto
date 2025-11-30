@@ -190,6 +190,38 @@ function LanguageBadge({ language }) {
   )
 }
 
+// Plugin icon component - displays the plugin's icon with fallback
+function PluginIcon({ plugin, className = "h-6 w-6" }) {
+  const [hasError, setHasError] = useState(false)
+  
+  // Check if plugin has an icon (base64 encoded or URL)
+  const iconSrc = plugin.icon || plugin.iconUrl
+  
+  // Show fallback if no icon source or if there was an error loading the image
+  if (!iconSrc || hasError) {
+    // Fallback: show format-specific icon
+    if (plugin.format === 'zpe') {
+      return <ArchiveIcon className={`${className} text-blue-400`} />
+    }
+    return <CodeIcon className={`${className} text-yellow-400`} />
+  }
+  
+  // If it's a base64 data URL or regular URL, use it directly
+  // If it's just a base64 string, convert it to a data URL for .ico files
+  const src = iconSrc.startsWith('data:') || iconSrc.startsWith('http') 
+    ? iconSrc 
+    : `data:image/x-icon;base64,${iconSrc}`
+  
+  return (
+    <img 
+      src={src} 
+      alt={`${plugin.name} icon`}
+      className={`${className} object-contain`}
+      onError={() => setHasError(true)}
+    />
+  )
+}
+
 // ============================================================================
 // Main Plugin Page Component
 // ============================================================================
@@ -544,11 +576,7 @@ export default function Plugins() {
                   <div className="flex items-center gap-4">
                     {/* Plugin Icon */}
                     <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md bg-[#2a2a2d]">
-                      {plugin.format === 'zpe' ? (
-                        <ArchiveIcon className="h-6 w-6 text-blue-400" />
-                      ) : (
-                        <CodeIcon className="h-6 w-6 text-yellow-400" />
-                      )}
+                      <PluginIcon plugin={plugin} className="h-6 w-6" />
                     </div>
 
                     {/* Plugin Info */}
@@ -565,6 +593,12 @@ export default function Plugins() {
                         }`}>
                           {plugin.format === 'zpe' ? 'ZPE' : 'JS'}
                         </span>
+                        {/* Language badges */}
+                        {plugin.supportedLanguages && plugin.supportedLanguages.length > 0 && (
+                          plugin.supportedLanguages.map((lang) => (
+                            <LanguageBadge key={lang} language={lang} />
+                          ))
+                        )}
                         {plugin.enabled ? (
                           <CheckCircledIcon className="h-4 w-4 text-green-500" />
                         ) : (

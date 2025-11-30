@@ -873,6 +873,9 @@ export class JSPluginManager {
       description: p.manifest.description,
       author: p.manifest.author,
       capabilities: p.manifest.capabilities,
+      icon: p.manifest.icon,
+      iconUrl: p.manifest.iconUrl,
+      supportedLanguages: p.manifest.supportedLanguages,
       enabled: p.enabled
     }))
   }
