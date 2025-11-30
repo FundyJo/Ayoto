@@ -64,12 +64,6 @@ fn create_activity<'a>(details: &'a str, state: &'a str) -> activity::Activity<'
         ])
 }
 
-/// Get the current Ayoto version
-#[tauri::command]
-pub fn get_ayoto_version() -> String {
-    AYOTO_VERSION.to_string()
-}
-
 #[tauri::command]
 pub fn minimize_window(window: Window) -> Result<(), String> {
     window.minimize().map_err(|e| e.to_string())
