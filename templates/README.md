@@ -16,6 +16,12 @@ templates/
 │       ├── api.js                     # API/HTTP request handling
 │       ├── parser.js                  # HTML/JSON parsing logic
 │       └── utils.js                   # Utility functions
+├── aniworld-provider/                 # Aniworld.to media provider (ready to use)
+│   ├── manifest.json                  # Plugin metadata and configuration
+│   ├── icon.svg                       # Plugin icon
+│   ├── README.md                      # Aniworld provider documentation
+│   └── src/
+│       └── index.js                   # Main plugin with search implementation
 ├── stream-provider/                   # Stream provider plugin template
 │   ├── manifest.json                  # Plugin metadata and configuration
 │   ├── icon.svg                       # Plugin icon
