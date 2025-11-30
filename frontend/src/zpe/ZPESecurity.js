@@ -572,8 +572,8 @@ function stripStringsAndComments(code) {
     if (char === '/' && nextChar === '*') {
       result += '  ' // Replace /* with spaces
       i += 2
-      while (i < code.length - 1) {
-        if (code[i] === '*' && code[i + 1] === '/') {
+      while (i < code.length) {
+        if (i + 1 < code.length && code[i] === '*' && code[i + 1] === '/') {
           result += '  ' // Replace */ with spaces
           i += 2
           break
@@ -581,6 +581,8 @@ function stripStringsAndComments(code) {
         result += code[i] === '\n' ? '\n' : ' ' // Preserve newlines
         i++
       }
+      // If we reach here without finding */, the comment is unterminated
+      // We've already replaced all the content with spaces, so just continue
       continue
     }
     
@@ -612,10 +614,35 @@ function stripStringsAndComments(code) {
           result += '${'
           i += 2
           let braceDepth = 1
+          let inNestedString = false
+          let nestedStringChar = null
+          
           while (i < code.length && braceDepth > 0) {
-            if (code[i] === '{') braceDepth++
-            else if (code[i] === '}') braceDepth--
-            result += code[i]
+            const ch = code[i]
+            
+            // Handle escape sequences inside nested strings
+            if (inNestedString && ch === '\\' && i + 1 < code.length) {
+              result += code[i] + code[i + 1]
+              i += 2
+              continue
+            }
+            
+            // Track nested string boundaries
+            if (!inNestedString && (ch === '"' || ch === "'" || ch === '`')) {
+              inNestedString = true
+              nestedStringChar = ch
+            } else if (inNestedString && ch === nestedStringChar) {
+              inNestedString = false
+              nestedStringChar = null
+            }
+            
+            // Only count braces outside nested strings
+            if (!inNestedString) {
+              if (ch === '{') braceDepth++
+              else if (ch === '}') braceDepth--
+            }
+            
+            result += ch
             i++
           }
           continue
@@ -688,6 +715,8 @@ export function auditPluginCode(code) {
   }
 
   // Check for obfuscated code patterns
+  // Note: We intentionally check the original code here (not strippedCode) because
+  // obfuscation in any part of the file (including comments/strings) is suspicious
   if (/\\x[0-9a-f]{2}/gi.test(code) || /\\u[0-9a-f]{4}/gi.test(code)) {
     warnings.push({
       type: 'obfuscation',
@@ -697,6 +726,7 @@ export function auditPluginCode(code) {
   }
 
   // Check for base64 encoded strings (potential hidden code)
+  // Note: We check the original code to detect base64 in strings (which is where it would be used)
   const base64Pattern = /['"]((?:[A-Za-z0-9+/]{4}){10,}(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)['"]/g
   let match
   while ((match = base64Pattern.exec(code)) !== null) {
