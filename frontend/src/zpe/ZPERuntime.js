@@ -995,6 +995,9 @@ export class ZPEPluginManager {
       author: p.manifest.author,
       pluginType: p.manifest.pluginType,
       capabilities: p.manifest.capabilities,
+      icon: p.manifest.icon,
+      iconUrl: p.manifest.iconUrl,
+      supportedLanguages: p.manifest.supportedLanguages,
       enabled: p.enabled,
       state: p.instance?.state || ZPE_PLUGIN_STATE.UNLOADED
     }))
