@@ -363,7 +363,7 @@ const plugin = {
    */
   _extractIdFromUrl(url) {
     // Adapt this regex to match your provider's URL structure
-    const match = url.match(/\/anime\/([^\/]+)/);
+    const match = url.match(/\/anime\/([^/]+)/);
     return match ? match[1] : url.split('/').pop() || '';
   },
 
