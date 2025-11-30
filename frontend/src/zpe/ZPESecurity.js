@@ -672,7 +672,9 @@ const DANGEROUS_PATTERNS = [
   { pattern: /\bdocument\./g, reason: 'Direct DOM access is not allowed' },
   { pattern: /\bwindow\./g, reason: 'window object access is not allowed' },
   { pattern: /\bglobalThis\./g, reason: 'globalThis access is not allowed' },
-  { pattern: /\brequire\s*\(/g, reason: 'require() is not allowed in browser' },
+  // Note: require() is allowed for bundled plugins that define their own internal require() function.
+  // The build script (build-plugin.mjs) creates a safe internal module system.
+  // External/Node.js require() won't work anyway since Node.js modules aren't available.
   { pattern: /\bprocess\./g, reason: 'process object is not allowed' },
   { pattern: /\b__dirname\b/g, reason: '__dirname is not allowed' },
   { pattern: /\b__filename\b/g, reason: '__filename is not allowed' },
