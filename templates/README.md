@@ -1,6 +1,34 @@
 # Ayoto Plugin Templates
 
-This folder contains example plugin templates for Ayoto. These templates demonstrate how to create custom JavaScript/TypeScript plugins for the Ayoto application.
+This folder contains example plugin templates for Ayoto. These templates demonstrate how to create custom JavaScript/TypeScript plugins for the Ayoto application using a modular folder structure with multiple scripts.
+
+## Folder Structure
+
+```
+templates/
+├── README.md                          # This documentation file
+├── media-provider/                    # Media provider plugin template
+│   ├── manifest.json                  # Plugin metadata and configuration
+│   ├── icon.svg                       # Plugin icon (SVG, PNG, JPG, or ICO)
+│   ├── README.md                      # Media provider documentation
+│   └── src/
+│       ├── index.js                   # Main plugin entry point
+│       ├── api.js                     # API/HTTP request handling
+│       ├── parser.js                  # HTML/JSON parsing logic
+│       └── utils.js                   # Utility functions
+├── stream-provider/                   # Stream provider plugin template
+│   ├── manifest.json                  # Plugin metadata and configuration
+│   ├── icon.svg                       # Plugin icon
+│   ├── README.md                      # Stream provider documentation
+│   └── src/
+│       ├── index.js                   # Main plugin entry point
+│       ├── extractors.js              # Hoster-specific extraction logic
+│       └── utils.js                   # Utility functions
+├── media-provider-manifest.json       # Legacy single-file manifest example
+├── media-provider-plugin.js           # Legacy single-file plugin example
+├── stream-provider-manifest.json      # Legacy single-file manifest example
+└── stream-provider-plugin.js          # Legacy single-file plugin example
+```
 
 ## Plugin Format
 
@@ -13,20 +41,18 @@ Ayoto uses **JavaScript/TypeScript plugins** that run in a sandboxed frontend en
 - ✅ Built-in web scraping support with HTTP client
 - ✅ HTML parsing utilities included
 - ✅ Easy debugging in browser dev tools
+- ✅ Modular structure with multiple source files
+- ✅ Custom icons and descriptions
 
 See [Plugin System Documentation](../docs/PLUGIN_SYSTEM.md) for details.
 
 ## Plugin Types
 
-### Stream Provider Plugins (`streamProvider`)
-Stream providers handle video extraction from hosting services like VOE, Vidoza, Streamtape, etc.
+### Media Provider Plugins (`media-provider`)
 
-Key capabilities:
-- `extractStream` - Extract video stream URLs from hoster pages
-- `getHosterInfo` - Get information about the hoster
-
-### Media Provider Plugins (`mediaProvider`)
 Media providers supply anime/series search and listing functionality from sites like Aniworld.to, s.to, etc.
+
+**Template location:** `templates/media-provider/`
 
 Key capabilities:
 - `search` - Search for anime/series
@@ -36,9 +62,57 @@ Key capabilities:
 - `getStreams` - Get stream sources for an episode
 - `getAnimeDetails` - Get detailed anime information
 
+### Stream Provider Plugins (`stream-provider`)
+
+Stream providers handle video extraction from hosting services like VOE, Vidoza, Streamtape, etc.
+
+**Template location:** `templates/stream-provider/`
+
+Key capabilities:
+- `extractStream` - Extract video stream URLs from hoster pages
+- `getHosterInfo` - Get information about the hoster
+
 ## Quick Start
 
-1. Create a new `.js` file with the plugin structure:
+### Using the Folder Templates (Recommended)
+
+1. **Copy a template** to create your own plugin:
+   ```bash
+   # For a media provider
+   cp -r templates/media-provider my-media-provider
+   
+   # For a stream provider
+   cp -r templates/stream-provider my-stream-provider
+   ```
+
+2. **Edit `manifest.json`** with your plugin information:
+   - Change `id` to a unique identifier
+   - Update `name`, `description`, and `author`
+   - Set appropriate `permissions` and `capabilities`
+   - Configure `security.allowedDomains` for your data source
+
+3. **Add your plugin icon**:
+   - Replace `icon.svg` with your own icon
+   - Recommended size: 128x128 pixels
+   - Supported formats: SVG (preferred), PNG, JPG, ICO
+
+4. **Implement your plugin logic** in the `src/` directory
+
+5. **Build the plugin**:
+   ```bash
+   # Linux/macOS
+   ./scripts/build-plugin.sh ./my-media-provider
+   
+   # Windows
+   scripts\build-plugin.bat .\my-media-provider
+   
+   # Cross-platform (Node.js)
+   node scripts/build-plugin.mjs ./my-media-provider
+   ```
+
+### Using Legacy Single-File Templates
+
+For simpler plugins, you can still use the single-file approach:
 
 ```javascript
 const manifest = {
@@ -69,19 +143,14 @@ module.exports = {
   async search(query, page = 1) {
     const response = await this.http.get(`https://example.com/search?q=${query}`)
     const titles = this.html.extractText(response.body, '.anime-title')
-    // ... parse and return results
     return {
       results: [],
       hasNextPage: false,
       currentPage: page
     }
-  },
-
-  // Implement other methods...
+  }
 }
 ```
-
-2. Load in Ayoto via Settings → Plugins → Load Plugin
 
 ## Web Scraping Features
 
@@ -114,26 +183,37 @@ const cards = context.html.extractByClass(html, 'anime-card')
 const data = context.html.extractJsonFromScript(html, 'window.__DATA__')
 ```
 
+## Plugin Icon
+
+Each plugin can include a custom icon:
+
+- **Supported formats:** SVG (preferred), PNG, JPG, ICO
+- **Recommended size:** 128x128 pixels
+- **Location:** Root of the plugin folder as `icon.svg`, `icon.png`, etc.
+- **Reference in manifest:** `"icon": "icon.svg"`
+
 ## Supported Stream Formats
 
 - `m3u8` - HLS streaming format
 - `mp4` - Direct MP4 video
 - `mkv` - Matroska video
 - `webm` - WebM video
+- `dash` - MPEG-DASH
 - `torrent` - Torrent magnet links
 
 ## Installation
 
-1. Create or download a `.js` plugin file
+1. Build your plugin using the build script
 2. Open Ayoto → Settings → Plugins
-3. Click "Load Plugin" and select the file
+3. Click "Load Plugin" and select the `.zpe` file
 
 ## Notes
 
 - Plugins run in a sandboxed environment
 - All HTTP requests go through Tauri's secure HTTP plugin
-- Rate limiting is supported via `scrapingConfig.rateLimitMs`
+- Rate limiting is supported via `config.rateLimitMs`
 - Plugin storage is available for caching data
+- Use the modular folder structure for complex plugins
 
 ## License
 
