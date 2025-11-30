@@ -745,6 +745,8 @@ export async function buildFromTemplate(options, buildOptions = {}) {
 // Export
 // ============================================================================
 
+export { ZPE_SECTION, ZPE_COMPRESSION, ZPE_ENCRYPTION_TYPE }
+
 export default {
   ZPEBuilder,
   ZPEParser,

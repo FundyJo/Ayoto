@@ -1042,6 +1042,9 @@ export class ZPEPluginManager {
 
 export const zpePluginManager = new ZPEPluginManager()
 
+// Named exports for classes and utilities
+export { ZPEContext, ZPEHttpClient, ZPEStorage, ZPEHtmlParser }
+
 export default {
   ZPEPlugin,
   ZPEPluginManager,
