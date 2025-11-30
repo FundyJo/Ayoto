@@ -1,45 +1,22 @@
 # Ayoto Plugin Templates
 
-This folder contains example plugin templates for Ayoto. These templates demonstrate how to create custom plugins for the Ayoto application.
+This folder contains example plugin templates for Ayoto. These templates demonstrate how to create custom JavaScript/TypeScript plugins for the Ayoto application.
 
-## Plugin Formats
+## Plugin Format
 
-Ayoto supports three plugin formats:
-
-### 1. ZPE Universal Plugins (Recommended) - `.zpe`
-
-ZPE (Zenshine Plugin Extension) plugins are **WebAssembly-based** and work on **all platforms** without recompilation.
+Ayoto uses **JavaScript/TypeScript plugins** that run in a sandboxed frontend environment. Plugins can perform web scraping via Tauri's HTTP plugin.
 
 **Benefits:**
-- ✅ Write once, run anywhere (Windows, macOS, Linux, Android, iOS)
-- ✅ No need for platform-specific compilation
-- ✅ Sandboxed execution for security
-- ✅ Can be written in Rust, C/C++, AssemblyScript, Go, Zig
+- ✅ Write in familiar JavaScript or TypeScript
+- ✅ Works on all platforms (Windows, macOS, Linux, Android, iOS)
+- ✅ No compilation needed
+- ✅ Built-in web scraping support with HTTP client
+- ✅ HTML parsing utilities included
+- ✅ Easy debugging in browser dev tools
 
-**Example:** `zpe-plugins/sample-media-provider/`
-
-See [ZPE Plugin Development Guide](../docs/ZPE_PLUGIN_DEVELOPMENT.md) for details.
-
-### 2. Native Rust Plugins - `.so/.dll/.dylib`
-
-Native plugins are compiled Rust dynamic libraries. They offer maximum performance but require separate compilation for each platform.
-
-**When to use:**
-- Maximum performance is critical
-- Platform-specific features are needed
-- You can compile for all target platforms
-
-See [Native Plugin Development Guide](../docs/NATIVE_PLUGIN_DEVELOPMENT.md) for details.
-
-### 3. JSON Manifest Plugins (Legacy) - `.ayoto`
-
-JSON plugins are configuration files that define metadata and capabilities. They cannot execute code directly.
-
-**Examples:** `plugins/aniworld-provider.ayoto`, `plugins/voe-provider.ayoto`
+See [Plugin System Documentation](../docs/PLUGIN_SYSTEM.md) for details.
 
 ## Plugin Types
-
-Both ZPE and native plugins can be either:
 
 ### Stream Provider Plugins (`streamProvider`)
 Stream providers handle video extraction from hosting services like VOE, Vidoza, Streamtape, etc.
@@ -47,8 +24,6 @@ Stream providers handle video extraction from hosting services like VOE, Vidoza,
 Key capabilities:
 - `extractStream` - Extract video stream URLs from hoster pages
 - `getHosterInfo` - Get information about the hoster
-- `decryptStream` - Handle encrypted/obfuscated streams
-- `getDownloadLink` - Provide direct download links
 
 ### Media Provider Plugins (`mediaProvider`)
 Media providers supply anime/series search and listing functionality from sites like Aniworld.to, s.to, etc.
@@ -61,14 +36,83 @@ Key capabilities:
 - `getStreams` - Get stream sources for an episode
 - `getAnimeDetails` - Get detailed anime information
 
-## Quick Start: ZPE Plugin
+## Quick Start
 
-1. Copy `zpe-plugins/sample-media-provider/`
-2. Modify `manifest.json` with your plugin info
-3. Implement your logic in `src/lib.rs`
-4. Build: `cargo build --release --target wasm32-unknown-unknown`
-5. Package: `zip my-plugin.zpe manifest.json plugin.wasm`
-6. Load in Ayoto via Settings → Plugins
+1. Create a new `.js` file with the plugin structure:
+
+```javascript
+const manifest = {
+  id: 'my-provider',
+  name: 'My Provider',
+  version: '1.0.0',
+  pluginType: 'mediaProvider',
+  description: 'My custom anime provider',
+  author: 'Your Name',
+  capabilities: {
+    search: true,
+    getPopular: true,
+    getEpisodes: true,
+    getStreams: true
+  },
+  scrapingConfig: {
+    baseUrl: 'https://example.com',
+    rateLimitMs: 1000
+  }
+}
+
+module.exports = {
+  async init(context) {
+    this.http = context.http
+    this.html = context.html
+  },
+
+  async search(query, page = 1) {
+    const response = await this.http.get(`https://example.com/search?q=${query}`)
+    const titles = this.html.extractText(response.body, '.anime-title')
+    // ... parse and return results
+    return {
+      results: [],
+      hasNextPage: false,
+      currentPage: page
+    }
+  },
+
+  // Implement other methods...
+}
+```
+
+2. Load in Ayoto via Settings → Plugins → Load Plugin
+
+## Web Scraping Features
+
+### HTTP Client
+```javascript
+// GET request
+const response = await context.http.get('https://example.com/page')
+
+// POST request
+const response = await context.http.post('https://api.example.com', { data: 'value' })
+
+// With headers
+const response = await context.http.get('https://example.com', {
+  headers: { 'Accept': 'application/json' }
+})
+```
+
+### HTML Parser
+```javascript
+// Extract text by selector
+const titles = context.html.extractText(html, '.anime-title')
+
+// Extract attribute
+const links = context.html.extractAttribute(html, 'a', 'href')
+
+// Extract by class
+const cards = context.html.extractByClass(html, 'anime-card')
+
+// Parse JSON from script
+const data = context.html.extractJsonFromScript(html, 'window.__DATA__')
+```
 
 ## Supported Stream Formats
 
@@ -80,26 +124,16 @@ Key capabilities:
 
 ## Installation
 
-### ZPE Plugins (.zpe)
-1. Download or create a `.zpe` file
+1. Create or download a `.js` plugin file
 2. Open Ayoto → Settings → Plugins
 3. Click "Load Plugin" and select the file
 
-### Native Plugins
-1. Build for your platform (see Native Plugin Development Guide)
-2. Place in the plugins directory
-3. Restart Ayoto
-
-### JSON Plugins (.ayoto)
-1. Create or download a `.ayoto` file
-2. Open Ayoto → Settings → Plugins
-3. Click "Add Plugin" and select the file
-
 ## Notes
 
-- ZPE plugins are recommended for maximum compatibility
-- The `anime4kSupport` flag indicates Anime4K shader compatibility
-- All plugins should include proper `headers` for web requests
+- Plugins run in a sandboxed environment
+- All HTTP requests go through Tauri's secure HTTP plugin
+- Rate limiting is supported via `scrapingConfig.rateLimitMs`
+- Plugin storage is available for caching data
 
 ## License
 
