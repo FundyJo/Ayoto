@@ -484,13 +484,13 @@ export function executeSandboxed(code, pluginId, context) {
   })
 
   // Wrap code in strict mode and module pattern
+  // Note: 'context' is passed as function parameter, so we don't redeclare it
   const wrappedCode = `
     "use strict";
     const module = { exports: {} };
     const exports = module.exports;
     
-    // Inject plugin context
-    const context = arguments[0];
+    // Extract from context parameter (passed to outer function)
     const http = context.http;
     const html = context.html;
     const storage = context.storage;
