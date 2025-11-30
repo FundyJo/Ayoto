@@ -481,11 +481,35 @@ export class ZPEParser {
     const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
     const decoder = new TextDecoder()
     
-    // Verify magic bytes
+    // Validate file has minimum size
+    if (bytes.length < 16) {
+      const errorDetails = this._createDetailedError(
+        'File too small',
+        bytes,
+        `File size: ${bytes.length} bytes (minimum required: 16 bytes)`
+      )
+      throw new Error(errorDetails)
+    }
+    
+    // Verify magic bytes with detailed error
+    const actualMagic = Array.from(bytes.slice(0, 4))
+    const expectedMagic = ZPE_MAGIC_BYTES
+    let magicMismatch = false
+    
     for (let i = 0; i < 4; i++) {
       if (bytes[i] !== ZPE_MAGIC_BYTES[i]) {
-        throw new Error('Invalid ZPE file: bad magic bytes')
+        magicMismatch = true
+        break
       }
+    }
+    
+    if (magicMismatch) {
+      const errorDetails = this._createDetailedError(
+        'Invalid magic bytes',
+        bytes,
+        this._formatMagicBytesError(actualMagic, expectedMagic)
+      )
+      throw new Error(errorDetails)
     }
 
     // Parse header
@@ -639,6 +663,142 @@ export class ZPEParser {
         warnings: []
       }
     }
+  }
+
+  /**
+   * Create a detailed error message for debugging
+   * @param {string} errorType - Type of error
+   * @param {Uint8Array} bytes - File bytes
+   * @param {string} details - Additional details
+   * @returns {string} Formatted error message
+   * @private
+   */
+  static _createDetailedError(errorType, bytes, details) {
+    const fileSize = bytes.length
+    const firstBytes = Array.from(bytes.slice(0, Math.min(16, bytes.length)))
+    const hexDump = firstBytes.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
+    const asciiDump = firstBytes.map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join('')
+    
+    // Try to detect file type from magic bytes
+    const detectedType = this._detectFileType(firstBytes)
+    
+    let message = `Invalid ZPE file: ${errorType}\n`
+    message += `\n[Debug Info]\n`
+    message += `  File size: ${fileSize} bytes\n`
+    message += `  First ${firstBytes.length} bytes (hex): ${hexDump}\n`
+    message += `  First ${firstBytes.length} bytes (ascii): ${asciiDump}\n`
+    
+    if (detectedType) {
+      message += `  Detected file type: ${detectedType}\n`
+    }
+    
+    if (details) {
+      message += `\n[Details]\n  ${details}\n`
+    }
+    
+    message += `\n[Expected]\n`
+    message += `  ZPE files must start with magic bytes: 5A 50 45 21 ("ZPE!")\n`
+    message += `\n[Possible causes]\n`
+    message += `  - File is corrupted or incomplete\n`
+    message += `  - File is not a valid ZPE plugin file\n`
+    message += `  - File was modified after creation\n`
+    message += `  - Wrong file was selected\n`
+    
+    return message
+  }
+
+  /**
+   * Format magic bytes error message
+   * @param {number[]} actual - Actual magic bytes
+   * @param {number[]} expected - Expected magic bytes
+   * @returns {string} Formatted comparison
+   * @private
+   */
+  static _formatMagicBytesError(actual, expected) {
+    const actualHex = actual.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
+    const expectedHex = expected.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
+    const actualAscii = actual.map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join('')
+    const expectedAscii = expected.map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join('')
+    
+    return `Expected: ${expectedHex} ("${expectedAscii}"), Found: ${actualHex} ("${actualAscii}")`
+  }
+
+  /**
+   * Detect common file types from magic bytes
+   * @param {number[]} bytes - First bytes of file
+   * @returns {string|null} Detected file type or null
+   * @private
+   */
+  static _detectFileType(bytes) {
+    if (bytes.length < 4) return null
+    
+    // Check if it looks like plain text (only check first few bytes since that's what we have)
+    const isPlainText = bytes.every(b => (b >= 32 && b < 127) || b === 10 || b === 13 || b === 9)
+    if (isPlainText) {
+      // Try to identify text content type
+      const textStart = bytes.map(b => String.fromCharCode(b)).join('')
+      if (textStart.startsWith('{')) return 'JSON file (starts with "{")'
+      if (textStart.startsWith('[')) return 'JSON array file (starts with "[")'
+      if (textStart.startsWith('//')) return 'JavaScript/text file (starts with "//")'
+      if (textStart.startsWith('/*')) return 'JavaScript/text file (starts with "/*")'
+      if (textStart.startsWith("'use")) return "JavaScript file (starts with 'use')"
+      if (textStart.startsWith('"use')) return 'JavaScript file (starts with "use")'
+      if (textStart.startsWith('const')) return 'JavaScript file (starts with "const")'
+      if (textStart.startsWith('var ')) return 'JavaScript file (starts with "var ")'
+      if (textStart.startsWith('let ')) return 'JavaScript file (starts with "let ")'
+      return 'Plain text file (not a binary ZPE file)'
+    }
+    
+    // Binary file signature detection - organized by first byte for efficiency
+    const firstByte = bytes[0]
+    
+    // Signatures grouped by first byte
+    const signaturesByFirstByte = {
+      0x50: [ // 'P'
+        { bytes: [0x50, 0x4B, 0x03, 0x04], type: 'ZIP archive (or JAR/DOCX/etc.)' },
+        { bytes: [0x50, 0x4B, 0x05, 0x06], type: 'ZIP archive (empty)' },
+      ],
+      0x1F: [
+        { bytes: [0x1F, 0x8B], type: 'GZIP compressed file' },
+      ],
+      0x3C: [ // '<'
+        { bytes: [0x3C, 0x3F, 0x78, 0x6D], type: 'XML file' },
+        { bytes: [0x3C, 0x21, 0x44, 0x4F], type: 'HTML file' },
+        { bytes: [0x3C, 0x68, 0x74, 0x6D], type: 'HTML file' },
+      ],
+      0x89: [
+        { bytes: [0x89, 0x50, 0x4E, 0x47], type: 'PNG image' },
+      ],
+      0xFF: [
+        { bytes: [0xFF, 0xD8, 0xFF], type: 'JPEG image' },
+      ],
+      0x47: [
+        { bytes: [0x47, 0x49, 0x46, 0x38], type: 'GIF image' },
+      ],
+      0x25: [
+        { bytes: [0x25, 0x50, 0x44, 0x46], type: 'PDF document' },
+      ],
+      0xEF: [
+        { bytes: [0xEF, 0xBB, 0xBF], type: 'UTF-8 text file with BOM' },
+      ],
+    }
+    
+    // Check only signatures that start with the same first byte
+    const possibleSignatures = signaturesByFirstByte[firstByte]
+    if (possibleSignatures) {
+      for (const sig of possibleSignatures) {
+        let match = true
+        for (let i = 0; i < sig.bytes.length && i < bytes.length; i++) {
+          if (bytes[i] !== sig.bytes[i]) {
+            match = false
+            break
+          }
+        }
+        if (match) return sig.type
+      }
+    }
+    
+    return null
   }
 }
 

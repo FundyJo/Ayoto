@@ -339,10 +339,42 @@ export default function Plugins() {
         toast.success(`ZPE Plugin installed: ${result.pluginId}`)
         loadPlugins()
       } else {
-        toast.error(`Failed to load ZPE plugin: ${result.errors?.join(', ') || 'Unknown error'}`)
+        // Format error message for display
+        const errorMessage = result.errors?.join('\n') || 'Unknown error'
+        
+        // Log detailed error to console for debugging
+        console.error('[ZPE Plugin Error] Failed to load plugin:', file.name)
+        console.error('[ZPE Plugin Error] File size:', file.size, 'bytes')
+        console.error('[ZPE Plugin Error] Details:', errorMessage)
+        
+        // Check if it's a detailed error (multi-line)
+        if (errorMessage.includes('\n')) {
+          // Show short toast and log full error
+          const shortError = errorMessage.split('\n')[0]
+          toast.error(`Failed to load ZPE plugin: ${shortError}`)
+          toast.info('Check browser developer console for detailed error information', { duration: 5000 })
+        } else {
+          toast.error(`Failed to load ZPE plugin: ${errorMessage}`)
+        }
       }
     } catch (error) {
-      toast.error(`Failed to load ZPE plugin: ${error.message || error}`)
+      // Log detailed error to console
+      console.error('[ZPE Plugin Error] Exception while loading plugin:', file.name)
+      console.error('[ZPE Plugin Error] File size:', file.size, 'bytes')
+      console.error('[ZPE Plugin Error] Error:', error.message || error)
+      if (error.stack) {
+        console.error('[ZPE Plugin Error] Stack trace:', error.stack)
+      }
+      
+      // Check if it's a detailed error (multi-line)
+      const errorMessage = error.message || String(error)
+      if (errorMessage.includes('\n')) {
+        const shortError = errorMessage.split('\n')[0]
+        toast.error(`Failed to load ZPE plugin: ${shortError}`)
+        toast.info('Check browser developer console for detailed error information', { duration: 5000 })
+      } else {
+        toast.error(`Failed to load ZPE plugin: ${errorMessage}`)
+      }
     } finally {
       setIsLoading(false)
       if (zpeFileInputRef.current) {
