@@ -21,7 +21,17 @@
     "fs:allow-read-dir",
     "fs:allow-exists",
     "process:allow-exit",
-    "http:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://*:*"
+        },
+        {
+          "url": "http://*:*"
+        }
+      ]
+    },
     "websocket:default"
   ]
 }
