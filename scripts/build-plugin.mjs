@@ -530,15 +530,15 @@ function encryptCode(code, key) {
 function buildZPE(manifest, code, assets, options) {
   const sections = [];
   
-  // Section 1: Header
+  // Header (raw, not wrapped - magic bytes must be at position 0)
   const header = buildHeader(options);
-  sections.push(wrapSection(ZPE_SECTION.HEADER, header));
+  sections.push(header);
   
-  // Section 2: Manifest
+  // Section 1: Manifest
   const manifestData = Buffer.from(JSON.stringify(manifest), 'utf8');
   sections.push(wrapSection(ZPE_SECTION.MANIFEST, manifestData));
   
-  // Section 3: Code
+  // Section 2: Code
   let codeData = Buffer.from(code, 'utf8');
   if (options.encrypt) {
     const encryptionKey = randomBytes(32);
@@ -548,13 +548,13 @@ function buildZPE(manifest, code, assets, options) {
   }
   sections.push(wrapSection(ZPE_SECTION.CODE, codeData));
   
-  // Section 4: Assets (optional)
+  // Section 3: Assets (optional)
   if (assets) {
     const assetsData = Buffer.from(JSON.stringify(assets), 'utf8');
     sections.push(wrapSection(ZPE_SECTION.ASSETS, assetsData));
   }
   
-  // Section 5: Metadata
+  // Section 4: Metadata
   const metadata = {
     buildTime: new Date().toISOString(),
     builder: 'ZPE Build Script 1.0',
