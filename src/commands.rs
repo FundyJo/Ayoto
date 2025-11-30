@@ -32,6 +32,12 @@ pub struct AppState {
     pub discord: DiscordRpcState,
 }
 
+/// Get Ayoto version for plugin compatibility checks
+#[tauri::command]
+pub fn get_ayoto_version() -> String {
+    AYOTO_VERSION.to_string()
+}
+
 /// Creates a new Discord IPC client and connects to Discord
 fn create_discord_client() -> Option<DiscordIpcClient> {
     let mut client = DiscordIpcClient::new(DISCORD_CLIENT_ID);
