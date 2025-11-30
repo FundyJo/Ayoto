@@ -4,6 +4,18 @@ module.exports = {
     'plugin:react/recommended',
     'plugin:react/jsx-runtime'
   ],
+  parserOptions: {
+    ecmaVersion: 2022,
+    sourceType: 'module',
+    ecmaFeatures: {
+      jsx: true
+    }
+  },
+  env: {
+    browser: true,
+    es2022: true,
+    node: true
+  },
   rules: {
     // Example rules set to 'warn' instead of 'error'
     'no-console': 'warn',
