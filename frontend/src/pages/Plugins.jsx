@@ -694,7 +694,7 @@ export default function Plugins() {
           )}
 
           <p className="mt-8 text-xs opacity-45">
-            JavaScript plugins extend Ayoto&apos;s functionality by adding support for additional providers.
+            JavaScript plugins extend Zenshin&apos;s functionality by adding support for additional providers.
             ZPE plugins are the new secure package format. Use the download button to convert JS plugins to ZPE.
           </p>
         </>
