@@ -544,6 +544,126 @@ function createSecureConsole(pluginId) {
 // ============================================================================
 
 /**
+ * Strip strings and comments from code to avoid false positives in security checks.
+ * Replaces string contents and comments with placeholder characters to preserve positions.
+ * @param {string} code - JavaScript code to process
+ * @returns {string} Code with strings and comments stripped
+ */
+function stripStringsAndComments(code) {
+  let result = ''
+  let i = 0
+  
+  while (i < code.length) {
+    const char = code[i]
+    const nextChar = i + 1 < code.length ? code[i + 1] : ''
+    
+    // Single-line comment
+    if (char === '/' && nextChar === '/') {
+      result += '  ' // Replace // with spaces
+      i += 2
+      while (i < code.length && code[i] !== '\n') {
+        result += ' ' // Replace comment content with spaces
+        i++
+      }
+      continue
+    }
+    
+    // Multi-line comment
+    if (char === '/' && nextChar === '*') {
+      result += '  ' // Replace /* with spaces
+      i += 2
+      while (i < code.length) {
+        if (i + 1 < code.length && code[i] === '*' && code[i + 1] === '/') {
+          result += '  ' // Replace */ with spaces
+          i += 2
+          break
+        }
+        result += code[i] === '\n' ? '\n' : ' ' // Preserve newlines
+        i++
+      }
+      // If we reach here without finding */, the comment is unterminated
+      // We've already replaced all the content with spaces, so just continue
+      continue
+    }
+    
+    // String literals (single, double, or template)
+    if (char === '"' || char === "'" || char === '`') {
+      const quote = char
+      result += quote
+      i++
+      
+      while (i < code.length) {
+        const c = code[i]
+        
+        // Handle escape sequences
+        if (c === '\\' && i + 1 < code.length) {
+          result += '  ' // Replace escaped char with spaces
+          i += 2
+          continue
+        }
+        
+        // End of string
+        if (c === quote) {
+          result += quote
+          i++
+          break
+        }
+        
+        // Template literal: handle ${} expressions (don't strip inside them)
+        if (quote === '`' && c === '$' && i + 1 < code.length && code[i + 1] === '{') {
+          result += '${'
+          i += 2
+          let braceDepth = 1
+          let inNestedString = false
+          let nestedStringChar = null
+          
+          while (i < code.length && braceDepth > 0) {
+            const ch = code[i]
+            
+            // Handle escape sequences inside nested strings
+            if (inNestedString && ch === '\\' && i + 1 < code.length) {
+              result += code[i] + code[i + 1]
+              i += 2
+              continue
+            }
+            
+            // Track nested string boundaries
+            if (!inNestedString && (ch === '"' || ch === "'" || ch === '`')) {
+              inNestedString = true
+              nestedStringChar = ch
+            } else if (inNestedString && ch === nestedStringChar) {
+              inNestedString = false
+              nestedStringChar = null
+            }
+            
+            // Only count braces outside nested strings
+            if (!inNestedString) {
+              if (ch === '{') braceDepth++
+              else if (ch === '}') braceDepth--
+            }
+            
+            result += ch
+            i++
+          }
+          continue
+        }
+        
+        // Replace string content with space
+        result += c === '\n' ? '\n' : ' ' // Preserve newlines in template literals
+        i++
+      }
+      continue
+    }
+    
+    // Regular code - keep as is
+    result += char
+    i++
+  }
+  
+  return result
+}
+
+/**
  * Dangerous patterns to detect in plugin code
  */
 const DANGEROUS_PATTERNS = [
@@ -576,9 +696,13 @@ export function auditPluginCode(code) {
   const issues = []
   const warnings = []
 
-  // Check for dangerous patterns
+  // Strip strings and comments to avoid false positives
+  // (e.g., "require()" in a comment or string should not trigger security warning)
+  const strippedCode = stripStringsAndComments(code)
+
+  // Check for dangerous patterns in actual code (not strings/comments)
   for (const { pattern, reason } of DANGEROUS_PATTERNS) {
-    if (pattern.test(code)) {
+    if (pattern.test(strippedCode)) {
       issues.push({
         type: 'security',
         severity: 'high',
@@ -591,6 +715,8 @@ export function auditPluginCode(code) {
   }
 
   // Check for obfuscated code patterns
+  // Note: We intentionally check the original code here (not strippedCode) because
+  // obfuscation in any part of the file (including comments/strings) is suspicious
   if (/\\x[0-9a-f]{2}/gi.test(code) || /\\u[0-9a-f]{4}/gi.test(code)) {
     warnings.push({
       type: 'obfuscation',
@@ -600,6 +726,7 @@ export function auditPluginCode(code) {
   }
 
   // Check for base64 encoded strings (potential hidden code)
+  // Note: We check the original code to detect base64 in strings (which is where it would be used)
   const base64Pattern = /['"]((?:[A-Za-z0-9+/]{4}){10,}(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)['"]/g
   let match
   while ((match = base64Pattern.exec(code)) !== null) {
