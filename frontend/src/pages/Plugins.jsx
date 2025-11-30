@@ -3,7 +3,6 @@ import { useZenshinContext } from '../utils/ContextProvider'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
-  PlusIcon,
   TrashIcon,
   ReloadIcon,
   CheckCircledIcon,
@@ -205,7 +204,6 @@ export default function Plugins() {
   const [plugins, setPlugins] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [isConverting, setIsConverting] = useState(null)
-  const fileInputRef = useRef(null)
   const zpeFileInputRef = useRef(null)
   
   // Marketplace state
@@ -324,67 +322,6 @@ export default function Plugins() {
       toast.error(`Conversion failed: ${error.message}`)
     } finally {
       setIsConverting(null)
-    }
-  }
-
-  // Handle JavaScript file selection
-  async function handleLoadJSPlugin(event) {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    setIsLoading(true)
-    try {
-      const code = await file.text()
-      let manifest = null
-      
-      const manifestMatch = code.match(/(?:const|let|var)\s+manifest\s*=\s*({[\s\S]*?});/)
-      if (manifestMatch) {
-        try {
-          // eslint-disable-next-line no-eval
-          manifest = eval(`(${manifestMatch[1]})`)
-        } catch (e) {
-          try {
-            manifest = JSON.parse(manifestMatch[1])
-          } catch (e2) {
-            console.error('Failed to parse manifest:', e2)
-          }
-        }
-      }
-      
-      if (!manifest) {
-        const fileName = file.name.replace(/\.(js|ts)$/, '')
-        manifest = {
-          id: fileName.toLowerCase().replace(/[^a-z0-9-_]/g, '-'),
-          name: fileName,
-          version: '1.0.0',
-          pluginType: PLUGIN_TYPE.MEDIA_PROVIDER,
-          description: `Plugin loaded from ${file.name}`,
-          capabilities: {
-            search: true,
-            getPopular: true,
-            getLatest: true,
-            getEpisodes: true,
-            getStreams: true
-          }
-        }
-        toast.warning('No manifest found in plugin, using defaults')
-      }
-
-      const result = await jsPluginManager.loadPlugin(manifest, code)
-      
-      if (result.success) {
-        toast.success(`Plugin installed: ${result.pluginId}`)
-        loadPlugins()
-      } else {
-        toast.error(`Failed to load plugin: ${result.errors?.join(', ') || 'Unknown error'}`)
-      }
-    } catch (error) {
-      toast.error(`Failed to load plugin: ${error.message || error}`)
-    } finally {
-      setIsLoading(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
     }
   }
 
@@ -528,16 +465,9 @@ export default function Plugins() {
             <div className="flex w-full items-center justify-between gap-4 rounded-sm bg-[#202022] px-4 py-3">
               <div className="flex-1">
                 <p className="font-bold">Load Plugin File</p>
-                <p className="text-xs text-gray-400">Load a plugin from a local .js, .ts, or .zpe file</p>
+                <p className="text-xs text-gray-400">Load a plugin from a local .zpe file</p>
               </div>
               <div className="flex gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".js,.ts,.mjs"
-                  onChange={handleLoadJSPlugin}
-                  className="hidden"
-                />
                 <input
                   ref={zpeFileInputRef}
                   type="file"
@@ -545,16 +475,6 @@ export default function Plugins() {
                   onChange={handleLoadZPEPlugin}
                   className="hidden"
                 />
-                <Button
-                  variant="soft"
-                  color="yellow"
-                  className="cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isLoading}
-                >
-                  {isLoading ? <ReloadIcon className="animate-spin" /> : <CodeIcon />}
-                  Load JS
-                </Button>
                 <Button
                   variant="soft"
                   color="blue"
@@ -578,7 +498,7 @@ export default function Plugins() {
             <div className="flex flex-col items-center justify-center py-12 text-gray-500">
               <DefaultPluginIcon className="mb-4 h-16 w-16 opacity-50" />
               <p className="text-lg">No plugins installed</p>
-              <p className="text-sm">Load a plugin file or browse the marketplace to get started</p>
+              <p className="text-sm">Load a .zpe plugin file or browse the marketplace to get started</p>
             </div>
           ) : (
             <div className="flex flex-col gap-4 tracking-wide text-[#b5b5b5ff]">
@@ -694,8 +614,8 @@ export default function Plugins() {
           )}
 
           <p className="mt-8 text-xs opacity-45">
-            JavaScript plugins extend Zenshin&apos;s functionality by adding support for additional providers.
-            ZPE plugins are the new secure package format. Use the download button to convert JS plugins to ZPE.
+            ZPE plugins extend Zenshin&apos;s functionality by adding support for additional providers.
+            Only secure .zpe plugin packages can be loaded. Use &apos;npm run build-plugin&apos; to build plugins from source.
           </p>
         </>
       )}
