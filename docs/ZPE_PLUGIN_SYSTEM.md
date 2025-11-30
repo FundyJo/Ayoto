@@ -119,7 +119,48 @@ const plugin = {
 module.exports = plugin;
 ```
 
-### Building a Plugin
+### Plugin Folder Structure
+
+For easier development, plugins can be organized in a folder structure:
+
+```
+my-plugin/
+├── manifest.json      # Plugin metadata and configuration
+├── icon.png           # Plugin icon (PNG, JPG, or ICO)
+└── src/
+    ├── index.js       # Main plugin entry point
+    ├── api.js         # API/HTTP request handling (optional)
+    ├── parser.js      # HTML/JSON parsing logic (optional)
+    └── utils.js       # Utility functions (optional)
+```
+
+The `src/` directory can contain multiple script files that will be bundled together during the build process. This allows for better code organization and maintainability.
+
+### Building a Plugin (CLI)
+
+Use the cross-platform build scripts to create `.zpe` packages:
+
+```bash
+# Linux/macOS
+./scripts/build-plugin.sh ./my-plugin
+
+# Windows
+scripts\build-plugin.bat .\my-plugin
+
+# Node.js (all platforms)
+node scripts/build-plugin.mjs ./my-plugin
+
+# With options
+node scripts/build-plugin.mjs ./my-plugin -o ./dist --verbose
+```
+
+Build options:
+- `-o, --output` - Output directory (default: current directory)
+- `-m, --minify` - Minify the plugin code
+- `-v, --verbose` - Verbose output
+- `--no-strict` - Disable strict security validation
+
+### Building Programmatically
 
 ```javascript
 import { buildPlugin } from './zpe';
@@ -170,6 +211,39 @@ if (plugin) {
 }
 ```
 
+### Using the Plugin API
+
+The Plugin API provides a high-level interface for working with plugins:
+
+```javascript
+import { pluginAPI } from './zpe';
+
+// Get all media providers
+const providers = pluginAPI.getMediaProviders();
+
+// Search across all providers
+const results = await pluginAPI.searchAll('naruto');
+
+// Search with a specific provider
+const searchResults = await pluginAPI.search('my-provider', 'naruto', 1);
+
+// Get popular anime from a provider
+const popular = await pluginAPI.getPopular('my-provider', 1);
+
+// Get episodes
+const episodes = await pluginAPI.getEpisodes('my-provider', 'anime-id', 1);
+
+// Get stream sources
+const streams = await pluginAPI.getStreams('my-provider', 'anime-id', 'episode-id');
+
+// Extract stream from hoster URL (uses all stream providers)
+const stream = await pluginAPI.extractStream('https://hoster.com/video/123');
+
+// Get plugin statistics
+const stats = pluginAPI.getStats();
+console.log(`Loaded: ${stats.total} plugins, ${stats.enabled} enabled`);
+```
+
 ## Manifest Schema
 
 ### Required Fields
@@ -198,6 +272,34 @@ if (plugin) {
 | `security` | object | Security settings |
 | `minAppVersion` | string | Minimum Ayoto version |
 | `keywords` | string[] | Search keywords |
+| `main` | string | Main entry point file (default: "src/index.js") |
+| `scripts` | object | Additional script files to bundle |
+
+### Multi-File Plugin Structure
+
+Plugins can use multiple source files by specifying them in the manifest:
+
+```json
+{
+  "main": "src/index.js",
+  "scripts": {
+    "api": "src/api.js",
+    "parser": "src/parser.js",
+    "utils": "src/utils.js"
+  }
+}
+```
+
+In your code, use `require()` to import other modules:
+
+```javascript
+// In src/index.js
+const api = require('./api.js');
+const parser = require('./parser.js');
+const utils = require('./utils.js');
+```
+
+The build script will automatically bundle all files into a single `.zpe` package.
 
 ## Permissions
 
@@ -523,12 +625,31 @@ import { loadPlugin } from './zpe';
 await loadPlugin(manifest, code);
 ```
 
+## Template Plugin
+
+A complete template plugin is available at `plugin-template/` with:
+
+- **Modular structure**: Separate files for API, parsing, and utilities
+- **Full documentation**: JSDoc comments and README
+- **Best practices**: Error handling, caching, and clean code
+
+To use the template:
+
+```bash
+# Copy the template
+cp -r plugin-template my-plugin
+
+# Edit manifest.json and source files
+# Then build
+node scripts/build-plugin.mjs my-plugin -o ./dist
+```
+
 ## Examples
 
-See the `templates/` directory for example plugins:
-- `media-provider-template.js` - Basic media provider
-- `stream-provider-template.js` - Stream extractor
-- `utility-template.js` - Utility plugin
+See the following for example plugins:
+- `plugin-template/` - Complete plugin template with modular structure
+- `templates/media-provider-*.js` - Basic media provider
+- `templates/stream-provider-*.js` - Stream extractor
 
 ## License
 

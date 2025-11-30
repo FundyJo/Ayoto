@@ -1,0 +1,62 @@
+{
+  "id": "template-plugin",
+  "name": "Template Plugin",
+  "version": "1.0.0",
+  "description": "A template ZPE plugin demonstrating the full plugin structure with multiple source files",
+  "pluginType": "media-provider",
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com",
+    "github": "yourusername",
+    "url": "https://yourwebsite.com"
+  },
+  "icon": "icon.png",
+  "homepage": "https://github.com/yourusername/template-plugin",
+  "license": "MIT",
+  "repository": {
+    "type": "github",
+    "owner": "yourusername",
+    "repo": "template-plugin",
+    "branch": "main"
+  },
+  "permissions": [
+    "network:http",
+    "storage:local",
+    "storage:cache"
+  ],
+  "capabilities": {
+    "search": true,
+    "getPopular": true,
+    "getLatest": true,
+    "getEpisodes": true,
+    "getStreams": true,
+    "getAnimeDetails": true
+  },
+  "config": {
+    "baseUrl": "https://api.example.com",
+    "userAgent": "Ayoto-ZPE/1.0",
+    "rateLimitMs": 1000,
+    "timeout": 30000
+  },
+  "security": {
+    "sandboxed": true,
+    "cspEnabled": true,
+    "allowedDomains": [
+      "api.example.com",
+      "*.example.com",
+      "cdn.example.com"
+    ]
+  },
+  "minAppVersion": "2.5.0",
+  "keywords": [
+    "anime",
+    "streaming",
+    "template"
+  ],
+  "main": "src/index.js",
+  "scripts": {
+    "api": "src/api.js",
+    "parser": "src/parser.js",
+    "utils": "src/utils.js"
+  }
+}

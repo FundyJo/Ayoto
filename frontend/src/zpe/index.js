@@ -89,6 +89,15 @@ export {
   ZPEHtmlParser
 } from './ZPERuntime.js'
 
+// Plugin API
+export {
+  pluginAPI,
+  createAnime,
+  createEpisode,
+  createStreamSource,
+  createPaginatedResult
+} from './ZPEPluginAPI.js'
+
 // ============================================================================
 // Convenience Functions
 // ============================================================================
@@ -231,6 +240,8 @@ export function createNewPlugin(options) {
 // Default Export
 // ============================================================================
 
+import { pluginAPI } from './ZPEPluginAPI.js'
+
 export default {
   // Initialization
   initializeZPE,
@@ -255,5 +266,8 @@ export default {
   
   // Manager instances
   pluginManager: zpePluginManager,
-  updateManager
+  updateManager,
+  
+  // Plugin API
+  pluginAPI
 }
