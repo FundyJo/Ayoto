@@ -352,7 +352,7 @@ export default function Plugins() {
           // Show short toast and log full error
           const shortError = errorMessage.split('\n')[0]
           toast.error(`Failed to load ZPE plugin: ${shortError}`)
-          toast.info('Check browser console (F12) for detailed error information', { duration: 5000 })
+          toast.info('Check browser developer console for detailed error information', { duration: 5000 })
         } else {
           toast.error(`Failed to load ZPE plugin: ${errorMessage}`)
         }
@@ -371,7 +371,7 @@ export default function Plugins() {
       if (errorMessage.includes('\n')) {
         const shortError = errorMessage.split('\n')[0]
         toast.error(`Failed to load ZPE plugin: ${shortError}`)
-        toast.info('Check browser console (F12) for detailed error information', { duration: 5000 })
+        toast.info('Check browser developer console for detailed error information', { duration: 5000 })
       } else {
         toast.error(`Failed to load ZPE plugin: ${errorMessage}`)
       }
