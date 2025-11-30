@@ -206,11 +206,18 @@ function PluginIcon({ plugin, className = "h-6 w-6" }) {
     return <CodeIcon className={`${className} text-yellow-400`} />
   }
   
-  // If it's a base64 data URL or regular URL, use it directly
-  // If it's just a base64 string, convert it to a data URL for .ico files
-  const src = iconSrc.startsWith('data:') || iconSrc.startsWith('http') 
-    ? iconSrc 
-    : `data:image/x-icon;base64,${iconSrc}`
+  // Determine the source URL
+  let src
+  if (iconSrc.startsWith('data:')) {
+    // Already a data URL
+    src = iconSrc
+  } else if (iconSrc.startsWith('http://') || iconSrc.startsWith('https://')) {
+    // Valid HTTP(S) URL
+    src = iconSrc
+  } else {
+    // Assume it's base64 encoded - use generic image type to support multiple formats
+    src = `data:image/*;base64,${iconSrc}`
+  }
   
   return (
     <img 
@@ -594,11 +601,9 @@ export default function Plugins() {
                           {plugin.format === 'zpe' ? 'ZPE' : 'JS'}
                         </span>
                         {/* Language badges */}
-                        {plugin.supportedLanguages && plugin.supportedLanguages.length > 0 && (
-                          plugin.supportedLanguages.map((lang) => (
-                            <LanguageBadge key={lang} language={lang} />
-                          ))
-                        )}
+                        {plugin.supportedLanguages?.map((lang) => (
+                          <LanguageBadge key={lang} language={lang} />
+                        ))}
                         {plugin.enabled ? (
                           <CheckCircledIcon className="h-4 w-4 text-green-500" />
                         ) : (
