@@ -110,13 +110,19 @@ pub fn run() {
     ])
     .setup(|app| {
       // Enable logging in both debug and production builds
-      // Debug: Info level for detailed debugging
+      // Debug: Debug level for maximum detail
       // Production: Warn level for errors and warnings only
       let log_level = if cfg!(debug_assertions) {
-        log::LevelFilter::Info
+        log::LevelFilter::Debug
       } else {
         log::LevelFilter::Warn
       };
+      
+      // Log startup info
+      if cfg!(debug_assertions) {
+        log::info!("Starting Zanshin in debug mode");
+        log::info!("Log level: {:?}", log_level);
+      }
       
       app.handle().plugin(
         tauri_plugin_log::Builder::default()

@@ -782,11 +782,29 @@ export class ZPEPluginManager {
    * @returns {Promise<Object>} Load result
    */
   async loadFromZPE(data) {
+    const bytes = data instanceof Uint8Array ? data : new Uint8Array(data)
+    
+    // Log file info for debugging
+    console.log('[ZPE] Loading plugin file...')
+    console.log('[ZPE] File size:', bytes.length, 'bytes')
+    
+    // Log first few bytes for debugging
+    if (bytes.length >= 4) {
+      const firstBytes = Array.from(bytes.slice(0, Math.min(16, bytes.length)))
+      const hexDump = firstBytes.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
+      console.log('[ZPE] First bytes (hex):', hexDump)
+    }
+    
     try {
       // Parse ZPE file
       const parsed = ZPEParser.parse(data)
+      console.log('[ZPE] File parsed successfully')
+      console.log('[ZPE] Plugin ID:', parsed.manifest?.id)
+      console.log('[ZPE] Plugin name:', parsed.manifest?.name)
+      console.log('[ZPE] Plugin version:', parsed.manifest?.version)
 
       if (parsed.encrypted) {
+        console.warn('[ZPE] Plugin is encrypted')
         return {
           success: false,
           errors: ['Encrypted plugins require decryption key'],
@@ -795,8 +813,10 @@ export class ZPEPluginManager {
       }
 
       // Verify integrity
+      console.log('[ZPE] Verifying plugin integrity...')
       const verification = await ZPEParser.verify(data)
       if (!verification.valid) {
+        console.error('[ZPE] Integrity verification failed:', verification.errors)
         return {
           success: false,
           errors: verification.errors,
@@ -804,10 +824,16 @@ export class ZPEPluginManager {
           pluginId: parsed.manifest?.id
         }
       }
+      console.log('[ZPE] Integrity verification passed')
 
       // Load the plugin
+      console.log('[ZPE] Loading plugin into runtime...')
       return this.loadPlugin(parsed.manifest, parsed.code)
     } catch (error) {
+      console.error('[ZPE] Failed to load plugin:', error.message)
+      if (error.stack) {
+        console.error('[ZPE] Stack trace:', error.stack)
+      }
       return {
         success: false,
         errors: [error.message]
