@@ -625,19 +625,27 @@ import { loadPlugin } from './zpe';
 await loadPlugin(manifest, code);
 ```
 
-## Template Plugin
+## Plugin Templates
 
-A complete template plugin is available at `plugin-template/` with:
+Complete plugin templates are available in the `templates/` directory:
 
+- **Media Provider Template** (`templates/media-provider/`): For plugins that provide anime search, listings, and stream sources
+- **Stream Provider Template** (`templates/stream-provider/`): For plugins that extract video URLs from hoster websites
+
+Templates feature:
 - **Modular structure**: Separate files for API, parsing, and utilities
 - **Full documentation**: JSDoc comments and README
 - **Best practices**: Error handling, caching, and clean code
+- **Custom icons**: Include your own plugin icon (SVG, PNG, JPG, or ICO)
 
-To use the template:
+To use a template:
 
 ```bash
-# Copy the template
-cp -r plugin-template my-plugin
+# Copy the media provider template
+cp -r templates/media-provider my-plugin
+
+# Or copy the stream provider template
+cp -r templates/stream-provider my-stream-extractor
 
 # Edit manifest.json and source files
 # Then build
@@ -647,9 +655,10 @@ node scripts/build-plugin.mjs my-plugin -o ./dist
 ## Examples
 
 See the following for example plugins:
-- `plugin-template/` - Complete plugin template with modular structure
-- `templates/media-provider-*.js` - Basic media provider
-- `templates/stream-provider-*.js` - Stream extractor
+- `templates/media-provider/` - Complete media provider template with modular structure
+- `templates/stream-provider/` - Complete stream extractor template with modular structure
+- `templates/media-provider-plugin.js` - Legacy single-file media provider example
+- `templates/stream-provider-plugin.js` - Legacy single-file stream extractor example
 
 ## License
 
