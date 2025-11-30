@@ -10,6 +10,9 @@ const DISCORD_DOWNLOAD_URL: &str = "https://github.com/hitarth-gg/zenshin/releas
 const DISCORD_LARGE_IMAGE: &str = "icon";
 const DISCORD_LARGE_IMAGE_TEXT: &str = "zanshin";
 
+/// Current Ayoto version (from Cargo.toml)
+pub const AYOTO_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
     pub upload_limit: Option<i32>,
@@ -53,6 +56,12 @@ fn create_activity<'a>(details: &'a str, state: &'a str) -> activity::Activity<'
         .buttons(vec![
             activity::Button::new("Download app", DISCORD_DOWNLOAD_URL)
         ])
+}
+
+/// Get the current Ayoto version
+#[tauri::command]
+pub fn get_ayoto_version() -> String {
+    AYOTO_VERSION.to_string()
 }
 
 #[tauri::command]

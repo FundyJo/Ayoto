@@ -20,7 +20,7 @@ import '@vidstack/react/player/styles/default/theme.css'
 import '@vidstack/react/player/styles/default/layouts/video.css'
 
 import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo } from '../plugins/Anime4KConfig'
-import { STREAM_FORMATS } from '../plugins/PluginManager'
+import { STREAM_FORMATS } from '../plugins'
 import MiracastControls from './MiracastControls'
 
 /**

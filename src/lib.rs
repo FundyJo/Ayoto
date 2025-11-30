@@ -1,11 +1,9 @@
 mod commands;
-pub mod plugin;
 pub mod anime4k;
 pub mod profiles;
 pub mod miracast;
 
 use commands::*;
-use plugin::commands as plugin_commands;
 use std::sync::Mutex;
 use tauri::Manager;
 
@@ -72,65 +70,8 @@ pub fn run() {
       change_backend_port,
       set_discord_rpc,
       broadcast_discord_rpc,
-      // Plugin management commands
-      plugin_commands::get_ayoto_version,
-      plugin_commands::load_plugin_from_json,
-      plugin_commands::load_plugin_from_file,
-      plugin_commands::get_all_plugins,
-      plugin_commands::get_enabled_plugins,
-      plugin_commands::get_plugin,
-      plugin_commands::get_plugins_summary,
-      plugin_commands::set_plugin_enabled,
-      plugin_commands::unload_plugin,
-      plugin_commands::get_plugins_with_capability,
-      plugin_commands::get_plugins_by_format,
-      plugin_commands::get_anime4k_plugins,
-      plugin_commands::get_stream_providers,
-      plugin_commands::get_media_providers,
-      plugin_commands::get_stream_providers_for_hoster,
-      plugin_commands::get_media_providers_for_language,
-      plugin_commands::validate_plugin_manifest,
-      plugin_commands::get_sample_plugin_manifest,
-      plugin_commands::get_sample_stream_provider_manifest,
-      plugin_commands::check_plugin_compatibility,
-      // Plugin API commands
-      plugin_commands::plugin_search,
-      plugin_commands::plugin_get_popular,
-      plugin_commands::plugin_get_latest,
-      plugin_commands::plugin_get_episodes,
-      plugin_commands::plugin_get_streams,
-      plugin_commands::plugin_get_anime_details,
-      plugin_commands::search_all_plugins,
-      // Native plugin commands
-      plugin_commands::get_native_plugin_extension,
-      plugin_commands::get_current_platform,
-      plugin_commands::load_native_plugin,
-      plugin_commands::get_all_native_plugins,
-      plugin_commands::get_native_plugin,
-      plugin_commands::unload_native_plugin,
-      plugin_commands::native_plugin_search,
-      plugin_commands::native_plugin_get_episodes,
-      plugin_commands::native_plugin_get_streams,
-      plugin_commands::get_native_plugin_info,
-      // ZPE Universal Plugin commands
-      plugin_commands::get_zpe_extension,
-      plugin_commands::get_zpe_abi_version,
-      plugin_commands::load_zpe_plugin,
-      plugin_commands::get_all_zpe_plugins,
-      plugin_commands::get_zpe_plugin,
-      plugin_commands::unload_zpe_plugin,
-      plugin_commands::set_zpe_plugin_enabled,
-      plugin_commands::zpe_plugin_search,
-      plugin_commands::zpe_plugin_get_popular,
-      plugin_commands::zpe_plugin_get_latest,
-      plugin_commands::zpe_plugin_get_episodes,
-      plugin_commands::zpe_plugin_get_streams,
-      plugin_commands::zpe_plugin_get_anime_details,
-      plugin_commands::get_zpe_plugin_info,
-      // ZPE Plugin Persistence commands
-      plugin_commands::save_zpe_plugin_paths,
-      plugin_commands::get_saved_zpe_plugin_paths,
-      plugin_commands::reload_saved_zpe_plugins,
+      // App version command
+      get_ayoto_version,
       // Anime4K commands
       anime4k::anime4k_get_presets,
       anime4k::anime4k_get_preset,
