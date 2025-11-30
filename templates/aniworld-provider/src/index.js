@@ -77,7 +77,11 @@ const plugin = {
       });
       
       if (!response.ok) {
-        throw new Error(`Search failed: ${response.status}`);
+        // Check for network error (status 0 indicates connection failure)
+        if (response.status === 0) {
+          throw new Error(`Network error: ${response.error || 'Unable to connect to aniworld.to'}`);
+        }
+        throw new Error(`Search failed: HTTP ${response.status} ${response.statusText || ''}`);
       }
       
       // Parse JSON response from aniworld API
@@ -144,7 +148,11 @@ const plugin = {
       const response = await this.http.get(url);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch episodes: ${response.status}`);
+        // Check for network error (status 0 indicates connection failure)
+        if (response.status === 0) {
+          throw new Error(`Network error: ${response.error || 'Unable to connect to aniworld.to'}`);
+        }
+        throw new Error(`Failed to fetch episodes: HTTP ${response.status} ${response.statusText || ''}`);
       }
       
       // Parse episode list from HTML
@@ -178,7 +186,11 @@ const plugin = {
       const response = await this.http.get(url);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch streams: ${response.status}`);
+        // Check for network error (status 0 indicates connection failure)
+        if (response.status === 0) {
+          throw new Error(`Network error: ${response.error || 'Unable to connect to aniworld.to'}`);
+        }
+        throw new Error(`Failed to fetch streams: HTTP ${response.status} ${response.statusText || ''}`);
       }
       
       // Parse stream sources from the episode page
@@ -203,7 +215,11 @@ const plugin = {
       const response = await this.http.get(url);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch anime details: ${response.status}`);
+        // Check for network error (status 0 indicates connection failure)
+        if (response.status === 0) {
+          throw new Error(`Network error: ${response.error || 'Unable to connect to aniworld.to'}`);
+        }
+        throw new Error(`Failed to fetch anime details: HTTP ${response.status} ${response.statusText || ''}`);
       }
       
       // Parse anime details from the page
