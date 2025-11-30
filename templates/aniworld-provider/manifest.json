@@ -8,7 +8,7 @@
     "name": "Ayoto Community",
     "github": "FundyJo"
   },
-  "icon": "icon.svg",
+  "icon": "image.ico",
   "license": "MIT",
   "supportedLanguages": ["de"],
   "permissions": [

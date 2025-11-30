@@ -826,6 +826,13 @@ export class ZPEPluginManager {
       }
       console.log('[ZPE] Integrity verification passed')
 
+      // Extract icon from assets if present
+      if (parsed.assets?.icon?.data && parsed.assets?.icon?.mimeType) {
+        // Update manifest with the base64 icon data URL
+        parsed.manifest.icon = `data:${parsed.assets.icon.mimeType};base64,${parsed.assets.icon.data}`
+        console.log('[ZPE] Icon loaded from assets')
+      }
+
       // Load the plugin
       console.log('[ZPE] Loading plugin into runtime...')
       return this.loadPlugin(parsed.manifest, parsed.code)
