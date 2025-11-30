@@ -1,0 +1,48 @@
+{
+  "id": "aniworld-provider",
+  "name": "Aniworld.to Provider",
+  "version": "1.0.0",
+  "description": "Media provider plugin for aniworld.to - German anime streaming",
+  "pluginType": "media-provider",
+  "author": {
+    "name": "Ayoto Community",
+    "github": "FundyJo"
+  },
+  "icon": "icon.svg",
+  "license": "MIT",
+  "permissions": [
+    "network:http",
+    "storage:local",
+    "storage:cache"
+  ],
+  "capabilities": {
+    "search": true,
+    "getPopular": false,
+    "getLatest": false,
+    "getEpisodes": true,
+    "getStreams": true,
+    "getAnimeDetails": true
+  },
+  "scrapingConfig": {
+    "baseUrl": "https://aniworld.to",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "rateLimitMs": 1000,
+    "timeout": 30000
+  },
+  "security": {
+    "sandboxed": true,
+    "cspEnabled": true,
+    "allowedDomains": [
+      "aniworld.to",
+      "*.aniworld.to"
+    ]
+  },
+  "minAppVersion": "2.5.0",
+  "keywords": [
+    "anime",
+    "streaming",
+    "german",
+    "aniworld"
+  ],
+  "main": "src/index.js"
+}
