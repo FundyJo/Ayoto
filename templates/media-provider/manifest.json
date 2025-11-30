@@ -10,7 +10,7 @@
     "github": "yourusername",
     "url": "https://yourwebsite.com"
   },
-  "icon": "icon.png",
+  "icon": "icon.svg",
   "homepage": "https://github.com/yourusername/example-media-provider",
   "license": "MIT",
   "repository": {

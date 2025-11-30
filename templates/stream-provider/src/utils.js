@@ -42,7 +42,7 @@ const utils = {
    * @returns {string} Cache key
    */
   createCacheKey(...parts) {
-    return 'cache_' + this.simpleHash(parts.map(p => String(p)).join('_'));
+    return 'cache_' + parts.map(p => String(p)).join('_');
   },
 
   /**
