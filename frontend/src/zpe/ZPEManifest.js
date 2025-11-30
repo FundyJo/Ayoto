@@ -300,7 +300,7 @@ export function validateZPEManifest(manifest) {
       errors.push('Supported languages must be an array')
     } else {
       for (const lang of manifest.supportedLanguages) {
-        if (typeof lang !== 'string' || !/^[a-z]{2}(-[A-Z]{2})?$/.test(lang)) {
+        if (typeof lang !== 'string' || !/^[a-z]{2}(-[a-z]{2})?$/i.test(lang)) {
           errors.push(`Invalid language code: ${lang}. Must be ISO 639-1 format (e.g., "de", "en", "en-US")`)
         }
       }
