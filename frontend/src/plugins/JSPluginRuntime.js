@@ -844,11 +844,14 @@ export class JSPluginManager {
   /**
    * Get plugin instance (initializing if needed)
    * @param {string} pluginId - Plugin ID
-   * @returns {Promise<JSPlugin|null>} Plugin instance
+   * @returns {Promise<JSPlugin|null>} Plugin instance or null if disabled
    */
   async getPlugin(pluginId) {
     const plugin = this.plugins.get(pluginId)
     if (!plugin) return null
+
+    // Return null for disabled plugins without initializing
+    if (!plugin.enabled) return null
 
     if (!plugin.instance) {
       // Lazy initialize
