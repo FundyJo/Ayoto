@@ -199,16 +199,16 @@ export class ZPEBuilder {
     const encoder = new TextEncoder()
     const sections = []
 
-    // Section 1: Header
+    // Header (raw, not wrapped - magic bytes must be at position 0)
     const header = this._buildHeader(opts)
-    sections.push(this._wrapSection(ZPE_SECTION.HEADER, header))
+    sections.push(header)
 
-    // Section 2: Manifest
+    // Section 1: Manifest
     const manifestJson = JSON.stringify(manifest)
     let manifestData = encoder.encode(manifestJson)
     sections.push(this._wrapSection(ZPE_SECTION.MANIFEST, manifestData))
 
-    // Section 3: Code
+    // Section 2: Code
     let codeData = encoder.encode(code)
     
     if (opts.encrypt) {
@@ -227,13 +227,13 @@ export class ZPEBuilder {
     
     sections.push(this._wrapSection(ZPE_SECTION.CODE, codeData))
 
-    // Section 4: Assets (if any)
+    // Section 3: Assets (if any)
     if (opts.assets && Object.keys(opts.assets).length > 0) {
       const assetsData = encoder.encode(JSON.stringify(opts.assets))
       sections.push(this._wrapSection(ZPE_SECTION.ASSETS, assetsData))
     }
 
-    // Section 5: Metadata
+    // Section 4: Metadata
     const metadata = {
       buildTime: new Date().toISOString(),
       builder: 'ZPE Builder 1.0',
