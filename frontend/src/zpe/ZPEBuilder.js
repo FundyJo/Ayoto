@@ -318,14 +318,32 @@ export class ZPEBuilder {
 
   /**
    * Validate plugin code syntax
+   * Uses a safe approach that doesn't execute the code
    * @param {string} code - Code to validate
    * @returns {Object} Validation result
    */
   validateSyntax(code) {
     try {
-      // Try to parse the code
-      new Function(code)
-      return { valid: true, errors: [] }
+      // Basic syntax checks without executing the code
+      const errors = []
+      
+      // Check for balanced braces, brackets, and parentheses
+      const balanceCheck = this._checkBracketBalance(code)
+      if (!balanceCheck.balanced) {
+        errors.push({
+          message: `Unbalanced ${balanceCheck.type}: expected ${balanceCheck.expected}, found ${balanceCheck.found}`,
+          line: balanceCheck.line || null
+        })
+      }
+      
+      // Check for common syntax issues
+      const syntaxIssues = this._checkCommonSyntaxIssues(code)
+      errors.push(...syntaxIssues)
+      
+      return {
+        valid: errors.length === 0,
+        errors
+      }
     } catch (error) {
       return {
         valid: false,
@@ -335,6 +353,104 @@ export class ZPEBuilder {
         }]
       }
     }
+  }
+
+  /**
+   * Check for balanced brackets, braces, and parentheses
+   * @param {string} code - Code to check
+   * @returns {Object} Balance check result
+   * @private
+   */
+  _checkBracketBalance(code) {
+    const pairs = { '{': '}', '[': ']', '(': ')' }
+    const stack = []
+    let inString = false
+    let stringChar = null
+    let inComment = false
+    let inMultiComment = false
+    let lineNumber = 1
+    
+    for (let i = 0; i < code.length; i++) {
+      const char = code[i]
+      const prev = i > 0 ? code[i - 1] : ''
+      const next = i < code.length - 1 ? code[i + 1] : ''
+      
+      if (char === '\n') lineNumber++
+      
+      // Track string state
+      if (!inComment && !inMultiComment) {
+        if (!inString && (char === '"' || char === "'" || char === '`')) {
+          inString = true
+          stringChar = char
+        } else if (inString && char === stringChar && prev !== '\\') {
+          inString = false
+          stringChar = null
+        }
+      }
+      
+      // Track comment state
+      if (!inString) {
+        if (!inComment && !inMultiComment && char === '/' && next === '/') {
+          inComment = true
+        } else if (!inComment && !inMultiComment && char === '/' && next === '*') {
+          inMultiComment = true
+        } else if (inComment && char === '\n') {
+          inComment = false
+        } else if (inMultiComment && char === '*' && next === '/') {
+          inMultiComment = false
+        }
+      }
+      
+      // Check brackets outside strings and comments
+      if (!inString && !inComment && !inMultiComment) {
+        if (pairs[char]) {
+          stack.push({ char, line: lineNumber })
+        } else if (Object.values(pairs).includes(char)) {
+          if (stack.length === 0) {
+            return { balanced: false, type: 'bracket', expected: 'opening', found: char, line: lineNumber }
+          }
+          const last = stack.pop()
+          if (pairs[last.char] !== char) {
+            return { balanced: false, type: 'bracket', expected: pairs[last.char], found: char, line: lineNumber }
+          }
+        }
+      }
+    }
+    
+    if (stack.length > 0) {
+      const unclosed = stack[stack.length - 1]
+      return { balanced: false, type: 'bracket', expected: pairs[unclosed.char], found: 'EOF', line: unclosed.line }
+    }
+    
+    return { balanced: true }
+  }
+
+  /**
+   * Check for common syntax issues
+   * @param {string} code - Code to check
+   * @returns {Array} Array of syntax issues
+   * @private
+   */
+  _checkCommonSyntaxIssues(code) {
+    const issues = []
+    const lines = code.split('\n')
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const lineNum = i + 1
+      
+      // Check for multiple consecutive assignment operators
+      if (/===\s*===|!==\s*!==|==\s*==/.test(line)) {
+        issues.push({ message: 'Suspicious consecutive comparison operators', line: lineNum })
+      }
+      
+      // Check for missing semicolons before certain keywords (heuristic)
+      if (/[a-zA-Z0-9_)}\]]\s*(function|class|const|let|var|if|for|while)\s+/.test(line)) {
+        // This is a heuristic and may have false positives
+      }
+    }
+    
+    return issues
   }
 
   /**

@@ -361,12 +361,32 @@ const ZPEHtmlParser = {
       let match
       while ((match = regex.exec(html)) !== null) {
         const content = match[1] || match[0]
-        const text = content.replace(/<[^>]+>/g, '').trim()
+        // Safely strip HTML tags using iterative replacement to handle nested tags
+        const text = this._stripHtmlTags(content).trim()
         if (text) results.push(text)
       }
     }
     
     return results
+  },
+
+  /**
+   * Safely strip HTML tags from content
+   * Uses iterative replacement to handle nested and incomplete tags
+   * @private
+   */
+  _stripHtmlTags(html) {
+    if (!html) return ''
+    let result = html
+    let previous
+    // Iteratively remove tags until no more changes occur
+    // This handles cases like <<script>script> attack vectors
+    do {
+      previous = result
+      result = result.replace(/<[^>]*>/g, '')
+    } while (result !== previous && result.includes('<'))
+    // Also remove any remaining angle brackets
+    return result.replace(/[<>]/g, '')
   },
 
   /**

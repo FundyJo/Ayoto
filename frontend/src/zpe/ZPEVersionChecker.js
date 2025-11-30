@@ -122,6 +122,33 @@ const versionCache = new VersionCheckCache()
 // ============================================================================
 
 /**
+ * Validate GitHub API response structure
+ * @param {Object} data - Parsed response data
+ * @param {string} type - Expected response type
+ * @returns {boolean} True if valid
+ */
+function validateGitHubResponse(data, type) {
+  if (!data || typeof data !== 'object') {
+    return false
+  }
+
+  switch (type) {
+    case 'release':
+      // Validate release object has required fields
+      return typeof data.tag_name === 'string' &&
+             typeof data.html_url === 'string' &&
+             (data.assets === undefined || Array.isArray(data.assets))
+    case 'releases':
+      // Validate releases array
+      return Array.isArray(data) && data.every(r => 
+        typeof r.tag_name === 'string' && typeof r.html_url === 'string'
+      )
+    default:
+      return true
+  }
+}
+
+/**
  * Make an authenticated GitHub API request
  * @param {string} endpoint - API endpoint (relative to base URL)
  * @param {Object} options - Request options
@@ -156,9 +183,17 @@ async function githubApiRequest(endpoint, options = {}) {
       throw new Error(errorMessage)
     }
 
-    return JSON.parse(body)
+    const data = JSON.parse(body)
+    
+    // Validate response structure based on endpoint
+    const responseType = options.responseType || 'default'
+    if (!validateGitHubResponse(data, responseType)) {
+      throw new Error('Invalid GitHub API response structure')
+    }
+    
+    return data
   } catch (error) {
-    if (error.message.includes('GitHub API')) {
+    if (error.message.includes('GitHub API') || error.message.includes('Invalid GitHub')) {
       throw error
     }
     throw new Error(`Failed to fetch from GitHub: ${error.message}`)
@@ -225,7 +260,9 @@ export async function checkForUpdates(repository, currentVersion) {
 
   try {
     // Fetch latest release from GitHub
-    const release = await githubApiRequest(`/repos/${owner}/${repo}/releases/latest`)
+    const release = await githubApiRequest(`/repos/${owner}/${repo}/releases/latest`, {
+      responseType: 'release'
+    })
     
     // Extract version from tag (remove 'v' prefix if present)
     const latestVersion = release.tag_name.replace(/^v/, '')
@@ -316,7 +353,8 @@ export async function getReleases(owner, repo, options = {}) {
   const includePrerelease = options.includePrerelease ?? false
 
   const releases = await githubApiRequest(
-    `/repos/${owner}/${repo}/releases?per_page=${perPage}&page=${page}`
+    `/repos/${owner}/${repo}/releases?per_page=${perPage}&page=${page}`,
+    { responseType: 'releases' }
   )
 
   return releases
@@ -348,7 +386,9 @@ export async function getReleases(owner, repo, options = {}) {
  * @returns {Promise<ReleaseInfo>} Release info
  */
 export async function getReleaseByTag(owner, repo, tag) {
-  const release = await githubApiRequest(`/repos/${owner}/${repo}/releases/tags/${tag}`)
+  const release = await githubApiRequest(`/repos/${owner}/${repo}/releases/tags/${tag}`, {
+    responseType: 'release'
+  })
   
   return {
     tagName: release.tag_name,

@@ -47,3 +47,6 @@ Archive/
 Electron/
 README_OLD.md
 
+# ZPE Plugin files (for testing, not committed to repo)
+*.zpe
+plugins/

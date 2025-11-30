@@ -103,7 +103,7 @@ export async function generateEncryptionKey() {
  * @returns {Promise<ArrayBuffer>} Raw key bytes
  */
 export async function exportKey(key) {
-  return await crypto.subtle.exportRaw('raw', key)
+  return await crypto.subtle.exportKey('raw', key)
 }
 
 /**

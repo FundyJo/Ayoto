@@ -169,7 +169,7 @@ export function validateZPEManifest(manifest) {
   if (!manifest.id || typeof manifest.id !== 'string') {
     errors.push('Plugin ID (id) is required and must be a string')
   } else if (!/^[a-z0-9][a-z0-9_-]{2,48}[a-z0-9]$/.test(manifest.id)) {
-    errors.push('Plugin ID must be 4-50 characters, start/end with alphanumeric, contain only lowercase letters, numbers, hyphens, and underscores')
+    errors.push('Plugin ID must be 4-50 characters total (start and end with lowercase alphanumeric, may contain lowercase letters, numbers, hyphens, and underscores)')
   }
 
   // Name validation
