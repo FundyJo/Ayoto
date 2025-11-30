@@ -167,6 +167,8 @@ export interface ZPEManifest {
   repository?: ZPERepository;
   /** License identifier (e.g., "MIT") (optional) */
   license?: string;
+  /** ISO 639-1 language codes supported by this plugin (e.g., ["de", "en"]) (optional) */
+  supportedLanguages?: string[];
   /** Required permissions */
   permissions?: ZPEPermission[];
   /** Plugin capabilities */
