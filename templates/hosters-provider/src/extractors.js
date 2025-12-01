@@ -222,12 +222,47 @@ const extractors = {
       }
     }
     
-    // Method 2: Look for direct HLS source pattern (older format)
+    // Method 2: Look for window.location.href with base64 encoded data
+    const windowLocPattern = /window\.location\.href\s*=\s*["']([^"']+)["']/;
+    const windowLocMatch = html.match(windowLocPattern);
+    if (windowLocMatch && windowLocMatch[1]) {
+      try {
+        const decoded = utils.decodeBase64(windowLocMatch[1]);
+        if (decoded.includes('.m3u8') || decoded.includes('.mp4')) {
+          return decoded;
+        }
+      } catch {
+        // Not base64, might be a direct URL
+        if (windowLocMatch[1].includes('.m3u8') || windowLocMatch[1].includes('.mp4')) {
+          return windowLocMatch[1];
+        }
+      }
+    }
+    
+    // Method 3: Look for prompt variable patterns common in VOE
+    const promptPatterns = [
+      /prompt\s*\([^)]*\)\s*\?\s*["']([^"']+\.m3u8[^"']*)['"]/i,
+      /var\s+\w+\s*=\s*["']([^"']+delivery\.(?:voe|voecdn)[^"']+\.m3u8[^"']*)['"]/i,
+      /["']([^"']+delivery\.(?:voe|voecdn)[^"']+\.m3u8[^"']*)["']/gi,
+      /["']([^"']+\.voe\.sx[^"']+\.m3u8[^"']*)["']/gi
+    ];
+    
+    for (const pattern of promptPatterns) {
+      const promptMatch = html.match(pattern);
+      if (promptMatch && promptMatch[1]) {
+        return promptMatch[1];
+      }
+    }
+    
+    // Method 4: Look for direct HLS source pattern (older format)
     const hlsPatterns = [
       /'hls':\s*'([^']+\.m3u8[^']*)'/,
       /"hls":\s*"([^"]+\.m3u8[^"]*)"/,
       /source:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/,
-      /sources:\s*\[\s*['"]([^'"]+\.m3u8[^'"]*)['"]/
+      /sources:\s*\[\s*['"]([^'"]+\.m3u8[^'"]*)['"]/,
+      /file:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/,
+      /["']file["']\s*:\s*["']([^"']+\.m3u8[^"']*)["']/,
+      /src:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/
     ];
     
     for (const pattern of hlsPatterns) {
@@ -237,11 +272,13 @@ const extractors = {
       }
     }
     
-    // Method 3: Look for MP4 source (fallback)
+    // Method 5: Look for MP4 source (fallback)
     const mp4Patterns = [
       /'mp4':\s*'([^']+\.mp4[^']*)'/,
       /"mp4":\s*"([^"]+\.mp4[^"]*)"/,
-      /source:\s*['"]([^'"]+\.mp4[^'"]*)['"]/
+      /source:\s*['"]([^'"]+\.mp4[^'"]*)['"]/,
+      /file:\s*['"]([^'"]+\.mp4[^'"]*)['"]/,
+      /["']file["']\s*:\s*["']([^"']+\.mp4[^"']*)["']/
     ];
     
     for (const pattern of mp4Patterns) {
@@ -265,7 +302,9 @@ const extractors = {
       const response = await this.http.get(url, {
         headers: {
           'Referer': 'https://aniworld.to/',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5'
         }
       });
       
@@ -274,14 +313,17 @@ const extractors = {
       }
 
       let htmlContent = response.body;
-      let finalUrl = url;
+      let finalUrl = response.url || url;
 
       // Check if we need to follow a redirect
       // Look for meta refresh or JS redirect
       const metaRefreshMatch = htmlContent.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'][^"']*url=([^"'>\s]+)/i);
       if (metaRefreshMatch && metaRefreshMatch[1]) {
-        finalUrl = metaRefreshMatch[1];
-        const redirectResponse = await this.http.get(finalUrl, {
+        let redirectUrl = metaRefreshMatch[1];
+        if (redirectUrl.startsWith('//')) {
+          redirectUrl = 'https:' + redirectUrl;
+        }
+        const redirectResponse = await this.http.get(redirectUrl, {
           headers: {
             'Referer': url,
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -289,12 +331,72 @@ const extractors = {
         });
         if (redirectResponse.ok) {
           htmlContent = redirectResponse.body;
+          finalUrl = redirectResponse.url || redirectUrl;
+        }
+      }
+      
+      // Check for JS window.location redirect
+      const jsRedirectMatch = htmlContent.match(/window\.location\s*(?:\.href)?\s*=\s*["']([^"']+)["']/i);
+      if (jsRedirectMatch && jsRedirectMatch[1] && jsRedirectMatch[1].includes('voe')) {
+        let redirectUrl = jsRedirectMatch[1];
+        if (redirectUrl.startsWith('//')) {
+          redirectUrl = 'https:' + redirectUrl;
+        }
+        try {
+          const redirectResponse = await this.http.get(redirectUrl, {
+            headers: {
+              'Referer': finalUrl,
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          });
+          if (redirectResponse.ok) {
+            htmlContent = redirectResponse.body;
+            finalUrl = redirectResponse.url || redirectUrl;
+          }
+        } catch (e) {
+          // Continue with current content
         }
       }
 
-      // Look for VOE redirect URL in the page
+      // Look for embed URL pattern
+      const embedPattern = /(?:href|src)=["']([^"']*(?:embed|e|player)[^"']*(?:voe|voesx)[^"']*)["']/i;
+      const embedMatch = htmlContent.match(embedPattern);
+      if (embedMatch && embedMatch[1]) {
+        let embedUrl = embedMatch[1];
+        if (embedUrl.startsWith('//')) {
+          embedUrl = 'https:' + embedUrl;
+        } else if (embedUrl.startsWith('/')) {
+          const urlObj = new URL(finalUrl);
+          embedUrl = `${urlObj.protocol}//${urlObj.host}${embedUrl}`;
+        }
+        try {
+          const embedResponse = await this.http.get(embedUrl, {
+            headers: {
+              'Referer': finalUrl,
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          });
+          if (embedResponse.ok) {
+            const sourceUrl = this._findVoeSource(embedResponse.body);
+            if (sourceUrl) {
+              return {
+                url: sourceUrl,
+                format: this._detectFormat(sourceUrl),
+                quality: 'Auto',
+                server: 'VOE'
+              };
+            }
+          }
+        } catch (e) {
+          // Continue to other methods
+        }
+      }
+
+      // Look for VOE redirect URL in the page with expanded patterns
       const voeUrlPatterns = [
-        /https?:\/\/[^'"<>\s]*voe[^'"<>\s]*\.(?:sx|bar|net|com)[^'"<>\s]*/gi,
+        /https?:\/\/[^'"<>\s]*voe[^'"<>\s]*\.(?:sx|bar|net|com|gg)[^'"<>\s]*/gi,
+        /https?:\/\/[^'"<>\s]*voesx[^'"<>\s]*\.(?:com|net)[^'"<>\s]*/gi,
+        /https?:\/\/[^'"<>\s]*delivery[^'"<>\s]*voe[^'"<>\s]*/gi,
         /href=["']([^"']*voe[^"']*)["']/gi,
         /src=["']([^"']*voe[^"']*)["']/gi
       ];
@@ -308,7 +410,8 @@ const extractors = {
               !potentialUrl.includes('.css') && 
               !potentialUrl.includes('.js') &&
               !potentialUrl.includes('.png') &&
-              !potentialUrl.includes('.jpg')) {
+              !potentialUrl.includes('.jpg') &&
+              !potentialUrl.includes('.ico')) {
             // Try to fetch this URL and extract the source
             try {
               const voeResponse = await this.http.get(potentialUrl, {
@@ -694,6 +797,7 @@ const extractors = {
       }
 
       let source = response.body;
+      let baseUrl = url;
 
       // Check for iframe redirect
       const iframePattern = /<iframe\s*(?:[^>]+\s)?src=['"]([^'"]+)['"][^>]*>/i;
@@ -709,6 +813,7 @@ const extractors = {
           redirectUrl = `${urlObj.protocol}//${urlObj.host}${redirectUrl}`;
         }
         
+        baseUrl = redirectUrl;
         const redirectResponse = await this.http.get(redirectUrl, {
           headers: { 
             'Sec-Fetch-Dest': 'iframe',
@@ -721,13 +826,43 @@ const extractors = {
           source = redirectResponse.body;
         }
       }
+      
+      // Check for embed redirect pattern (common in Filemoon)
+      const embedPattern = /(?:href|src)=["']([^"']*(?:embed|e|player)[^"']*filemoon[^"']*)["']/i;
+      const embedMatch = source.match(embedPattern);
+      
+      if (embedMatch && embedMatch[1]) {
+        let embedUrl = embedMatch[1];
+        if (embedUrl.startsWith('//')) {
+          embedUrl = 'https:' + embedUrl;
+        } else if (embedUrl.startsWith('/')) {
+          const urlObj = new URL(baseUrl);
+          embedUrl = `${urlObj.protocol}//${urlObj.host}${embedUrl}`;
+        }
+        
+        const embedResponse = await this.http.get(embedUrl, {
+          headers: { 
+            'Referer': baseUrl,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
+        });
+        
+        if (embedResponse.ok) {
+          source = embedResponse.body;
+        }
+      }
 
       // Method 1: Look for direct m3u8 URL in the page (newer format)
       const directM3u8Patterns = [
         /file:\s*"([^"]+\.m3u8[^"]*)"/,
+        /file:\s*'([^']+\.m3u8[^']*)'/,
         /source:\s*"([^"]+\.m3u8[^"]*)"/,
+        /source:\s*'([^']+\.m3u8[^']*)'/,
         /"sources":\s*\[\s*\{\s*"file":\s*"([^"]+\.m3u8[^"]*)"/,
-        /sources\s*=\s*\[\s*\{\s*file:\s*"([^"]+\.m3u8[^"]*)"/
+        /sources\s*=\s*\[\s*\{\s*file:\s*"([^"]+\.m3u8[^"]*)"/,
+        /sources\s*:\s*\[\s*\{\s*file:\s*["']([^"']+\.m3u8[^"']*)["']/,
+        /src:\s*["']([^"']+\.m3u8[^"']*)["']/,
+        /player\.src\s*\(\s*\{\s*type:\s*["'][^"']+["'],\s*src:\s*["']([^"']+)["']/
       ];
 
       for (const pattern of directM3u8Patterns) {
@@ -790,6 +925,35 @@ const extractors = {
                 server: 'Filemoon'
               };
             }
+          }
+        }
+      }
+      
+      // Method 4: Look for base64 encoded source
+      const b64Patterns = [
+        /atob\s*\(\s*["']([^"']+)["']\s*\)/,
+        /Base64\.decode\s*\(\s*["']([^"']+)["']\s*\)/
+      ];
+      
+      for (const pattern of b64Patterns) {
+        const b64Match = source.match(pattern);
+        if (b64Match && b64Match[1]) {
+          try {
+            const decoded = utils.decodeBase64(b64Match[1]);
+            if (decoded.includes('.m3u8')) {
+              // Extract URL from decoded string
+              const urlMatch = decoded.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/);
+              if (urlMatch && urlMatch[1]) {
+                return {
+                  url: urlMatch[1],
+                  format: 'm3u8',
+                  quality: 'Auto',
+                  server: 'Filemoon'
+                };
+              }
+            }
+          } catch (e) {
+            // Not valid base64, continue
           }
         }
       }
