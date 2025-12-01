@@ -110,6 +110,98 @@ const streams = await plugin.getStreams('naruto', '1-1');
 ]
 ```
 
+### Get Anime Details Example
+
+```javascript
+// Get detailed anime information
+const details = await plugin.getAnimeDetails('dad-is-a-hero-mom-is-a-spirit-im-a-reincarnator');
+
+// Details format:
+{
+  id: "dad-is-a-hero-mom-is-a-spirit-im-a-reincarnator",
+  title: "Dad is a Hero, Mom is a Spirit, I'm a Reincarnator",
+  altTitles: [
+    "Reincarnated as the Daughter of the Legendary Hero and the Queen of Spirits",
+    "Chichi wa Eiyū, Haha wa Seirei, Musume no Watashi wa Tenseisha",
+    // ... more alternative titles
+  ],
+  cover: "https://aniworld.to/public/img/cover/..._220x330.png",
+  banner: "https://aniworld.to/public/img/cover/..._800x300.png",
+  description: "Ellen ist ein junges Mädchen, das aus dem modernen Japan...",
+  genres: ["Komödie", "EngSub", "Fantasy", "GerSub"],
+  directors: [],
+  actors: ["深川芹亜", "Kazuyuki Okitsu", "Mai Nakahara"],
+  producers: ["KADOKAWA", "J.C.STAFF"],
+  countries: ["Japan"],
+  status: "Ongoing",
+  startYear: 2025,
+  endYear: "Ongoing",
+  year: 2025,
+  fskRating: 12,
+  imdbId: "tt32777700",
+  imdbLink: "https://www.imdb.com/title/tt32777700",
+  rating: 4,
+  ratingCount: 444,
+  ratingMax: 5,
+  trailerUrl: "https://hahanoha-anime.com",
+  seasons: [
+    {
+      seasonNumber: 1,
+      title: "Staffel 1",
+      isMovies: false,
+      link: "/anime/stream/dad-is-a-hero-mom-is-a-spirit-im-a-reincarnator/staffel-1",
+      episodeCount: 5,
+      episodes: [
+        {
+          episodeNumber: 1,
+          id: "1-1",
+          title: "Episode 1",
+          link: "/anime/stream/dad-is-a-hero-mom-is-a-spirit-im-a-reincarnator/staffel-1/episode-1"
+        },
+        // ... more episodes
+      ]
+    }
+  ],
+  seasonCount: 1,
+  episodeCount: 5,
+  hasMovies: false,
+  anilistId: null,
+  malId: null
+}
+```
+
+### Anime with Movies Example
+
+Some anime have movies in addition to regular seasons:
+
+```javascript
+const details = await plugin.getAnimeDetails('one-punch-man');
+
+// If the anime has movies, they appear in the seasons array with isMovies: true
+{
+  // ...
+  seasons: [
+    {
+      seasonNumber: 0,
+      title: "Filme",
+      isMovies: true,
+      link: "/anime/stream/one-punch-man/filme",
+      episodeCount: 2,
+      episodes: [...]
+    },
+    {
+      seasonNumber: 1,
+      title: "Staffel 1",
+      isMovies: false,
+      // ...
+    },
+    // ... more seasons
+  ],
+  hasMovies: true,
+  // ...
+}
+```
+
 ## Installation
 
 1. Build the plugin using the build script:
@@ -141,7 +233,18 @@ The plugin is configured via `manifest.json`:
 - Aniworld.to is a German anime streaming site
 - The search API returns all results at once (no pagination)
 - Episode IDs use the format `season-episode` (e.g., "1-1" for Season 1, Episode 1)
+- For movies, episode IDs use the format `filme-episode` (e.g., "filme-1" for Film 1)
 - Stream sources may include various hosters (VOE, Vidoza, Streamtape, etc.)
+- Anime details include rich metadata parsed from the HTML:
+  - Alternative titles (data-alternativetitles)
+  - Full description (data-full-description)
+  - Cast info (actors, directors, producers)
+  - Country of origin
+  - FSK age rating
+  - IMDB ID and link
+  - Aggregate user rating
+  - Trailer URL
+  - Complete season and episode structure
 
 ## License
 

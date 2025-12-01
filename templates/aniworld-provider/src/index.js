@@ -385,55 +385,319 @@ const plugin = {
    * @private
    */
   _parseAnimeDetails(html, animeId) {
-    // Extract title
+    // Extract title from h1 with itemprop="name"
     let title = 'Unknown';
-    const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    const titleMatch = html.match(/<h1[^>]*itemprop="name"[^>]*[^>]*><span>([^<]+)<\/span><\/h1>/i);
     if (titleMatch) {
       title = this._decodeHtmlEntities(titleMatch[1].trim());
+    } else {
+      // Fallback to generic h1
+      const fallbackTitleMatch = html.match(/<h1[^>]*>(?:<span>)?([^<]+)(?:<\/span>)?<\/h1>/i);
+      if (fallbackTitleMatch) {
+        title = this._decodeHtmlEntities(fallbackTitleMatch[1].trim());
+      }
     }
-    
-    // Extract description
+
+    // Extract alternative titles from data-alternativetitles attribute
+    const altTitles = [];
+    const altTitlesMatch = html.match(/data-alternativetitles="([^"]*)"/i);
+    if (altTitlesMatch && altTitlesMatch[1]) {
+      const altTitlesStr = this._decodeHtmlEntities(altTitlesMatch[1]);
+      const titles = altTitlesStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
+      altTitles.push(...titles);
+    }
+
+    // Extract full description from data-full-description attribute
     let description = null;
-    const descMatch = html.match(/<p[^>]*class="[^"]*seri_des[^"]*"[^>]*>([^<]+)/i);
-    if (descMatch) {
-      description = this._decodeHtmlEntities(descMatch[1].trim());
+    const fullDescMatch = html.match(/data-full-description="([^"]*)"/i);
+    if (fullDescMatch && fullDescMatch[1]) {
+      description = this._decodeHtmlEntities(fullDescMatch[1].trim());
+    } else {
+      // Fallback to p.seri_des content
+      const descMatch = html.match(/<p[^>]*class="[^"]*seri_des[^"]*"[^>]*>([^<]+)/i);
+      if (descMatch) {
+        description = this._decodeHtmlEntities(descMatch[1].trim());
+      }
     }
-    
-    // Extract cover image
+
+    // Extract cover image from seriesCoverBox
     let cover = null;
-    const coverMatch = html.match(/<img[^>]*src="([^"]*cover[^"]*)"[^>]*>/i);
+    const coverMatch = html.match(/class="seriesCoverBox"[^>]*>.*?<img[^>]*src="([^"]+)"/is);
     if (coverMatch) {
       cover = coverMatch[1].startsWith('http') ? coverMatch[1] : `${this.baseUrl}${coverMatch[1]}`;
+    } else {
+      // Fallback to any cover image
+      const fallbackCoverMatch = html.match(/<img[^>]*src="([^"]*cover[^"]*)"[^>]*>/i);
+      if (fallbackCoverMatch) {
+        cover = fallbackCoverMatch[1].startsWith('http') ? fallbackCoverMatch[1] : `${this.baseUrl}${fallbackCoverMatch[1]}`;
+      }
     }
-    
+
+    // Extract banner/backdrop image
+    let banner = null;
+    const bannerMatch = html.match(/class="backdrop"[^>]*style="background-image:\s*url\(([^)]+)\)"/i);
+    if (bannerMatch) {
+      banner = bannerMatch[1].startsWith('http') ? bannerMatch[1] : `${this.baseUrl}${bannerMatch[1]}`;
+    }
+
+    // Extract year range (startDate and endDate)
+    let startYear = null;
+    let endYear = null;
+    const startYearMatch = html.match(/itemprop="startDate"[^>]*>.*?(\d{4})/is);
+    if (startYearMatch) {
+      startYear = parseInt(startYearMatch[1], 10);
+    }
+    const endYearMatch = html.match(/itemprop="endDate"[^>]*>.*?(\d{4}|Heute)/is);
+    if (endYearMatch) {
+      endYear = endYearMatch[1] === 'Heute' ? 'Ongoing' : parseInt(endYearMatch[1], 10);
+    }
+
+    // Extract FSK rating (age rating)
+    let fskRating = null;
+    const fskMatch = html.match(/data-fsk="(\d+)"/i);
+    if (fskMatch) {
+      fskRating = parseInt(fskMatch[1], 10);
+    }
+
+    // Extract IMDB ID and link
+    let imdbId = null;
+    let imdbLink = null;
+    const imdbMatch = html.match(/data-imdb="([^"]+)"/i);
+    if (imdbMatch) {
+      imdbId = imdbMatch[1];
+    }
+    const imdbLinkMatch = html.match(/href="(https:\/\/www\.imdb\.com\/title\/[^"]+)"/i);
+    if (imdbLinkMatch) {
+      imdbLink = imdbLinkMatch[1];
+    }
+
     // Extract genres
     const genres = [];
-    const genreMatches = html.matchAll(/genre\/[^"]*">([^<]+)<\/a>/gi);
+    const genreMatches = html.matchAll(/href="\/genre\/[^"]*"[^>]*class="genreButton[^"]*"[^>]*itemprop="genre">([^<]+)<\/a>/gi);
     for (const gMatch of genreMatches) {
-      genres.push(this._decodeHtmlEntities(gMatch[1].trim()));
+      const genre = this._decodeHtmlEntities(gMatch[1].trim());
+      if (!genres.includes(genre)) {
+        genres.push(genre);
+      }
     }
-    
-    // Count seasons
-    const seasonMatches = html.match(/staffel-(\d+)/gi) || [];
-    const seasons = [...new Set(seasonMatches.map(s => parseInt(s.replace('staffel-', ''), 10)))];
-    const seasonCount = seasons.length > 0 ? Math.max(...seasons) : 0;
-    
+
+    // Extract directors (Regisseure)
+    const directors = [];
+    const directorsSection = html.match(/class="seriesDirector"[^>]*>.*?<\/li>/is);
+    if (directorsSection) {
+      const directorMatches = directorsSection[0].matchAll(/itemprop="name">([^<]+)<\/span>/gi);
+      for (const dMatch of directorMatches) {
+        directors.push(this._decodeHtmlEntities(dMatch[1].trim()));
+      }
+    }
+
+    // Extract actors (Schauspieler)
+    const actors = [];
+    const actorsSection = html.match(/class="seriesActor"[^>]*>.*?<div class="cf"><\/div>/is);
+    if (actorsSection) {
+      const actorMatches = actorsSection[0].matchAll(/itemprop="name">([^<]+)<\/span>/gi);
+      for (const aMatch of actorMatches) {
+        actors.push(this._decodeHtmlEntities(aMatch[1].trim()));
+      }
+    }
+
+    // Extract producers (Produzenten)
+    const producers = [];
+    const producersSection = html.match(/class="seriesProducer"[^>]*>.*?<div class="cf"><\/div>/is);
+    if (producersSection) {
+      const producerMatches = producersSection[0].matchAll(/itemprop="name">([^<]+)<\/span>/gi);
+      for (const pMatch of producerMatches) {
+        producers.push(this._decodeHtmlEntities(pMatch[1].trim()));
+      }
+    }
+
+    // Extract country (Land)
+    const countries = [];
+    const countrySection = html.match(/class="seriesCountry"[^>]*>.*?<div class="cf"><\/div>/is);
+    if (countrySection) {
+      const countryMatches = countrySection[0].matchAll(/itemprop="name">([^<]+)<\/span>/gi);
+      for (const cMatch of countryMatches) {
+        countries.push(this._decodeHtmlEntities(cMatch[1].trim()));
+      }
+    }
+
+    // Extract aggregate rating
+    let rating = null;
+    let ratingCount = null;
+    const ratingValueMatch = html.match(/itemprop="ratingValue">([^<]+)<\/span>/i);
+    if (ratingValueMatch) {
+      rating = parseFloat(ratingValueMatch[1]);
+    }
+    const ratingCountMatch = html.match(/itemprop="ratingCount">([^<]+)<\/span>/i);
+    if (ratingCountMatch) {
+      ratingCount = parseInt(ratingCountMatch[1], 10);
+    }
+
+    // Extract trailer URL
+    let trailerUrl = null;
+    const trailerMatch = html.match(/class="trailerButton"[^>]*href="([^"]+)"/i);
+    if (trailerMatch) {
+      trailerUrl = trailerMatch[1];
+    }
+
+    // Parse seasons and episodes structure
+    const seasonsData = this._parseSeasons(html, animeId);
+
+    // Calculate total episode count
+    let episodeCount = 0;
+    for (const season of seasonsData) {
+      episodeCount += season.episodeCount;
+    }
+
     return {
       id: animeId,
       title,
-      altTitles: [],
+      altTitles,
       cover,
-      banner: null,
+      banner,
       description,
       genres,
-      status: null,
-      year: null,
-      seasonCount,
-      episodeCount: null,
-      rating: null,
+      directors,
+      actors,
+      producers,
+      countries,
+      status: endYear === 'Ongoing' ? 'Ongoing' : 'Completed',
+      startYear,
+      endYear,
+      year: startYear,
+      fskRating,
+      imdbId,
+      imdbLink,
+      rating,
+      ratingCount,
+      ratingMax: 5,
+      trailerUrl,
+      seasons: seasonsData,
+      seasonCount: seasonsData.length,
+      episodeCount,
+      hasMovies: seasonsData.some(s => s.isMovies),
       anilistId: null,
       malId: null
     };
+  },
+
+  /**
+   * Parse seasons and episodes structure from HTML
+   * @param {string} html - HTML content
+   * @param {string} animeId - Anime ID
+   * @returns {Array} Array of season objects
+   * @private
+   */
+  _parseSeasons(html, animeId) {
+    const seasons = [];
+
+    // Find the hosterSiteDirectNav section
+    const navSection = html.match(/<div[^>]*class="hosterSiteDirectNav"[^>]*id="stream"[^>]*>([\s\S]*?)<\/div>\s*<div/i);
+    if (!navSection) {
+      // Fallback: try to find seasons from URL patterns
+      const seasonMatches = html.match(/staffel-(\d+)/gi) || [];
+      const uniqueSeasons = [...new Set(seasonMatches.map(s => parseInt(s.replace('staffel-', ''), 10)))];
+      uniqueSeasons.sort((a, b) => a - b);
+
+      for (const seasonNum of uniqueSeasons) {
+        // Count episodes for this season
+        const episodeRegex = new RegExp(`staffel-${seasonNum}\\/episode-(\\d+)`, 'gi');
+        const episodeMatches = new Set();
+        let match;
+        while ((match = episodeRegex.exec(html)) !== null) {
+          episodeMatches.add(parseInt(match[1], 10));
+        }
+
+        seasons.push({
+          seasonNumber: seasonNum,
+          title: `Staffel ${seasonNum}`,
+          isMovies: false,
+          link: `/anime/stream/${animeId}/staffel-${seasonNum}`,
+          episodeCount: episodeMatches.size,
+          episodes: [...episodeMatches].sort((a, b) => a - b).map(epNum => ({
+            episodeNumber: epNum,
+            id: `${seasonNum}-${epNum}`,
+            title: `Episode ${epNum}`,
+            link: `/anime/stream/${animeId}/staffel-${seasonNum}/episode-${epNum}`
+          }))
+        });
+      }
+
+      // Check for movies
+      const hasMovies = html.includes('/filme"') || html.includes('/filme ');
+      if (hasMovies) {
+        // Count film episodes
+        const filmEpisodeRegex = /filme\/episode-(\d+)/gi;
+        const filmEpisodes = new Set();
+        let filmMatch;
+        while ((filmMatch = filmEpisodeRegex.exec(html)) !== null) {
+          filmEpisodes.add(parseInt(filmMatch[1], 10));
+        }
+
+        seasons.unshift({
+          seasonNumber: 0,
+          title: 'Filme',
+          isMovies: true,
+          link: `/anime/stream/${animeId}/filme`,
+          episodeCount: filmEpisodes.size || 1,
+          episodes: filmEpisodes.size > 0 
+            ? [...filmEpisodes].sort((a, b) => a - b).map(epNum => ({
+                episodeNumber: epNum,
+                id: `filme-${epNum}`,
+                title: `Film ${epNum}`,
+                link: `/anime/stream/${animeId}/filme/episode-${epNum}`
+              }))
+            : []
+        });
+      }
+
+      return seasons;
+    }
+
+    const navContent = navSection[1];
+
+    // Parse season links from the navigation
+    // Pattern: <a href="/anime/stream/{animeId}/staffel-{num}" or /filme
+    const seasonLinkRegex = /<a[^>]*href="\/anime\/stream\/[^"]*\/(staffel-(\d+)|filme)"[^>]*title="([^"]*)"[^>]*>([^<]*)<\/a>/gi;
+    let seasonMatch;
+
+    while ((seasonMatch = seasonLinkRegex.exec(navContent)) !== null) {
+      const isMovies = seasonMatch[1] === 'filme';
+      const seasonNum = isMovies ? 0 : parseInt(seasonMatch[2], 10);
+      const seasonTitle = this._decodeHtmlEntities(seasonMatch[3].trim());
+
+      // Count episodes for this season
+      const episodePattern = isMovies ? 'filme\\/episode-(\\d+)' : `staffel-${seasonNum}\\/episode-(\\d+)`;
+      const episodeRegex = new RegExp(episodePattern, 'gi');
+      const episodeMatches = new Set();
+      let epMatch;
+      while ((epMatch = episodeRegex.exec(html)) !== null) {
+        episodeMatches.add(parseInt(epMatch[1], 10));
+      }
+
+      seasons.push({
+        seasonNumber: seasonNum,
+        title: isMovies ? 'Filme' : seasonTitle,
+        isMovies,
+        link: `/anime/stream/${animeId}/${isMovies ? 'filme' : `staffel-${seasonNum}`}`,
+        episodeCount: episodeMatches.size,
+        episodes: [...episodeMatches].sort((a, b) => a - b).map(epNum => ({
+          episodeNumber: epNum,
+          id: isMovies ? `filme-${epNum}` : `${seasonNum}-${epNum}`,
+          title: isMovies ? `Film ${epNum}` : `Episode ${epNum}`,
+          link: `/anime/stream/${animeId}/${isMovies ? 'filme' : `staffel-${seasonNum}`}/episode-${epNum}`
+        }))
+      });
+    }
+
+    // Sort seasons: Movies first (seasonNumber 0), then by season number
+    seasons.sort((a, b) => {
+      if (a.isMovies && !b.isMovies) return -1;
+      if (!a.isMovies && b.isMovies) return 1;
+      return a.seasonNumber - b.seasonNumber;
+    });
+
+    return seasons;
   }
 };
 
