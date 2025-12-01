@@ -214,8 +214,17 @@ export default function PluginAnimePage() {
             {/* Description - matches AnimePage.jsx exactly with toggle */}
             {data?.description && (
               <div
-                className={`relative flex ${showFullDescription ? '' : 'max-h-[9.55rem]'} flex-col gap-y-2 overflow-hidden pb-6 font-space-mono text-sm opacity-55 transition-all`}
+                className={`relative flex ${showFullDescription ? '' : 'max-h-[9.55rem]'} flex-col gap-y-2 overflow-hidden pb-6 font-space-mono text-sm opacity-55 transition-all cursor-pointer`}
                 onClick={() => setShowFullDescription(!showFullDescription)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setShowFullDescription(!showFullDescription)
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-expanded={showFullDescription}
               >
                 {parse(autop(data.description))}
                 {!showFullDescription && (
