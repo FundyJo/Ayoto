@@ -167,6 +167,44 @@ class PluginHttpClient {
       throw new Error(`Failed to parse JSON: ${e.message}`)
     }
   }
+
+  /**
+   * Make multiple HTTP requests in parallel for better performance
+   * @param {Array<{url: string, options?: Object}>} requests - Array of request configurations
+   * @returns {Promise<Object[]>} Array of responses in the same order as requests
+   */
+  async getAll(requests) {
+    return Promise.all(requests.map(req => this.get(req.url, req.options || {})))
+  }
+
+  /**
+   * Make multiple JSON requests in parallel for better performance
+   * @param {Array<{url: string, options?: Object}>} requests - Array of request configurations
+   * @returns {Promise<Object[]>} Array of parsed JSON responses in the same order as requests
+   */
+  async getAllJson(requests) {
+    return Promise.all(requests.map(req => this.getJson(req.url, req.options || {})))
+  }
+
+  /**
+   * Make multiple HTTP requests in parallel with settled promises (no rejection on failure)
+   * Each result contains { status: 'fulfilled'|'rejected', value?, reason? }
+   * @param {Array<{url: string, options?: Object}>} requests - Array of request configurations
+   * @returns {Promise<PromiseSettledResult<Object>[]>} Array of settled promise results
+   */
+  async getAllSettled(requests) {
+    return Promise.allSettled(requests.map(req => this.get(req.url, req.options || {})))
+  }
+
+  /**
+   * Make multiple JSON requests in parallel with settled promises (no rejection on failure)
+   * Each result contains { status: 'fulfilled'|'rejected', value?, reason? }
+   * @param {Array<{url: string, options?: Object}>} requests - Array of request configurations
+   * @returns {Promise<PromiseSettledResult<Object>[]>} Array of settled promise results
+   */
+  async getAllJsonSettled(requests) {
+    return Promise.allSettled(requests.map(req => this.getJson(req.url, req.options || {})))
+  }
 }
 
 // ============================================================================

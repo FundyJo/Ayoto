@@ -74,6 +74,7 @@ export default function PluginAnimePage() {
   const [pluginCapabilities, setPluginCapabilities] = useState({})
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [refetchKey, setRefetchKey] = useState(0)
+  const [showAllTitles, setShowAllTitles] = useState(false)
 
   useEffect(() => {
     async function fetchAnimeDetails() {
@@ -204,9 +205,37 @@ export default function PluginAnimePage() {
             {/* Title - matches AnimePage.jsx exactly */}
             <p className="font-space-mono text-xl font-medium tracking-wider">{data?.title}</p>
             {data?.altTitles && data.altTitles.length > 0 && (
-              <p className="text mb-2 border-b border-[#545454] pb-2 font-space-mono font-medium tracking-wider opacity-80">
-                {data.altTitles.join(' • ')}
-              </p>
+              <div className="mb-2 border-b border-[#545454] pb-2">
+                <div 
+                  className="flex cursor-pointer items-start gap-x-2 font-space-mono font-medium tracking-wider opacity-80"
+                  onClick={() => data.altTitles.length > 3 && setShowAllTitles(!showAllTitles)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      data.altTitles.length > 3 && setShowAllTitles(!showAllTitles)
+                    }
+                  }}
+                  role={data.altTitles.length > 3 ? "button" : undefined}
+                  tabIndex={data.altTitles.length > 3 ? 0 : undefined}
+                  aria-expanded={showAllTitles}
+                >
+                  <p className="text-sm">
+                    {showAllTitles 
+                      ? data.altTitles.join(' • ')
+                      : data.altTitles.slice(0, 3).join(' • ')}
+                    {!showAllTitles && data.altTitles.length > 3 && (
+                      <span className="ml-2 text-xs text-blue-400 hover:text-blue-300">
+                        +{data.altTitles.length - 3} more
+                      </span>
+                    )}
+                    {showAllTitles && data.altTitles.length > 3 && (
+                      <span className="ml-2 text-xs text-blue-400 hover:text-blue-300">
+                        show less
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
             )}
 
             {/* Info section - shows year range, episode count, status */}
