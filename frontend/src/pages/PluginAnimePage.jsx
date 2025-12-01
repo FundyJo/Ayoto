@@ -7,7 +7,7 @@ import { ExclamationTriangleIcon, GlobeIcon, StarIcon, PersonIcon, LockClosedIco
 import { autop } from '@wordpress/autop'
 import parse from 'html-react-parser'
 import { useZenshinContext } from '../utils/ContextProvider'
-import { zpePluginManager } from '../zpe'
+import { zpePluginManager, pluginAPI } from '../zpe'
 import PluginAuthModal from '../components/PluginAuthModal'
 import Pagination from '../components/Pagination'
 import VidstackPlayer from '../components/VidstackPlayer'
@@ -28,16 +28,37 @@ const LANGUAGE_FILTERS = [
   { value: 'ja', label: 'Japanese', code: 'ja' }
 ]
 
-// Supported formats for Vidstack player
-const PLAYABLE_FORMATS = ['m3u8', 'mp4', 'hls', 'embed', 'webm', null, undefined]
+// Supported formats for Vidstack player - these can be played directly
+const DIRECTLY_PLAYABLE_FORMATS = ['m3u8', 'mp4', 'hls', 'webm', null, undefined]
+
+// Formats that need extraction via stream providers before playing
+const EXTRACTABLE_FORMATS = ['embed', 'redirect']
 
 /**
- * Check if a stream format is playable in Vidstack
+ * Check if a stream format is directly playable in Vidstack (no extraction needed)
+ * @param {string|null|undefined} format - Stream format
+ * @returns {boolean} Whether the format can be played directly in Vidstack
+ */
+function isDirectlyPlayable(format) {
+  return DIRECTLY_PLAYABLE_FORMATS.includes(format) || !format
+}
+
+/**
+ * Check if a stream format needs extraction via a stream provider
+ * @param {string|null|undefined} format - Stream format
+ * @returns {boolean} Whether the format needs extraction
+ */
+function needsExtraction(format) {
+  return EXTRACTABLE_FORMATS.includes(format)
+}
+
+/**
+ * Check if a stream format can be played in Vidstack (directly or after extraction)
  * @param {string|null|undefined} format - Stream format
  * @returns {boolean} Whether the format can be played in Vidstack
  */
 function isPlayableInVidstack(format) {
-  return PLAYABLE_FORMATS.includes(format) || !format
+  return isDirectlyPlayable(format) || needsExtraction(format)
 }
 
 /**
@@ -276,6 +297,10 @@ export default function PluginAnimePage() {
   const [showResumePrompt, setShowResumePrompt] = useState(false)
   const [resumeTime, setResumeTime] = useState(0)
   const vidstackRef = useRef(null)
+  
+  // Stream extraction state (for embed/redirect URLs that need hoster extraction)
+  const [isExtractingStream, setIsExtractingStream] = useState(false)
+  const [extractionError, setExtractionError] = useState(null)
   
   // Anime4K settings for Vidstack player
   const [anime4kEnabled, setAnime4kEnabled] = useState(() => {
@@ -530,26 +555,80 @@ export default function PluginAnimePage() {
   }
 
   // Handle playing a stream in Vidstack player
-  const handlePlayStream = (stream, episode) => {
-    // Check if there's saved progress for this episode
-    const progress = getWatchProgress(pluginId, animeId, episode.id)
+  // For embed/redirect formats, extract the actual playable URL first
+  const handlePlayStream = async (stream, episode) => {
+    const episodeTitle = episode.fullTitle || episode.title || `Episode ${episode.number}`
     
-    if (progress && progress.percentage > RESUME_THRESHOLD && progress.percentage < WATCH_PROGRESS_THRESHOLD) {
-      // Show resume prompt
-      setResumeTime(progress.currentTime)
-      setShowResumePrompt(true)
-      setActiveStream({
-        ...stream,
-        episodeId: episode.id,
-        episodeTitle: episode.fullTitle || episode.title || `Episode ${episode.number}`
-      })
+    // Clear any previous extraction errors
+    setExtractionError(null)
+    
+    // Check if the stream needs extraction (embed or redirect format)
+    if (needsExtraction(stream.format)) {
+      setIsExtractingStream(true)
+      
+      try {
+        // Try to extract the actual playable URL using stream providers (like hosters-provider)
+        const extractedStream = await pluginAPI.extractStream(stream.url)
+        
+        if (extractedStream && extractedStream.url) {
+          // Successfully extracted - use the extracted stream
+          const playableStream = {
+            ...extractedStream,
+            originalUrl: stream.url,
+            originalServer: stream.server,
+            episodeId: episode.id,
+            episodeTitle: episodeTitle
+          }
+          
+          // Check for resume progress
+          const progress = getWatchProgress(pluginId, animeId, episode.id)
+          if (progress && progress.percentage > RESUME_THRESHOLD && progress.percentage < WATCH_PROGRESS_THRESHOLD) {
+            setResumeTime(progress.currentTime)
+            setShowResumePrompt(true)
+          }
+          
+          setActiveStream(playableStream)
+          toast.success('Stream extracted successfully', {
+            description: `Playing from ${extractedStream.server || stream.server}`
+          })
+        } else {
+          // Extraction failed - no stream provider could extract the URL
+          setExtractionError('No stream provider available to extract this hoster URL')
+          toast.error('Stream extraction failed', {
+            description: 'No stream provider plugin available for this hoster. Try installing the hosters-provider plugin.',
+            duration: 5000
+          })
+        }
+      } catch (error) {
+        console.error('Stream extraction error:', error)
+        setExtractionError(error.message)
+        toast.error('Stream extraction failed', {
+          description: error.message
+        })
+      } finally {
+        setIsExtractingStream(false)
+      }
     } else {
-      // Play from start
-      setActiveStream({
-        ...stream,
-        episodeId: episode.id,
-        episodeTitle: episode.fullTitle || episode.title || `Episode ${episode.number}`
-      })
+      // Direct playable format - no extraction needed
+      const progress = getWatchProgress(pluginId, animeId, episode.id)
+      
+      if (progress && progress.percentage > RESUME_THRESHOLD && progress.percentage < WATCH_PROGRESS_THRESHOLD) {
+        // Show resume prompt
+        setResumeTime(progress.currentTime)
+        setShowResumePrompt(true)
+        setActiveStream({
+          ...stream,
+          episodeId: episode.id,
+          episodeTitle: episodeTitle
+        })
+      } else {
+        // Play from start
+        setActiveStream({
+          ...stream,
+          episodeId: episode.id,
+          episodeTitle: episodeTitle
+        })
+      }
     }
   }
 
@@ -608,6 +687,7 @@ export default function PluginAnimePage() {
     setActiveStream(null)
     setShowResumePrompt(false)
     setResumeTime(0)
+    setExtractionError(null)
   }
 
   if (isLoading) return <CenteredLoader />
@@ -1119,7 +1199,18 @@ export default function PluginAnimePage() {
                         
                         {!isLoadingThisEpisode && streams && streams.length > 0 && (
                           <div className="grid gap-2">
-                            <p className="text-xs font-medium opacity-70">Available Streams:</p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-medium opacity-70">Available Streams:</p>
+                              {/* Show stream provider availability hint for embed/redirect streams */}
+                              {streams.some(s => needsExtraction(s.format)) && (
+                                <Tooltip content="Streams with 'embed' or 'redirect' format need a stream provider plugin (like hosters-provider) to extract the playable URL">
+                                  <span className="text-xs text-orange-400 flex items-center gap-1 cursor-help">
+                                    <InfoCircledIcon className="h-3 w-3" />
+                                    Some streams need extraction
+                                  </span>
+                                </Tooltip>
+                              )}
+                            </div>
                             {streams.map((stream, streamIdx) => (
                               <div
                                 key={streamIdx}
@@ -1133,22 +1224,36 @@ export default function PluginAnimePage() {
                                     </span>
                                   )}
                                   {stream.format && (
-                                    <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs opacity-60">
-                                      {stream.format}
+                                    <span className={`rounded px-1.5 py-0.5 text-xs ${
+                                      needsExtraction(stream.format)
+                                        ? 'bg-orange-900/30 text-orange-300'
+                                        : 'bg-gray-700 opacity-60'
+                                    }`}>
+                                      {needsExtraction(stream.format) ? `${stream.format} (needs extraction)` : stream.format}
                                     </span>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  {/* Play in Vidstack button - for direct playable formats */}
+                                  {/* Play button - handles both direct and extractable formats */}
                                   {isPlayableInVidstack(stream.format) && (
                                     <Button
                                       size="1"
                                       variant="soft"
-                                      color="violet"
+                                      color={needsExtraction(stream.format) ? 'orange' : 'violet'}
                                       onClick={() => handlePlayStream(stream, episode)}
+                                      disabled={isExtractingStream}
                                     >
-                                      <PlayIcon className="h-3 w-3" />
-                                      Play
+                                      {isExtractingStream ? (
+                                        <>
+                                          <Spinner size="1" />
+                                          Extracting...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <PlayIcon className="h-3 w-3" />
+                                          {needsExtraction(stream.format) ? 'Extract & Play' : 'Play'}
+                                        </>
+                                      )}
                                     </Button>
                                   )}
                                   <a
