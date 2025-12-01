@@ -1,20 +1,32 @@
 import { GlobeIcon } from '@radix-ui/react-icons'
-import { toast } from 'sonner'
+import { useNavigate } from 'react-router-dom'
 
 /**
  * Component to display search results from plugin providers
  * @param {Object} props - Component props
  * @param {Object} props.data - Search result data from plugin
  * @param {string} props.providerName - Name of the plugin provider
+ * @param {string} props.providerId - ID of the plugin provider
  * @param {Function} props.setIsActive - Function to toggle search bar active state
  */
-export default function PluginSearchResults({ data, providerName, setIsActive }) {
-  // Handle click - show info about the result and copy link if available
+export default function PluginSearchResults({ data, providerName, providerId, setIsActive }) {
+  const navigate = useNavigate()
+
+  // Handle click - navigate to plugin anime page
   function handleClick() {
-    // Show info toast with provider and title
-    toast.info(`${data.title}`, {
-      description: data.description || `From ${providerName}`,
-      duration: 3000
+    // Get the anime ID from the data - use link, id, or fallback to a slug of the title
+    const titleSlug = (data.title || data.name || 'unknown')?.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const animeId = data.link || data.id || titleSlug
+    
+    // Navigate to the plugin anime page with the search result data
+    navigate(`/plugin-anime/${providerId}/${encodeURIComponent(animeId)}`, {
+      state: {
+        title: data.title || data.name,
+        description: data.description,
+        cover: data.cover,
+        background_cover: data.background_cover,
+        year: data.year || data.productionYear
+      }
     })
     setIsActive(false)
   }

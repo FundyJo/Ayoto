@@ -179,6 +179,7 @@ export default function SearchBar() {
                 key={`${provider.providerId}-${result.id}`}
                 data={result}
                 providerName={provider.providerName}
+                providerId={provider.providerId}
                 setIsActive={setIsActive}
               />
             ))
