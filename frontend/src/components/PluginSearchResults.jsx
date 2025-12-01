@@ -14,9 +14,10 @@ export default function PluginSearchResults({ data, providerName, providerId, se
 
   // Handle click - navigate to plugin anime page
   function handleClick() {
-    // Get the anime ID from the data - use link, id, or fallback to a slug of the title
+    // Get the anime ID from the data - use id first, then link, or fallback to a slug of the title
+    // Note: data.id should be the actual identifier for API calls, while data.link may be a full path
     const titleSlug = (data.title || data.name || 'unknown')?.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-    const animeId = data.link || data.id || titleSlug
+    const animeId = data.id || data.link || titleSlug
     
     // Navigate to the plugin anime page with the search result data
     navigate(`/plugin-anime/${providerId}/${encodeURIComponent(animeId)}`, {
