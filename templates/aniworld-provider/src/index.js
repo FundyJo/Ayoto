@@ -221,7 +221,7 @@ const plugin = {
       }
       
       // Parse stream sources from the episode page
-      const sources = this._parseStreamSources(response.body);
+      const sources = await this._parseStreamSources(response.body);
       
       return sources;
     } catch (error) {
@@ -553,10 +553,10 @@ const plugin = {
   /**
    * Parse stream sources from episode page
    * @param {string} html - HTML content
-   * @returns {Array} Stream sources
+   * @returns {Promise<Array>} Stream sources
    * @private
    */
-  _parseStreamSources(html) {
+  async _parseStreamSources(html) {
     const sources = [];
     const addedUrls = new Set();
     
@@ -586,24 +586,114 @@ const plugin = {
       }
     }
     
-    // Also look for generic redirect links
+    // Also look for generic redirect links and resolve them
     const redirectRegex = /redirect\/(\d+)/gi;
-    const redirectMatches = html.matchAll(redirectRegex);
+    const redirectMatches = [...html.matchAll(redirectRegex)];
+    
+    // Resolve redirects to get actual streaming URLs
     for (const redirectMatch of redirectMatches) {
       const redirectUrl = `${this.baseUrl}/redirect/${redirectMatch[1]}`;
       if (!addedUrls.has(redirectUrl)) {
         addedUrls.add(redirectUrl);
-        sources.push({
-          url: redirectUrl,
-          format: 'redirect',
-          quality: 'Unknown',
-          server: 'Redirect',
-          isDefault: sources.length === 0
-        });
+        
+        // Try to resolve the redirect
+        try {
+          const resolvedUrl = await this._resolveRedirect(redirectUrl);
+          if (resolvedUrl && resolvedUrl !== redirectUrl) {
+            // Detect the server from the resolved URL
+            const server = this._detectServerFromUrl(resolvedUrl);
+            sources.push({
+              url: resolvedUrl,
+              format: 'embed',
+              quality: 'HD',
+              server: server,
+              isDefault: sources.length === 0
+            });
+          } else {
+            // If redirect couldn't be resolved, add the redirect URL anyway
+            sources.push({
+              url: redirectUrl,
+              format: 'redirect',
+              quality: 'Unknown',
+              server: 'Redirect',
+              isDefault: sources.length === 0
+            });
+          }
+        } catch (error) {
+          console.error('Failed to resolve redirect:', error);
+          // Add the unresolved redirect URL
+          sources.push({
+            url: redirectUrl,
+            format: 'redirect',
+            quality: 'Unknown',
+            server: 'Redirect',
+            isDefault: sources.length === 0
+          });
+        }
       }
     }
     
     return sources;
+  },
+
+  /**
+   * Resolve a redirect URL to get the actual destination
+   * @param {string} redirectUrl - The redirect URL to resolve
+   * @returns {Promise<string|null>} The resolved URL or null
+   * @private
+   */
+  async _resolveRedirect(redirectUrl) {
+    try {
+      const response = await this.http.get(redirectUrl);
+      
+      // Check if we got redirected (the response.url will be different)
+      if (response.url && response.url !== redirectUrl) {
+        return response.url;
+      }
+      
+      // Check for meta refresh or JavaScript redirect in the response body
+      if (response.body) {
+        // Look for meta refresh
+        const metaRefreshMatch = response.body.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'][^"']*url=([^"'>\s]+)/i);
+        if (metaRefreshMatch) {
+          return metaRefreshMatch[1];
+        }
+        
+        // Look for window.location redirect
+        const windowLocationMatch = response.body.match(/window\.location(?:\.href)?\s*=\s*["']([^"']+)["']/i);
+        if (windowLocationMatch) {
+          return windowLocationMatch[1];
+        }
+        
+        // Look for document.location redirect
+        const documentLocationMatch = response.body.match(/document\.location(?:\.href)?\s*=\s*["']([^"']+)["']/i);
+        if (documentLocationMatch) {
+          return documentLocationMatch[1];
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error resolving redirect:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Detect the streaming server from a URL
+   * @param {string} url - The URL to check
+   * @returns {string} Server name
+   * @private
+   */
+  _detectServerFromUrl(url) {
+    const urlLower = url.toLowerCase();
+    if (urlLower.includes('voe')) return 'VOE';
+    if (urlLower.includes('vidoza')) return 'Vidoza';
+    if (urlLower.includes('streamtape')) return 'Streamtape';
+    if (urlLower.includes('dood')) return 'Doodstream';
+    if (urlLower.includes('filemoon')) return 'Filemoon';
+    if (urlLower.includes('mp4upload')) return 'Mp4upload';
+    return 'Unknown';
   },
 
   /**
