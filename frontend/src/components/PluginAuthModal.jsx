@@ -135,7 +135,12 @@ export default function PluginAuthModal({
           
           // Store only authentication state in plugin storage (not email for privacy)
           if (plugin.context?.storage) {
-            plugin.context.storage.set('isAuthenticated', true)
+            try {
+              plugin.context.storage.set('isAuthenticated', true)
+            } catch (storageError) {
+              // Storage failed but login succeeded - don't block the user
+              console.error('Failed to persist auth state:', storageError)
+            }
           }
           
           if (onAuthSuccess) {
@@ -230,7 +235,7 @@ export default function PluginAuthModal({
           <label className="flex items-center gap-2">
             <Checkbox
               checked={rememberMe}
-              onCheckedChange={(checked) => setRememberMe(checked === true)}
+              onCheckedChange={(checked) => setRememberMe(!!checked)}
               disabled={isLoading}
             />
             <Text size="2">{authConfig.rememberMeLabel}</Text>

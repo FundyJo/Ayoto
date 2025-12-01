@@ -35,6 +35,27 @@ function createAnimeDataFromSearchResult(animeId, searchData) {
   }
 }
 
+/**
+ * Format year range for display
+ * @param {number|string} startYear - Start year
+ * @param {number|string} endYear - End year (optional)
+ * @param {string} status - Anime status (optional)
+ * @returns {string} Formatted year range
+ */
+function formatYearRange(startYear, endYear, status) {
+  if (!startYear) return ''
+  
+  let yearText = String(startYear)
+  
+  if (endYear && endYear !== startYear) {
+    yearText += ` - ${endYear}`
+  } else if (!endYear && status === 'RELEASING') {
+    yearText += ' - Present'
+  }
+  
+  return yearText
+}
+
 export default function PluginAnimePage() {
   const zenshinContext = useZenshinContext()
   const { glow } = zenshinContext
@@ -212,9 +233,7 @@ export default function PluginAnimePage() {
               {(data?.startYear || data?.year) && (
                 <>
                   <p className="text-xs opacity-60">
-                    {data.startYear || data.year}
-                    {data.endYear && data.endYear !== data.startYear && ` - ${data.endYear}`}
-                    {!data.endYear && data.status === 'RELEASING' && ' - Present'}
+                    {formatYearRange(data.startYear || data.year, data.endYear, data.status)}
                   </p>
                   <div className="h-5 w-[1px] bg-[#333]"></div>
                 </>
