@@ -1,0 +1,69 @@
+{
+  "id": "hosters-provider",
+  "name": "Video Hosters Provider",
+  "version": "1.0.0",
+  "description": "Stream provider plugin for extracting video URLs from various video hosting services including Vidoza, Vidmoly, VOE, Streamtape, SpeedFiles, Luluvdo, LoadX, Filemoon, and Doodstream",
+  "pluginType": "stream-provider",
+  "author": {
+    "name": "Ayoto Team",
+    "github": "FundyJo"
+  },
+  "icon": "icon.svg",
+  "homepage": "https://github.com/FundyJo/Ayoto",
+  "license": "MIT",
+  "permissions": [
+    "network:http",
+    "storage:cache"
+  ],
+  "capabilities": {
+    "extractStream": true,
+    "getHosterInfo": true
+  },
+  "config": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "rateLimitMs": 500,
+    "timeout": 30000
+  },
+  "security": {
+    "sandboxed": true,
+    "cspEnabled": true,
+    "allowedDomains": [
+      "*.vidoza.net",
+      "*.vidmoly.to",
+      "*.vidmoly.me",
+      "*.voe.sx",
+      "*.voe-network.net",
+      "*.streamtape.com",
+      "*.streamtape.net",
+      "*.speedfiles.net",
+      "*.luluvdo.com",
+      "*.loadx.ws",
+      "*.filemoon.sx",
+      "*.filemoon.to",
+      "*.doodstream.com",
+      "*.dood.re",
+      "*.dood.watch",
+      "*.dood.wf"
+    ]
+  },
+  "minAppVersion": "2.5.0",
+  "keywords": [
+    "stream",
+    "extractor",
+    "hoster",
+    "vidoza",
+    "vidmoly",
+    "voe",
+    "streamtape",
+    "speedfiles",
+    "luluvdo",
+    "loadx",
+    "filemoon",
+    "doodstream"
+  ],
+  "main": "src/index.js",
+  "scripts": {
+    "extractors": "src/extractors.js",
+    "utils": "src/utils.js"
+  }
+}
