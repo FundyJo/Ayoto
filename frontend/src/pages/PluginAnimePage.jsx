@@ -1,4 +1,4 @@
-import { useParams, useLocation } from 'react-router-dom'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useCallback } from 'react'
 import CenteredLoader from '../ui/CenteredLoader'
 import { Button, Skeleton, TextField, Spinner, Tooltip, DropdownMenu } from '@radix-ui/themes'
@@ -10,6 +10,26 @@ import { useZenshinContext } from '../utils/ContextProvider'
 import { zpePluginManager } from '../zpe'
 import PluginAuthModal from '../components/PluginAuthModal'
 import Pagination from '../components/Pagination'
+
+// Constants
+const SEARCH_BLUR_DELAY_MS = 200 // Delay before hiding search results on blur
+const DEFAULT_SERVER_NAME = 'Unknown' // Default server name when not specified
+
+/**
+ * Helper function to get language display text
+ * Handles both string and object language formats
+ * @param {string|{name: string, code?: string, label?: string}} lang - Language info
+ * @returns {{display: string, title: string}} Display text and title for the language
+ */
+function getLanguageDisplay(lang) {
+  if (typeof lang === 'string') {
+    return { display: lang, title: lang }
+  }
+  // For object format, prefer code for display and label for title
+  const display = lang.code || lang.name || DEFAULT_SERVER_NAME
+  const title = lang.label || lang.name || display
+  return { display, title }
+}
 
 /**
  * Helper function to create anime data object from search result data
@@ -80,7 +100,7 @@ function mergeAnimeData(existingData, newData) {
  */
 function getDisplayName(item) {
   if (typeof item === 'string') return item
-  return item?.name || 'Unknown'
+  return item?.name || DEFAULT_SERVER_NAME
 }
 
 /**
@@ -107,6 +127,7 @@ function formatYearRange(startYear, endYear, status) {
 export default function PluginAnimePage() {
   const zenshinContext = useZenshinContext()
   const { glow } = zenshinContext
+  const navigate = useNavigate()
 
   const { pluginId, animeId } = useParams()
   const location = useLocation()
@@ -293,8 +314,12 @@ export default function PluginAnimePage() {
 
   // Save watched episodes to localStorage whenever they change
   useEffect(() => {
+    const storageKey = `plugin_watched_${pluginId}_${animeId}`
     if (watchedEpisodes.length > 0) {
-      localStorage.setItem(`plugin_watched_${pluginId}_${animeId}`, JSON.stringify(watchedEpisodes))
+      localStorage.setItem(storageKey, JSON.stringify(watchedEpisodes))
+    } else {
+      // Clear localStorage when all episodes are unwatched
+      localStorage.removeItem(storageKey)
     }
   }, [watchedEpisodes, pluginId, animeId])
 
@@ -371,15 +396,22 @@ export default function PluginAnimePage() {
 
   // Handle search result selection
   const handleSearchResultClick = (result) => {
-    // Navigate to the selected anime
+    // Navigate to the selected anime using React Router
     const newAnimeId = result.id || result.link
     if (newAnimeId && newAnimeId !== animeId) {
       // Clear current state and navigate
       setSearchQuery('')
       setSearchResults([])
       setShowSearchResults(false)
-      // Use navigate from react-router-dom
-      window.location.hash = `#/plugin-anime/${pluginId}/${encodeURIComponent(newAnimeId)}`
+      // Use React Router navigate for proper SPA navigation
+      navigate(`/plugin-anime/${pluginId}/${encodeURIComponent(newAnimeId)}`, {
+        state: {
+          title: result.title || result.name,
+          cover: result.cover,
+          description: result.description,
+          year: result.year
+        }
+      })
     }
   }
 
@@ -695,7 +727,7 @@ export default function PluginAnimePage() {
                 type="text"
                 value={searchQuery}
                 onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
-                onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+                onBlur={() => setTimeout(() => setShowSearchResults(false), SEARCH_BLUR_DELAY_MS)}
               >
                 <TextField.Slot style={{ paddingLeft: '12px' }}>
                   {isSearching ? (
@@ -829,15 +861,18 @@ export default function PluginAnimePage() {
                           {/* Display language info */}
                           {episode.languages && episode.languages.length > 0 && (
                             <div className="flex gap-1">
-                              {episode.languages.map((lang, langIdx) => (
-                                <span
-                                  key={langIdx}
-                                  className="rounded bg-blue-900/30 px-1.5 py-0.5 text-xs text-blue-300"
-                                  title={lang.label || getDisplayName(lang)}
-                                >
-                                  {lang.code || getDisplayName(lang)}
-                                </span>
-                              ))}
+                              {episode.languages.map((lang, langIdx) => {
+                                const langDisplay = getLanguageDisplay(lang)
+                                return (
+                                  <span
+                                    key={langIdx}
+                                    className="rounded bg-blue-900/30 px-1.5 py-0.5 text-xs text-blue-300"
+                                    title={langDisplay.title}
+                                  >
+                                    {langDisplay.display}
+                                  </span>
+                                )
+                              })}
                             </div>
                           )}
                         </div>
@@ -874,7 +909,7 @@ export default function PluginAnimePage() {
                                 className="flex items-center justify-between rounded bg-[#232326] px-3 py-2 transition-colors hover:bg-[#2a2a2d]"
                               >
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm">{stream.server || 'Unknown'}</span>
+                                  <span className="font-medium text-sm">{stream.server || DEFAULT_SERVER_NAME}</span>
                                   {stream.quality && (
                                     <span className="rounded bg-purple-900/30 px-1.5 py-0.5 text-xs text-purple-300">
                                       {stream.quality}
