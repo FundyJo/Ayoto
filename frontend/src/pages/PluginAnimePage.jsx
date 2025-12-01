@@ -1,19 +1,44 @@
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import CenteredLoader from '../ui/CenteredLoader'
-import { Button, Skeleton, TextField, Spinner, Tooltip, DropdownMenu } from '@radix-ui/themes'
+import { Button, Skeleton, TextField, Spinner, Tooltip, DropdownMenu, Switch } from '@radix-ui/themes'
 import { toast } from 'sonner'
-import { ExclamationTriangleIcon, GlobeIcon, StarIcon, PersonIcon, LockClosedIcon, InfoCircledIcon, MagnifyingGlassIcon, EyeClosedIcon, EyeOpenIcon, PlayIcon } from '@radix-ui/react-icons'
+import { ExclamationTriangleIcon, GlobeIcon, StarIcon, PersonIcon, LockClosedIcon, InfoCircledIcon, MagnifyingGlassIcon, EyeClosedIcon, EyeOpenIcon, PlayIcon, Cross2Icon } from '@radix-ui/react-icons'
 import { autop } from '@wordpress/autop'
 import parse from 'html-react-parser'
 import { useZenshinContext } from '../utils/ContextProvider'
 import { zpePluginManager } from '../zpe'
 import PluginAuthModal from '../components/PluginAuthModal'
 import Pagination from '../components/Pagination'
+import VidstackPlayer from '../components/VidstackPlayer'
 
 // Constants
 const SEARCH_BLUR_DELAY_MS = 200 // Delay before hiding search results on blur
 const DEFAULT_SERVER_NAME = 'Unknown' // Default server name when not specified
+const WATCH_PROGRESS_THRESHOLD = 0.8 // Mark as watched when 80% watched
+const RESUME_THRESHOLD = 0.05 // Show resume prompt when more than 5% progress
+
+// Language filter options
+const LANGUAGE_FILTERS = [
+  { value: 'all', label: 'All Languages', code: null },
+  { value: 'de-dub', label: 'German Dubbed', code: 'de' },
+  { value: 'de-sub', label: 'German Subtitles', code: 'de-sub' },
+  { value: 'en', label: 'English', code: 'en' },
+  { value: 'en-sub', label: 'English Subtitles', code: 'en-sub' },
+  { value: 'ja', label: 'Japanese', code: 'ja' }
+]
+
+// Supported formats for Vidstack player
+const PLAYABLE_FORMATS = ['m3u8', 'mp4', 'hls', 'embed', 'webm', null, undefined]
+
+/**
+ * Check if a stream format is playable in Vidstack
+ * @param {string|null|undefined} format - Stream format
+ * @returns {boolean} Whether the format can be played in Vidstack
+ */
+function isPlayableInVidstack(format) {
+  return PLAYABLE_FORMATS.includes(format) || !format
+}
 
 /**
  * Helper function to get language display text
@@ -29,6 +54,68 @@ function getLanguageDisplay(lang) {
   const display = lang.code || lang.name || DEFAULT_SERVER_NAME
   const title = lang.label || lang.name || display
   return { display, title }
+}
+
+/**
+ * Helper function to check if episode matches language filter
+ * @param {Object} episode - Episode object with languages array
+ * @param {string} filterValue - Language filter value (e.g., 'de-dub', 'en', 'all')
+ * @returns {boolean} Whether episode matches the filter
+ */
+function episodeMatchesLanguageFilter(episode, filterValue) {
+  if (filterValue === 'all') return true
+  if (!episode.languages || episode.languages.length === 0) return true // Show if no language info
+  
+  const filterConfig = LANGUAGE_FILTERS.find(f => f.value === filterValue)
+  if (!filterConfig || !filterConfig.code) return true
+  
+  return episode.languages.some(lang => {
+    const langCode = typeof lang === 'string' ? lang.toLowerCase() : (lang.code || lang.name || '').toLowerCase()
+    return langCode.includes(filterConfig.code.toLowerCase())
+  })
+}
+
+/**
+ * Get watch progress from localStorage
+ * @param {string} pluginId - Plugin ID
+ * @param {string} animeId - Anime ID  
+ * @param {string} episodeId - Episode ID
+ * @returns {{currentTime: number, duration: number, percentage: number} | null}
+ */
+function getWatchProgress(pluginId, animeId, episodeId) {
+  try {
+    const key = `watch_progress_${pluginId}_${animeId}_${episodeId}`
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (e) {
+    console.error('Error reading watch progress:', e)
+  }
+  return null
+}
+
+/**
+ * Save watch progress to localStorage
+ * @param {string} pluginId - Plugin ID
+ * @param {string} animeId - Anime ID
+ * @param {string} episodeId - Episode ID
+ * @param {number} currentTime - Current playback time in seconds
+ * @param {number} duration - Total duration in seconds
+ */
+function saveWatchProgress(pluginId, animeId, episodeId, currentTime, duration) {
+  try {
+    const key = `watch_progress_${pluginId}_${animeId}_${episodeId}`
+    const percentage = duration > 0 ? currentTime / duration : 0
+    localStorage.setItem(key, JSON.stringify({
+      currentTime,
+      duration,
+      percentage,
+      timestamp: Date.now()
+    }))
+  } catch (e) {
+    console.error('Error saving watch progress:', e)
+  }
 }
 
 /**
@@ -180,6 +267,23 @@ export default function PluginAnimePage() {
   
   // Season selection state
   const [selectedSeason, setSelectedSeason] = useState(null)
+  
+  // Language filter state
+  const [languageFilter, setLanguageFilter] = useState('all')
+  
+  // Vidstack player state
+  const [activeStream, setActiveStream] = useState(null) // {url, format, quality, server, episodeId, episodeTitle}
+  const [showResumePrompt, setShowResumePrompt] = useState(false)
+  const [resumeTime, setResumeTime] = useState(0)
+  const vidstackRef = useRef(null)
+  
+  // Anime4K settings for Vidstack player
+  const [anime4kEnabled, setAnime4kEnabled] = useState(() => {
+    return localStorage.getItem('anime4k_enabled') === 'true'
+  })
+  const [anime4kPreset, setAnime4kPreset] = useState(() => {
+    return localStorage.getItem('anime4k_preset') || 'mode-b'
+  })
 
   useEffect(() => {
     // Capture searchResultData in a local variable to avoid stale closure issues
@@ -339,10 +443,20 @@ export default function PluginAnimePage() {
   // Get unique seasons from episodes
   const availableSeasons = [...new Set(episodes.map(ep => ep.season).filter(s => s !== undefined && s !== null))].sort((a, b) => a - b)
 
-  // Filter episodes based on hideWatchedEpisodes and selectedSeason
+  // Get unique languages from episodes
+  const availableLanguages = [...new Set(episodes.flatMap(ep => {
+    if (!ep.languages) return []
+    return ep.languages.map(lang => {
+      if (typeof lang === 'string') return lang.toLowerCase()
+      return (lang.code || lang.name || '').toLowerCase()
+    })
+  }).filter(Boolean))]
+
+  // Filter episodes based on hideWatchedEpisodes, selectedSeason, and language
   const filteredEpisodes = episodes.filter(episode => {
     if (hideWatchedEpisodes && isEpisodeWatched(episode.id)) return false
     if (selectedSeason !== null && episode.season !== selectedSeason) return false
+    if (!episodeMatchesLanguageFilter(episode, languageFilter)) return false
     return true
   })
 
@@ -413,6 +527,87 @@ export default function PluginAnimePage() {
         }
       })
     }
+  }
+
+  // Handle playing a stream in Vidstack player
+  const handlePlayStream = (stream, episode) => {
+    // Check if there's saved progress for this episode
+    const progress = getWatchProgress(pluginId, animeId, episode.id)
+    
+    if (progress && progress.percentage > RESUME_THRESHOLD && progress.percentage < WATCH_PROGRESS_THRESHOLD) {
+      // Show resume prompt
+      setResumeTime(progress.currentTime)
+      setShowResumePrompt(true)
+      setActiveStream({
+        ...stream,
+        episodeId: episode.id,
+        episodeTitle: episode.fullTitle || episode.title || `Episode ${episode.number}`
+      })
+    } else {
+      // Play from start
+      setActiveStream({
+        ...stream,
+        episodeId: episode.id,
+        episodeTitle: episode.fullTitle || episode.title || `Episode ${episode.number}`
+      })
+    }
+  }
+
+  // Handle video time update for progress tracking with throttling
+  const lastSaveTimeRef = useRef(0)
+  const handleTimeUpdate = useCallback(({ currentTime, duration }) => {
+    if (activeStream && duration > 0) {
+      const now = Date.now()
+      // Only save progress every 5 seconds to avoid excessive localStorage writes
+      if (now - lastSaveTimeRef.current >= 5000) {
+        lastSaveTimeRef.current = now
+        saveWatchProgress(pluginId, animeId, activeStream.episodeId, currentTime, duration)
+      }
+      
+      // Mark as watched when threshold is reached
+      const percentage = currentTime / duration
+      if (percentage >= WATCH_PROGRESS_THRESHOLD) {
+        markEpisodeWatched(activeStream.episodeId)
+      }
+    }
+  }, [activeStream, pluginId, animeId, markEpisodeWatched])
+
+  // Handle video ended
+  const handleVideoEnded = useCallback(() => {
+    if (activeStream) {
+      markEpisodeWatched(activeStream.episodeId)
+      toast.success('Episode completed!', {
+        description: activeStream.episodeTitle
+      })
+    }
+  }, [activeStream, markEpisodeWatched])
+
+  // Handle resume from saved position
+  const handleResumePlayback = useCallback(() => {
+    setShowResumePrompt(false)
+    // Wait for player to be ready and then seek
+    const seekToResume = () => {
+      if (vidstackRef.current) {
+        vidstackRef.current.seek(resumeTime)
+      }
+    }
+    // Use requestAnimationFrame for better timing than setTimeout
+    requestAnimationFrame(() => {
+      requestAnimationFrame(seekToResume)
+    })
+  }, [resumeTime])
+
+  // Handle start from beginning
+  const handleStartFromBeginning = () => {
+    setShowResumePrompt(false)
+    setResumeTime(0)
+  }
+
+  // Close video player
+  const handleClosePlayer = () => {
+    setActiveStream(null)
+    setShowResumePrompt(false)
+    setResumeTime(0)
   }
 
   if (isLoading) return <CenteredLoader />
@@ -697,6 +892,31 @@ export default function PluginAnimePage() {
               </DropdownMenu.Root>
             )}
             
+            {/* Language Filter */}
+            {availableLanguages.length > 0 && (
+              <DropdownMenu.Root modal={false}>
+                <DropdownMenu.Trigger>
+                  <Button variant="soft" color={languageFilter !== 'all' ? 'blue' : 'gray'} size="1">
+                    <div className="flex items-center gap-x-2">
+                      🌐 {LANGUAGE_FILTERS.find(f => f.value === languageFilter)?.label || 'Language'}
+                    </div>
+                    <DropdownMenu.TriggerIcon />
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content>
+                  {LANGUAGE_FILTERS.map((filter) => (
+                    <DropdownMenu.Item
+                      key={filter.value}
+                      color={languageFilter === filter.value ? 'indigo' : 'gray'}
+                      onClick={() => { setLanguageFilter(filter.value); setPageNo(0); }}
+                    >
+                      {filter.label}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
+            )}
+            
             {/* Pagination */}
             {filteredEpisodes.length > pageSize && (
               <Pagination
@@ -901,11 +1121,8 @@ export default function PluginAnimePage() {
                           <div className="grid gap-2">
                             <p className="text-xs font-medium opacity-70">Available Streams:</p>
                             {streams.map((stream, streamIdx) => (
-                              <a
+                              <div
                                 key={streamIdx}
-                                href={stream.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="flex items-center justify-between rounded bg-[#232326] px-3 py-2 transition-colors hover:bg-[#2a2a2d]"
                               >
                                 <div className="flex items-center gap-2">
@@ -921,8 +1138,29 @@ export default function PluginAnimePage() {
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-xs opacity-50">Open →</span>
-                              </a>
+                                <div className="flex items-center gap-2">
+                                  {/* Play in Vidstack button - for direct playable formats */}
+                                  {isPlayableInVidstack(stream.format) && (
+                                    <Button
+                                      size="1"
+                                      variant="soft"
+                                      color="violet"
+                                      onClick={() => handlePlayStream(stream, episode)}
+                                    >
+                                      <PlayIcon className="h-3 w-3" />
+                                      Play
+                                    </Button>
+                                  )}
+                                  <a
+                                    href={stream.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-gray-400 hover:text-white transition-colors"
+                                  >
+                                    Open →
+                                  </a>
+                                </div>
+                              </div>
                             ))}
                           </div>
                         )}
@@ -955,6 +1193,94 @@ export default function PluginAnimePage() {
           )}
         </div>
       </div>
+
+      {/* Vidstack Player Overlay */}
+      {activeStream && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
+          <div className="relative w-full max-w-6xl mx-4">
+            {/* Close button */}
+            <button
+              onClick={handleClosePlayer}
+              className="absolute -top-10 right-0 z-10 flex items-center gap-1 rounded bg-gray-800 px-3 py-1.5 text-sm text-white transition-colors hover:bg-gray-700"
+            >
+              <Cross2Icon className="h-4 w-4" />
+              Close
+            </button>
+            
+            {/* Episode title */}
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-lg font-medium text-white">{activeStream.episodeTitle}</p>
+                <p className="text-sm text-gray-400">{data?.title}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {activeStream.server && (
+                  <span className="rounded bg-purple-900/50 px-2 py-1 text-xs text-purple-300">
+                    {activeStream.server}
+                  </span>
+                )}
+                {activeStream.quality && (
+                  <span className="rounded bg-blue-900/50 px-2 py-1 text-xs text-blue-300">
+                    {activeStream.quality}
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {/* Resume prompt */}
+            {showResumePrompt && (
+              <div className="mb-3 flex items-center justify-between rounded bg-blue-900/50 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <PlayIcon className="h-5 w-5 text-blue-300" />
+                  <span className="text-sm text-white">
+                    Resume from {Math.floor(resumeTime / 60)}:{String(Math.floor(resumeTime % 60)).padStart(2, '0')}?
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="1" variant="soft" color="blue" onClick={handleResumePlayback}>
+                    Resume
+                  </Button>
+                  <Button size="1" variant="soft" color="gray" onClick={handleStartFromBeginning}>
+                    Start Over
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* Video Player */}
+            <VidstackPlayer
+              ref={vidstackRef}
+              src={activeStream.url}
+              format={activeStream.format === 'hls' ? 'm3u8' : activeStream.format}
+              title={activeStream.episodeTitle}
+              poster={data?.cover}
+              autoPlay={!showResumePrompt}
+              anime4kEnabled={anime4kEnabled}
+              anime4kPreset={anime4kPreset}
+              showAnime4KControls={true}
+              showMiracastControls={true}
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleVideoEnded}
+              className="rounded-lg overflow-hidden"
+            />
+            
+            {/* Anime4K Quick Toggle */}
+            <div className="mt-3 flex items-center justify-end gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">Anime4K:</span>
+                <Switch
+                  checked={anime4kEnabled}
+                  onCheckedChange={(checked) => {
+                    setAnime4kEnabled(checked)
+                    localStorage.setItem('anime4k_enabled', checked ? 'true' : 'false')
+                  }}
+                  size="1"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Authentication Modal */}
       <PluginAuthModal
