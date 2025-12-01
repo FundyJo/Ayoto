@@ -21,6 +21,9 @@
 
 "use strict";
 
+// Import utilities
+const utils = require('./utils.js');
+
 /**
  * Extractors module for hoster-specific video extraction
  */
@@ -124,29 +127,6 @@ const extractors = {
   // ==========================================================================
 
   /**
-   * ROT13 decoder (for VOE obfuscation)
-   * @param {string} str - Input string
-   * @returns {string} Decoded string
-   * @private
-   */
-  _rot13(str) {
-    let result = '';
-    for (const char of str) {
-      const code = char.charCodeAt(0);
-      if (code >= 0x41 && code <= 0x5a) {
-        // Uppercase
-        result += String.fromCharCode(((code - 0x41 + 13) % 26) + 0x41);
-      } else if (code >= 0x61 && code <= 0x7a) {
-        // Lowercase
-        result += String.fromCharCode(((code - 0x61 + 13) % 26) + 0x61);
-      } else {
-        result += char;
-      }
-    }
-    return result;
-  },
-
-  /**
    * Replace obfuscation patterns with underscores
    * @param {string} str - Input string
    * @returns {string} Cleaned string
@@ -184,8 +164,8 @@ const extractors = {
    */
   _decodeVoe(inputVar) {
     try {
-      // Step 1: ROT13
-      const rot13Output = this._rot13(inputVar);
+      // Step 1: ROT13 (using utils)
+      const rot13Output = utils.rot13(inputVar);
       
       // Step 2: Clean obfuscation patterns
       const cleanedString = this._cleanObfuscation(rot13Output);
@@ -194,19 +174,23 @@ const extractors = {
       const noUnderscores = cleanedString.replace(/_/g, '');
       
       // Step 4: Base64 decode
-      const b64String1 = atob(noUnderscores);
+      const b64String1 = utils.decodeBase64(noUnderscores);
       
       // Step 5: Shift chars by 3
       const shiftedString = this._shiftChars(b64String1, 3);
       
       // Step 6: Reverse
-      const reversedString = shiftedString.split('').reverse().join('');
+      const reversedString = utils.reverseString(shiftedString);
       
       // Step 7: Base64 decode again
-      const finalString = atob(reversedString);
+      const finalString = utils.decodeBase64(reversedString);
       
-      // Step 8: Parse JSON
-      return JSON.parse(finalString);
+      // Step 8: Parse JSON (with error handling)
+      try {
+        return JSON.parse(finalString);
+      } catch {
+        return null;
+      }
     } catch (error) {
       console.error('VOE decode error:', error);
       return null;
@@ -349,29 +333,22 @@ const extractors = {
   _decodeSpeedFiles(stuff) {
     try {
       // Step 1: Base64 decode
-      let decoded = atob(stuff);
+      let decoded = utils.decodeBase64(stuff);
       
       // Step 2: Swap case
-      decoded = decoded.split('').map(c => {
-        if (c >= 'a' && c <= 'z') return c.toUpperCase();
-        if (c >= 'A' && c <= 'Z') return c.toLowerCase();
-        return c;
-      }).join('');
+      decoded = utils.swapCase(decoded);
       
       // Step 3: Reverse
-      decoded = decoded.split('').reverse().join('');
+      decoded = utils.reverseString(decoded);
       
       // Step 4: Base64 decode again
-      decoded = atob(decoded);
+      decoded = utils.decodeBase64(decoded);
       
       // Step 5: Reverse again
-      decoded = decoded.split('').reverse().join('');
+      decoded = utils.reverseString(decoded);
       
       // Step 6: Convert hex to characters
-      let result = '';
-      for (let i = 0; i < decoded.length; i += 2) {
-        result += String.fromCharCode(parseInt(decoded.slice(i, i + 2), 16));
-      }
+      const result = utils.hexToChars(decoded);
       
       // Step 7: Shift characters by -3
       let shifted = '';
@@ -380,17 +357,13 @@ const extractors = {
       }
       
       // Step 8: Swap case again
-      shifted = shifted.split('').map(c => {
-        if (c >= 'a' && c <= 'z') return c.toUpperCase();
-        if (c >= 'A' && c <= 'Z') return c.toLowerCase();
-        return c;
-      }).join('');
+      shifted = utils.swapCase(shifted);
       
       // Step 9: Reverse
-      shifted = shifted.split('').reverse().join('');
+      shifted = utils.reverseString(shifted);
       
       // Step 10: Base64 decode
-      return atob(shifted);
+      return utils.decodeBase64(shifted);
     } catch (error) {
       console.error('SpeedFiles decode error:', error);
       return null;
@@ -540,7 +513,14 @@ const extractors = {
         throw new Error(`API request failed: ${response.status}`);
       }
 
-      const data = JSON.parse(response.body);
+      // Parse JSON with error handling
+      let data;
+      try {
+        data = JSON.parse(response.body);
+      } catch {
+        console.error('LoadX: Failed to parse JSON response');
+        return null;
+      }
       
       if (data && data.videoSource) {
         return {
@@ -681,30 +661,6 @@ const extractors = {
   // ==========================================================================
 
   /**
-   * Generate random string
-   * @param {number} length - String length
-   * @returns {string} Random string
-   * @private
-   */
-  _randomString(length = 10) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  },
-
-  /**
-   * Get current timestamp in milliseconds (like JS Date.now())
-   * @returns {number} Timestamp
-   * @private
-   */
-  _jsDateNow() {
-    return Date.now();
-  },
-
-  /**
    * Extract from Doodstream
    * Pattern: /pass_md5/[\w-]+/(?P<token>[\w-]+)
    * Requires headers with Referer
@@ -745,9 +701,9 @@ const extractors = {
         throw new Error(`Pass request failed: ${passResponse.status}`);
       }
 
-      // Construct final URL
-      const randomStr = this._randomString();
-      const timestamp = this._jsDateNow();
+      // Construct final URL using utils.randomString and Date.now() directly
+      const randomStr = utils.randomString(10);
+      const timestamp = Date.now();
       const videoUrl = `${passResponse.body}${randomStr}?token=${token}&expiry=${timestamp}`;
       
       return {
