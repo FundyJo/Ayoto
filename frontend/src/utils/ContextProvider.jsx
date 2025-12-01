@@ -29,6 +29,8 @@ export default function ZenshinProvider({ children }) {
   const [plugins, setPlugins] = useState([])
   const [showProfileSelectionAtStartup, setShowProfileSelectionAtStartup] = useState(false)
   const [activeProfile, setActiveProfile] = useState(null)
+  // Plugin cache setting (enabled by default for faster loading)
+  const [pluginCacheEnabled, setPluginCacheEnabled] = useState(true)
 
   useEffect(() => {
     const glow = localStorage.getItem('glow')
@@ -113,6 +115,12 @@ export default function ZenshinProvider({ children }) {
       setShowProfileSelectionAtStartup(profileSelectionSetting === 'true')
     }
 
+    // Load plugin cache setting (defaults to true if not set)
+    const pluginCacheSetting = localStorage.getItem('pluginCacheEnabled')
+    if (pluginCacheSetting !== null) {
+      setPluginCacheEnabled(pluginCacheSetting !== 'false')
+    }
+
     // Load and validate active profile
     const loadAndValidateActiveProfile = async () => {
       try {
@@ -192,7 +200,9 @@ export default function ZenshinProvider({ children }) {
         showProfileSelectionAtStartup,
         setShowProfileSelectionAtStartup,
         activeProfile,
-        setActiveProfile
+        setActiveProfile,
+        pluginCacheEnabled,
+        setPluginCacheEnabled
       }}
     >
       {children}

@@ -32,7 +32,9 @@ export default function Settings() {
     downloadLimit,
     setDownloadLimit,
     showProfileSelectionAtStartup,
-    setShowProfileSelectionAtStartup
+    setShowProfileSelectionAtStartup,
+    pluginCacheEnabled,
+    setPluginCacheEnabled
   } = useZenshinContext()
 
   // const [settingsJson, setSettingsJson] = useState({})
@@ -140,6 +142,28 @@ export default function Settings() {
     const newState = !showProfileSelectionAtStartup
     setShowProfileSelectionAtStartup(newState)
     localStorage.setItem('showProfileSelectionAtStartup', newState ? 'true' : 'false')
+  }
+
+  function togglePluginCache() {
+    const newState = !pluginCacheEnabled
+    setPluginCacheEnabled(newState)
+    localStorage.setItem('pluginCacheEnabled', newState ? 'true' : 'false')
+    if (!newState) {
+      // Clear plugin cache when disabled
+      try {
+        const keysToRemove = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && (key.startsWith('plugin_cache_') || key.startsWith('watch_progress_'))) {
+            keysToRemove.push(key)
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key))
+        toast.success('Plugin cache cleared')
+      } catch (e) {
+        console.error('Failed to clear cache:', e)
+      }
+    }
   }
 
   // useEffect(() => {
@@ -452,6 +476,44 @@ export default function Settings() {
               </p>
               <p className="text-xs mt-1 text-gray-500">
                 Note: Miracast is supported on Windows and Linux. macOS uses AirPlay instead.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Plugin Settings Section */}
+      <div className="mt-8">
+        <div className="mb-8 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
+          Plugin Settings
+        </div>
+        <div className="flex flex-col gap-4 tracking-wide text-[#b5b5b5ff]">
+          <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-2">
+            <div className="switch_card">
+              <p className="font-bold">Plugin Cache</p>
+              <p className="text-xs">
+                Enable caching for plugin data to improve loading speed. 
+                Cached data includes search results, episode lists, and stream information.
+              </p>
+              <p className="text-xs mt-1 text-gray-500">
+                Disabling this will clear all cached plugin data and watch progress.
+              </p>
+            </div>
+            <Switch
+              checked={pluginCacheEnabled}
+              style={{ marginLeft: '1.5rem', cursor: 'pointer' }}
+              onCheckedChange={togglePluginCache}
+            />
+          </div>
+          <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-2">
+            <div className="switch_card">
+              <p className="font-bold">Watch Progress Tracking</p>
+              <p className="text-xs">
+                Track your watch progress for plugin-based anime. 
+                Shows &quot;Resume from...&quot; prompt when you return to an episode.
+              </p>
+              <p className="text-xs mt-1 text-gray-500">
+                Progress is saved automatically while watching in the Vidstack player.
               </p>
             </div>
           </div>
