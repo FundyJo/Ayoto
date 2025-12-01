@@ -433,9 +433,9 @@ const plugin = {
       }
     }
 
-    // Extract banner/backdrop image
+    // Extract banner/backdrop image (flexible attribute order)
     let banner = null;
-    const bannerMatch = html.match(/class="backdrop"[^>]*style="background-image:\s*url\(([^)]+)\)"/i);
+    const bannerMatch = html.match(/class="backdrop"[^>]*background-image:\s*url\(([^)]+)\)/i);
     if (bannerMatch) {
       banner = bannerMatch[1].startsWith('http') ? bannerMatch[1] : `${this.baseUrl}${bannerMatch[1]}`;
     }
