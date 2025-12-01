@@ -47,14 +47,13 @@ function mergeAnimeData(existingData, newData) {
   if (!newData) return existingData
   
   const merged = { ...existingData }
-  for (const key of Object.keys(newData)) {
-    // Only update if new value is not null/undefined and existing value is null/undefined
-    // or if the new value provides more information (e.g., longer array, non-empty string)
-    const newVal = newData[key]
+  for (const [key, newVal] of Object.entries(newData)) {
     const existingVal = existingData[key]
     
+    // Only update if new value is not null/undefined
     if (newVal !== null && newVal !== undefined) {
       if (existingVal === null || existingVal === undefined) {
+        // Fill in missing data
         merged[key] = newVal
       } else if (Array.isArray(newVal) && Array.isArray(existingVal)) {
         // Prefer longer arrays
@@ -70,6 +69,17 @@ function mergeAnimeData(existingData, newData) {
     }
   }
   return merged
+}
+
+/**
+ * Normalize a hoster/language item to get its display name
+ * Items can be strings or objects with a name property
+ * @param {string|{name: string}} item - The item to normalize
+ * @returns {string} The display name
+ */
+function getDisplayName(item) {
+  if (typeof item === 'string') return item
+  return item?.name || 'Unknown'
 }
 
 /**
@@ -140,15 +150,23 @@ export default function PluginAnimePage() {
         setPluginCapabilities(currentPluginInfo?.capabilities || {})
 
         // Start fetching details and episodes in parallel for faster loading
-        const detailsPromise = plugin.hasCapability('getAnimeDetails') 
-          ? (setIsFetchingDetails(true), plugin.getAnimeDetails(animeId).finally(() => setIsFetchingDetails(false)))
-          : Promise.resolve(null)
+        let detailsPromise
+        if (plugin.hasCapability('getAnimeDetails')) {
+          setIsFetchingDetails(true)
+          detailsPromise = plugin.getAnimeDetails(animeId).finally(() => setIsFetchingDetails(false))
+        } else {
+          detailsPromise = Promise.resolve(null)
+        }
         
         // Only fetch episodes if we don't have them from search results
+        let episodesPromise
         const hasPreFetchedEpisodes = searchResultData?.episodes?.length > 0
-        const episodesPromise = plugin.hasCapability('getEpisodes') && !hasPreFetchedEpisodes
-          ? (setIsLoadingEpisodes(true), plugin.getEpisodes(animeId).finally(() => setIsLoadingEpisodes(false)))
-          : Promise.resolve(null)
+        if (plugin.hasCapability('getEpisodes') && !hasPreFetchedEpisodes) {
+          setIsLoadingEpisodes(true)
+          episodesPromise = plugin.getEpisodes(animeId).finally(() => setIsLoadingEpisodes(false))
+        } else {
+          episodesPromise = Promise.resolve(null)
+        }
 
         // Wait for both to complete in parallel
         const [details, episodesResult] = await Promise.all([detailsPromise, episodesPromise])
@@ -465,9 +483,9 @@ export default function PluginAnimePage() {
                           <span
                             key={hosterIdx}
                             className="rounded bg-[#2a2a2d] px-1.5 py-0.5 text-xs text-gray-400"
-                            title={hoster.name || hoster}
+                            title={getDisplayName(hoster)}
                           >
-                            {typeof hoster === 'string' ? hoster : hoster.name}
+                            {getDisplayName(hoster)}
                           </span>
                         ))}
                       </div>
@@ -480,7 +498,7 @@ export default function PluginAnimePage() {
                             key={langIdx}
                             className="rounded bg-blue-900/30 px-1.5 py-0.5 text-xs text-blue-300"
                           >
-                            {typeof lang === 'string' ? lang : lang.name}
+                            {getDisplayName(lang)}
                           </span>
                         ))}
                       </div>
