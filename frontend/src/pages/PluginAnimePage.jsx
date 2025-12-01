@@ -1,13 +1,30 @@
 import { useParams, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import CenteredLoader from '../ui/CenteredLoader'
-import { Button, Skeleton } from '@radix-ui/themes'
+import { Skeleton } from '@radix-ui/themes'
 import { toast } from 'sonner'
 import { ExclamationTriangleIcon, GlobeIcon } from '@radix-ui/react-icons'
 import { autop } from '@wordpress/autop'
 import parse from 'html-react-parser'
 import { useZenshinContext } from '../utils/ContextProvider'
 import { zpePluginManager } from '../zpe'
+
+/**
+ * Helper function to create anime data object from search result data
+ * @param {string} animeId - The anime ID
+ * @param {Object} searchData - The search result data
+ * @returns {Object} Formatted anime data object
+ */
+function createAnimeDataFromSearchResult(animeId, searchData) {
+  return {
+    id: animeId,
+    title: searchData.title || searchData.name,
+    description: searchData.description,
+    cover: searchData.cover,
+    background_cover: searchData.background_cover,
+    year: searchData.year || searchData.productionYear
+  }
+}
 
 export default function PluginAnimePage() {
   const zenshinContext = useZenshinContext()
@@ -40,14 +57,7 @@ export default function PluginAnimePage() {
           setAnimeData(details)
         } else if (searchResultData) {
           // Use the data passed from search results
-          setAnimeData({
-            id: animeId,
-            title: searchResultData.title || searchResultData.name,
-            description: searchResultData.description,
-            cover: searchResultData.cover,
-            background_cover: searchResultData.background_cover,
-            year: searchResultData.year || searchResultData.productionYear
-          })
+          setAnimeData(createAnimeDataFromSearchResult(animeId, searchResultData))
         } else {
           // Minimal data when no details available
           setAnimeData({
@@ -73,14 +83,7 @@ export default function PluginAnimePage() {
         
         // Fallback to search result data if available
         if (searchResultData) {
-          setAnimeData({
-            id: animeId,
-            title: searchResultData.title || searchResultData.name,
-            description: searchResultData.description,
-            cover: searchResultData.cover,
-            background_cover: searchResultData.background_cover,
-            year: searchResultData.year || searchResultData.productionYear
-          })
+          setAnimeData(createAnimeDataFromSearchResult(animeId, searchResultData))
         }
       }
 
