@@ -62,6 +62,24 @@ function isPlayableInVidstack(format) {
 }
 
 /**
+ * Get the display text for a stream format badge
+ * @param {string|null|undefined} format - Stream format
+ * @returns {{text: string, needsExtraction: boolean}} Display text and extraction flag
+ */
+function getFormatBadgeInfo(format) {
+  if (needsExtraction(format)) {
+    return {
+      text: `${format} (needs extraction)`,
+      needsExtraction: true
+    }
+  }
+  return {
+    text: format || 'unknown',
+    needsExtraction: false
+  }
+}
+
+/**
  * Helper function to get language display text
  * Handles both string and object language formats
  * @param {string|{name: string, code?: string, label?: string}} lang - Language info
@@ -570,8 +588,8 @@ export default function PluginAnimePage() {
         // Try to extract the actual playable URL using stream providers (like hosters-provider)
         const extractedStream = await pluginAPI.extractStream(stream.url)
         
-        if (extractedStream && extractedStream.url) {
-          // Successfully extracted - use the extracted stream
+        if (extractedStream && extractedStream.url && isDirectlyPlayable(extractedStream.format)) {
+          // Successfully extracted a playable URL - use the extracted stream
           const playableStream = {
             ...extractedStream,
             originalUrl: stream.url,
@@ -591,11 +609,24 @@ export default function PluginAnimePage() {
           toast.success('Stream extracted successfully', {
             description: `Playing from ${extractedStream.server || stream.server}`
           })
+        } else if (extractedStream && extractedStream.url) {
+          // Extraction returned a URL but it's not directly playable
+          setExtractionError('Extracted stream format is not supported for direct playback')
+          toast.error('Stream format not supported', {
+            description: `Extracted format "${extractedStream.format}" cannot be played directly. Try opening in external player.`,
+            duration: 5000
+          })
         } else {
           // Extraction failed - no stream provider could extract the URL
-          setExtractionError('No stream provider available to extract this hoster URL')
+          // Check how many stream providers are available for a better error message
+          const streamProviders = pluginAPI.getStreamProviders()
+          const providerMessage = streamProviders.length === 0
+            ? 'No stream provider plugins installed. Install a stream provider plugin (e.g., hosters-provider) to extract video URLs.'
+            : `No installed stream provider supports this hoster URL.`
+          
+          setExtractionError(providerMessage)
           toast.error('Stream extraction failed', {
-            description: 'No stream provider plugin available for this hoster. Try installing the hosters-provider plugin.',
+            description: providerMessage,
             duration: 5000
           })
         }
@@ -1223,15 +1254,18 @@ export default function PluginAnimePage() {
                                       {stream.quality}
                                     </span>
                                   )}
-                                  {stream.format && (
-                                    <span className={`rounded px-1.5 py-0.5 text-xs ${
-                                      needsExtraction(stream.format)
-                                        ? 'bg-orange-900/30 text-orange-300'
-                                        : 'bg-gray-700 opacity-60'
-                                    }`}>
-                                      {needsExtraction(stream.format) ? `${stream.format} (needs extraction)` : stream.format}
-                                    </span>
-                                  )}
+                                  {stream.format && (() => {
+                                    const badgeInfo = getFormatBadgeInfo(stream.format)
+                                    return (
+                                      <span className={`rounded px-1.5 py-0.5 text-xs ${
+                                        badgeInfo.needsExtraction
+                                          ? 'bg-orange-900/30 text-orange-300'
+                                          : 'bg-gray-700 opacity-60'
+                                      }`}>
+                                        {badgeInfo.text}
+                                      </span>
+                                    )
+                                  })()}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {/* Play button - handles both direct and extractable formats */}
