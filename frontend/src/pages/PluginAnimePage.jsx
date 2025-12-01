@@ -119,7 +119,8 @@ export default function PluginAnimePage() {
   )
   const [error, setError] = useState(null)
   // Use pre-fetched episodes from search results if available
-  const [episodes, setEpisodes] = useState(searchResultData?.episodes || [])
+  const initialEpisodes = Array.isArray(searchResultData?.episodes) ? searchResultData.episodes : []
+  const [episodes, setEpisodes] = useState(initialEpisodes)
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false)
   const [isFetchingDetails, setIsFetchingDetails] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
@@ -130,9 +131,14 @@ export default function PluginAnimePage() {
   const [showAllTitles, setShowAllTitles] = useState(false)
 
   useEffect(() => {
+    // Capture searchResultData in a local variable to avoid stale closure issues
+    const currentSearchData = searchResultData
+    const hasPreFetchedEpisodes = Array.isArray(currentSearchData?.episodes) && currentSearchData.episodes.length > 0
+    
     async function fetchAnimeDetails() {
       // Only show loading spinner if we don't have any initial data
-      if (!hasInitialData) {
+      const hasCurrentInitialData = currentSearchData && (currentSearchData.title || currentSearchData.cover)
+      if (!hasCurrentInitialData) {
         setIsLoading(true)
       }
       setError(null)
@@ -160,7 +166,6 @@ export default function PluginAnimePage() {
         
         // Only fetch episodes if we don't have them from search results
         let episodesPromise
-        const hasPreFetchedEpisodes = searchResultData?.episodes?.length > 0
         if (plugin.hasCapability('getEpisodes') && !hasPreFetchedEpisodes) {
           setIsLoadingEpisodes(true)
           episodesPromise = plugin.getEpisodes(animeId).finally(() => setIsLoadingEpisodes(false))
@@ -171,20 +176,24 @@ export default function PluginAnimePage() {
         // Wait for both to complete in parallel
         const [details, episodesResult] = await Promise.all([detailsPromise, episodesPromise])
 
-        // Update anime data
+        // Update anime data - always update if we got details
         if (details) {
           // Merge with existing data, preferring newer details
           setAnimeData(prev => mergeAnimeData(prev, details))
-        } else if (!animeData && searchResultData) {
-          // Use search result data if no details were fetched
-          setAnimeData(createAnimeDataFromSearchResult(animeId, searchResultData))
-        } else if (!animeData) {
+        }
+        
+        // Set initial anime data if not already set and we have search data
+        setAnimeData(prev => {
+          if (prev) return prev // Already have data
+          if (currentSearchData) {
+            return createAnimeDataFromSearchResult(animeId, currentSearchData)
+          }
           // Minimal data when nothing available
-          setAnimeData({
+          return {
             id: animeId,
             title: animeId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-          })
-        }
+          }
+        })
 
         // Update episodes if we fetched them
         if (episodesResult?.results?.length > 0) {
@@ -200,16 +209,20 @@ export default function PluginAnimePage() {
         setError(err.message)
         
         // Fallback to search result data if available
-        if (searchResultData && !animeData) {
-          setAnimeData(createAnimeDataFromSearchResult(animeId, searchResultData))
-        }
+        setAnimeData(prev => {
+          if (prev) return prev // Already have data, keep it
+          if (currentSearchData) {
+            return createAnimeDataFromSearchResult(animeId, currentSearchData)
+          }
+          return null
+        })
       }
 
       setIsLoading(false)
     }
 
     fetchAnimeDetails()
-  }, [pluginId, animeId, refetchKey]) // Removed searchResultData from deps to avoid re-fetching
+  }, [pluginId, animeId, searchResultData, refetchKey]) // Include searchResultData for proper re-fetching on navigation
 
   if (isLoading) return <CenteredLoader />
 
