@@ -322,9 +322,9 @@ const plugin = {
     const seasons = [];
     const addedSlugs = new Set();
 
-    // Look for season links in the hosterSiteDirectNav section
-    // Pattern: href="/anime/stream/{animeId}/staffel-{num}" or /filme
-    const seasonLinkRegex = /href="[^"]*\/(staffel-(\d+)|filme)"/gi;
+    // Look for season links - more specific pattern targeting anchor tags
+    // Pattern: <a href="/anime/stream/{animeId}/staffel-{num}"> or /filme">
+    const seasonLinkRegex = /<a[^>]*href="[^"]*\/(staffel-(\d+)|filme)"[^>]*>/gi;
     let match;
 
     while ((match = seasonLinkRegex.exec(html)) !== null) {
@@ -433,41 +433,23 @@ const plugin = {
         const title = flagMatch[2] || flagMatch[3];
         
         if (src) {
-          // Determine language from src path or title
-          let langCode = null;
-          let langLabel = title || '';
-          
-          if (src.includes('japanese-german') || title?.toLowerCase().includes('deutsch')) {
-            langCode = 'de-sub';
-            langLabel = langLabel || 'German Subtitles';
-          } else if (src.includes('japanese-english') || title?.toLowerCase().includes('englisch')) {
-            langCode = 'en';
-            langLabel = langLabel || 'English';
-          } else if (src.includes('german') || src.includes('de')) {
-            langCode = 'de';
-            langLabel = langLabel || 'German';
-          }
-          
-          if (langCode && !languages.some(l => l.code === langCode)) {
-            languages.push({
-              code: langCode,
-              label: langLabel
-            });
+          const langInfo = this._detectLanguage(src, title);
+          if (langInfo && !languages.some(l => l.code === langInfo.code)) {
+            languages.push(langInfo);
           }
         }
       }
       
       // Build episode object
       const id = season.isMovies ? `filme-${episodeNumber}` : `${season.number}-${episodeNumber}`;
+      const fullTitle = this._formatEpisodeTitle(season, episodeNumber, episodeTitle);
       
       episodes.push({
         id: id,
         number: episodeNumber,
         season: season.number,
         title: episodeTitle,
-        fullTitle: season.isMovies 
-          ? `Film ${episodeNumber} - ${episodeTitle}`
-          : `S${season.number}E${episodeNumber} - ${episodeTitle}`,
+        fullTitle: fullTitle,
         link: `/anime/stream/${animeId}/${season.slug}/episode-${episodeNumber}`,
         providers: providers,
         languages: languages,
@@ -480,6 +462,54 @@ const plugin = {
     episodes.sort((a, b) => a.number - b.number);
     
     return episodes;
+  },
+
+  /**
+   * Detect language from flag image src and title
+   * @param {string} src - Image source path
+   * @param {string} title - Image title attribute
+   * @returns {Object|null} Language info object or null
+   * @private
+   */
+  _detectLanguage(src, title) {
+    // Language detection patterns - maps source/title patterns to language info
+    const langPatterns = [
+      { srcPattern: 'japanese-german', titlePattern: 'deutsch', code: 'de-sub', label: 'German Subtitles' },
+      { srcPattern: 'japanese-english', titlePattern: 'englisch', code: 'en', label: 'English' },
+      { srcPattern: 'german', titlePattern: null, code: 'de', label: 'German' }
+    ];
+    
+    const srcLower = (src || '').toLowerCase();
+    const titleLower = (title || '').toLowerCase();
+    
+    for (const pattern of langPatterns) {
+      const srcMatch = pattern.srcPattern && srcLower.includes(pattern.srcPattern);
+      const titleMatch = pattern.titlePattern && titleLower.includes(pattern.titlePattern);
+      
+      if (srcMatch || titleMatch) {
+        return {
+          code: pattern.code,
+          label: title || pattern.label
+        };
+      }
+    }
+    
+    return null;
+  },
+
+  /**
+   * Format episode title with season/episode prefix
+   * @param {Object} season - Season object with number and isMovies flag
+   * @param {number} episodeNumber - Episode number
+   * @param {string} episodeTitle - Episode title
+   * @returns {string} Formatted full title
+   * @private
+   */
+  _formatEpisodeTitle(season, episodeNumber, episodeTitle) {
+    if (season.isMovies) {
+      return `Film ${episodeNumber} - ${episodeTitle}`;
+    }
+    return `S${season.number}E${episodeNumber} - ${episodeTitle}`;
   },
 
   /**
