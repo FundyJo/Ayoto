@@ -17,6 +17,7 @@ import Anilist from './pages/Anilist'
 import Test from './pages/Test'
 import Downloads from './pages/Downloads'
 import Plugins from './pages/Plugins'
+import PluginAnimePage from './pages/PluginAnimePage'
 import ProfileSelection from './pages/ProfileSelection'
 import { useEffect, useState } from 'react'
 
@@ -125,6 +126,11 @@ const router = createHashRouter([
       {
         path: '/plugins',
         element: <Plugins />,
+        errorElement: <ErrorPage />
+      },
+      {
+        path: '/plugin-anime/:pluginId/:animeId',
+        element: <PluginAnimePage />,
         errorElement: <ErrorPage />
       },
       {
