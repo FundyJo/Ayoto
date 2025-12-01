@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import CenteredLoader from '../ui/CenteredLoader'
 import { Skeleton } from '@radix-ui/themes'
 import { toast } from 'sonner'
-import { ExclamationTriangleIcon, GlobeIcon } from '@radix-ui/react-icons'
+import { ExclamationTriangleIcon, GlobeIcon, StarIcon, PersonIcon } from '@radix-ui/react-icons'
 import { autop } from '@wordpress/autop'
 import parse from 'html-react-parser'
 import { useZenshinContext } from '../utils/ContextProvider'
@@ -39,6 +39,7 @@ export default function PluginAnimePage() {
   const [error, setError] = useState(null)
   const [episodes, setEpisodes] = useState([])
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false)
+  const [showFullDescription, setShowFullDescription] = useState(false)
 
   useEffect(() => {
     async function fetchAnimeDetails() {
@@ -111,28 +112,24 @@ export default function PluginAnimePage() {
   }
 
   const data = animeData
-  const backgroundCover = data?.background_cover || data?.banner
+  const bannerImage = data?.background_cover || data?.banner
 
   return (
     <div className="relative">
-      {/* Background Cover / Backdrop */}
-      {backgroundCover && (
+      {/* Background Cover / Backdrop - matches AnimePage.jsx exactly */}
+      {bannerImage && (
         <div className="relative">
           {glow && (
             <div className="animate-fade-down">
               <img
-                src={backgroundCover}
+                src={bannerImage}
                 className="absolute top-7 z-0 h-72 w-full object-cover opacity-70 blur-3xl brightness-75 saturate-150 2xl:h-96"
                 alt=""
               />
             </div>
           )}
-          <div
-            className="backdrop absolute inset-0 z-0 h-72 w-full animate-fade-down bg-cover bg-center brightness-90 transition-all ease-in-out 2xl:h-96"
-            style={{ backgroundImage: `url(${backgroundCover})` }}
-          />
           <img
-            src={backgroundCover}
+            src={bannerImage}
             className="z-10 h-72 w-full animate-fade-down object-cover brightness-90 transition-all ease-in-out 2xl:h-96"
             alt=""
           />
@@ -141,22 +138,23 @@ export default function PluginAnimePage() {
 
       <div className="z-30 mx-auto animate-fade px-6 py-4 lg:container">
         <div className="flex justify-between gap-x-7">
-          {/* Cover Image */}
+          {/* Cover Image - matches AnimePage.jsx exactly */}
           {data?.cover ? (
             <img
               src={data.cover}
               alt=""
-              className={`duration-400 relative ${backgroundCover ? 'bottom-[4rem]' : ''} h-[25rem] w-72 animate-fade-up rounded-md object-cover shadow-xl drop-shadow-2xl transition-all ease-in-out`}
+              className={`duration-400 relative ${bannerImage ? 'bottom-[4rem]' : ''} shadow-xl drop-shadow-2xl h-[25rem] w-72 animate-fade-up rounded-md object-cover transition-all ease-in-out`}
             />
           ) : (
             <div
-              className={`duration-400 relative ${backgroundCover ? 'bottom-[4rem]' : ''} flex h-[25rem] w-72 animate-fade-up items-center justify-center rounded-md bg-[#2a2a2d] shadow-xl drop-shadow-2xl transition-all ease-in-out`}
+              className={`duration-400 relative ${bannerImage ? 'bottom-[4rem]' : ''} shadow-xl drop-shadow-2xl flex h-[25rem] w-72 animate-fade-up items-center justify-center rounded-md bg-[#2a2a2d] transition-all ease-in-out`}
             >
               <GlobeIcon className="h-16 w-16 text-gray-400" />
             </div>
           )}
 
           <div className="flex-1 justify-start gap-y-0">
+            {/* Title - matches AnimePage.jsx exactly */}
             <p className="font-space-mono text-xl font-medium tracking-wider">{data?.title}</p>
             {data?.altTitles && data.altTitles.length > 0 && (
               <p className="text mb-2 border-b border-[#545454] pb-2 font-space-mono font-medium tracking-wider opacity-80">
@@ -164,6 +162,7 @@ export default function PluginAnimePage() {
               </p>
             )}
 
+            {/* Info section - matches AnimePage.jsx exactly */}
             <div className="mb-2 flex w-fit items-center gap-x-2 border-b border-[#545454] pb-2 text-xs text-gray-300">
               {data?.mediaType && (
                 <>
@@ -190,23 +189,51 @@ export default function PluginAnimePage() {
                 </>
               )}
               {data?.rating && (
-                <div className="flex gap-x-1 tracking-wide opacity-90">★ {data.rating}</div>
+                <>
+                  <div className="flex gap-x-1 tracking-wide opacity-90">
+                    <StarIcon /> {data.rating}
+                  </div>
+                  <div className="h-5 w-[1px] bg-[#333]"></div>
+                </>
+              )}
+              {data?.popularity && (
+                <div className="flex gap-x-1 tracking-wide opacity-90">
+                  <PersonIcon />
+                  {typeof data.popularity === 'number' ? data.popularity.toLocaleString() : data.popularity}
+                </div>
               )}
             </div>
 
+            {/* Genres - matches AnimePage.jsx exactly */}
             {data?.genres && data.genres.length > 0 && (
               <div className="mb-2 flex w-fit gap-x-1 border-b border-[#545454] pb-2 font-space-mono text-xs tracking-wide opacity-90">
                 {data.genres.join(', ')}
               </div>
             )}
 
+            {/* Description - matches AnimePage.jsx exactly with toggle */}
             {data?.description && (
-              <div className="relative flex max-h-[9.55rem] flex-col gap-y-2 overflow-hidden pb-6 font-space-mono text-sm opacity-55 transition-all">
+              <div
+                className={`relative flex ${showFullDescription ? '' : 'max-h-[9.55rem]'} flex-col gap-y-2 overflow-hidden pb-6 font-space-mono text-sm opacity-55 transition-all cursor-pointer`}
+                onClick={() => setShowFullDescription(!showFullDescription)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setShowFullDescription(!showFullDescription)
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-expanded={showFullDescription}
+              >
                 {parse(autop(data.description))}
-                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#111113] to-transparent" />
+                {!showFullDescription && (
+                  <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#111113] to-transparent" />
+                )}
               </div>
             )}
 
+            {/* Plugin badge */}
             <div className="mt-6 flex items-center gap-x-5">
               <span className="rounded bg-blue-900/50 px-2 py-1 text-sm text-blue-300">
                 {pluginId}
