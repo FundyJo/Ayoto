@@ -1,13 +1,14 @@
 import { useParams, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import CenteredLoader from '../ui/CenteredLoader'
-import { Skeleton } from '@radix-ui/themes'
+import { Button, Skeleton } from '@radix-ui/themes'
 import { toast } from 'sonner'
-import { ExclamationTriangleIcon, GlobeIcon, StarIcon, PersonIcon } from '@radix-ui/react-icons'
+import { ExclamationTriangleIcon, GlobeIcon, StarIcon, PersonIcon, LockClosedIcon, InfoCircledIcon } from '@radix-ui/react-icons'
 import { autop } from '@wordpress/autop'
 import parse from 'html-react-parser'
 import { useZenshinContext } from '../utils/ContextProvider'
 import { zpePluginManager } from '../zpe'
+import PluginAuthModal from '../components/PluginAuthModal'
 
 /**
  * Helper function to create anime data object from search result data
@@ -19,10 +20,18 @@ function createAnimeDataFromSearchResult(animeId, searchData) {
   return {
     id: animeId,
     title: searchData.title || searchData.name,
+    altTitles: searchData.altTitles || [],
     description: searchData.description,
     cover: searchData.cover,
     background_cover: searchData.background_cover,
-    year: searchData.year || searchData.productionYear
+    year: searchData.year || searchData.productionYear,
+    startYear: searchData.startYear || searchData.year || searchData.productionYear,
+    endYear: searchData.endYear,
+    status: searchData.status,
+    mediaType: searchData.mediaType || searchData.type,
+    genres: searchData.genres || [],
+    rating: searchData.rating,
+    popularity: searchData.popularity
   }
 }
 
@@ -40,6 +49,9 @@ export default function PluginAnimePage() {
   const [episodes, setEpisodes] = useState([])
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [pluginInfo, setPluginInfo] = useState(null)
+  const [pluginCapabilities, setPluginCapabilities] = useState({})
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
   useEffect(() => {
     async function fetchAnimeDetails() {
@@ -51,6 +63,12 @@ export default function PluginAnimePage() {
         if (!plugin) {
           throw new Error(`Plugin '${pluginId}' not found or not enabled`)
         }
+
+        // Store plugin info and capabilities
+        const allPlugins = zpePluginManager.getAllPlugins()
+        const currentPluginInfo = allPlugins.find(p => p.id === pluginId)
+        setPluginInfo(currentPluginInfo)
+        setPluginCapabilities(currentPluginInfo?.capabilities || {})
 
         // Try to get anime details if the plugin supports it
         if (plugin.hasCapability('getAnimeDetails')) {
@@ -72,7 +90,14 @@ export default function PluginAnimePage() {
           setIsLoadingEpisodes(true)
           try {
             const episodesResult = await plugin.getEpisodes(animeId)
-            setEpisodes(episodesResult?.results || [])
+            const episodesList = episodesResult?.results || []
+            setEpisodes(episodesList)
+            
+            // Update anime data with calculated episode count if not already set
+            setAnimeData(prev => ({
+              ...prev,
+              episodeCount: prev?.episodeCount || episodesList.length || undefined
+            }))
           } catch (epError) {
             console.error('Failed to fetch episodes:', epError)
           }
@@ -162,7 +187,7 @@ export default function PluginAnimePage() {
               </p>
             )}
 
-            {/* Info section - matches AnimePage.jsx exactly */}
+            {/* Info section - shows year range, episode count, status */}
             <div className="mb-2 flex w-fit items-center gap-x-2 border-b border-[#545454] pb-2 text-xs text-gray-300">
               {data?.mediaType && (
                 <>
@@ -170,9 +195,9 @@ export default function PluginAnimePage() {
                   <div className="h-5 w-[1px] bg-[#333]"></div>
                 </>
               )}
-              {data?.episodeCount && (
+              {(data?.episodeCount || episodes.length > 0) && (
                 <>
-                  <p>{`${data.episodeCount} episodes`}</p>
+                  <p>{`${data.episodeCount || episodes.length} episodes`}</p>
                   <div className="h-5 w-[1px] bg-[#333]"></div>
                 </>
               )}
@@ -182,9 +207,14 @@ export default function PluginAnimePage() {
                   <div className="h-5 w-[1px] bg-[#333]"></div>
                 </>
               )}
-              {data?.year && (
+              {/* Year display - shows start year and end year if available */}
+              {(data?.startYear || data?.year) && (
                 <>
-                  <p className="text-xs opacity-60">{data.year}</p>
+                  <p className="text-xs opacity-60">
+                    {data.startYear || data.year}
+                    {data.endYear && data.endYear !== data.startYear && ` - ${data.endYear}`}
+                    {!data.endYear && data.status === 'RELEASING' && ' - Present'}
+                  </p>
                   <div className="h-5 w-[1px] bg-[#333]"></div>
                 </>
               )}
@@ -233,11 +263,56 @@ export default function PluginAnimePage() {
               </div>
             )}
 
-            {/* Plugin badge */}
-            <div className="mt-6 flex items-center gap-x-5">
-              <span className="rounded bg-blue-900/50 px-2 py-1 text-sm text-blue-300">
-                {pluginId}
-              </span>
+            {/* Plugin Info Section - shows plugin name and capabilities */}
+            <div className="mt-6 flex flex-col gap-y-3">
+              {/* Plugin badge with name */}
+              <div className="flex items-center gap-x-3">
+                <span className="rounded bg-blue-900/50 px-2 py-1 text-sm text-blue-300">
+                  {pluginInfo?.name || pluginId}
+                </span>
+                {pluginInfo?.version && (
+                  <span className="text-xs opacity-50">v{pluginInfo.version}</span>
+                )}
+              </div>
+
+              {/* Plugin capabilities info */}
+              <div className="flex flex-wrap items-center gap-2">
+                <InfoCircledIcon className="h-4 w-4 opacity-50" />
+                <span className="text-xs opacity-50">Plugin provides:</span>
+                {pluginCapabilities.search && (
+                  <span className="rounded bg-green-900/30 px-2 py-0.5 text-xs text-green-400">Search</span>
+                )}
+                {pluginCapabilities.getEpisodes && (
+                  <span className="rounded bg-green-900/30 px-2 py-0.5 text-xs text-green-400">Episodes</span>
+                )}
+                {pluginCapabilities.getStreams && (
+                  <span className="rounded bg-green-900/30 px-2 py-0.5 text-xs text-green-400">Streaming</span>
+                )}
+                {pluginCapabilities.getAnimeDetails && (
+                  <span className="rounded bg-green-900/30 px-2 py-0.5 text-xs text-green-400">Details</span>
+                )}
+                {pluginCapabilities.authentication && (
+                  <span className="rounded bg-purple-900/30 px-2 py-0.5 text-xs text-purple-400">Auth</span>
+                )}
+                {pluginCapabilities.watchlist && (
+                  <span className="rounded bg-yellow-900/30 px-2 py-0.5 text-xs text-yellow-400">Watchlist</span>
+                )}
+              </div>
+
+              {/* Authentication button for plugins that support login */}
+              {pluginCapabilities.authentication && (
+                <div className="mt-2">
+                  <Button
+                    variant="soft"
+                    color="purple"
+                    size="1"
+                    onClick={() => setShowAuthModal(true)}
+                  >
+                    <LockClosedIcon />
+                    Login to {pluginInfo?.name || pluginId}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -285,6 +360,18 @@ export default function PluginAnimePage() {
           )}
         </div>
       </div>
+
+      {/* Authentication Modal */}
+      <PluginAuthModal
+        pluginId={pluginId}
+        pluginInfo={pluginInfo}
+        open={showAuthModal}
+        onOpenChange={setShowAuthModal}
+        onAuthSuccess={() => {
+          // Refresh data after successful auth
+          window.location.reload()
+        }}
+      />
     </div>
   )
 }
