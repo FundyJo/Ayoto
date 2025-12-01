@@ -387,7 +387,7 @@ const plugin = {
   _parseAnimeDetails(html, animeId) {
     // Extract title from h1 with itemprop="name"
     let title = 'Unknown';
-    const titleMatch = html.match(/<h1[^>]*itemprop="name"[^>]*[^>]*><span>([^<]+)<\/span><\/h1>/i);
+    const titleMatch = html.match(/<h1[^>]*itemprop="name"[^>]*><span>([^<]+)<\/span><\/h1>/i);
     if (titleMatch) {
       title = this._decodeHtmlEntities(titleMatch[1].trim());
     } else {
@@ -422,7 +422,7 @@ const plugin = {
 
     // Extract cover image from seriesCoverBox
     let cover = null;
-    const coverMatch = html.match(/class="seriesCoverBox"[^>]*>.*?<img[^>]*src="([^"]+)"/is);
+    const coverMatch = html.match(/class="seriesCoverBox"[^>]*>[^<]*<img[^>]*src="([^"]+)"/i);
     if (coverMatch) {
       cover = coverMatch[1].startsWith('http') ? coverMatch[1] : `${this.baseUrl}${coverMatch[1]}`;
     } else {
@@ -481,45 +481,11 @@ const plugin = {
       }
     }
 
-    // Extract directors (Regisseure)
-    const directors = [];
-    const directorsSection = html.match(/class="seriesDirector"[^>]*>.*?<\/li>/is);
-    if (directorsSection) {
-      const directorMatches = directorsSection[0].matchAll(/itemprop="name">([^<]+)<\/span>/gi);
-      for (const dMatch of directorMatches) {
-        directors.push(this._decodeHtmlEntities(dMatch[1].trim()));
-      }
-    }
-
-    // Extract actors (Schauspieler)
-    const actors = [];
-    const actorsSection = html.match(/class="seriesActor"[^>]*>.*?<div class="cf"><\/div>/is);
-    if (actorsSection) {
-      const actorMatches = actorsSection[0].matchAll(/itemprop="name">([^<]+)<\/span>/gi);
-      for (const aMatch of actorMatches) {
-        actors.push(this._decodeHtmlEntities(aMatch[1].trim()));
-      }
-    }
-
-    // Extract producers (Produzenten)
-    const producers = [];
-    const producersSection = html.match(/class="seriesProducer"[^>]*>.*?<div class="cf"><\/div>/is);
-    if (producersSection) {
-      const producerMatches = producersSection[0].matchAll(/itemprop="name">([^<]+)<\/span>/gi);
-      for (const pMatch of producerMatches) {
-        producers.push(this._decodeHtmlEntities(pMatch[1].trim()));
-      }
-    }
-
-    // Extract country (Land)
-    const countries = [];
-    const countrySection = html.match(/class="seriesCountry"[^>]*>.*?<div class="cf"><\/div>/is);
-    if (countrySection) {
-      const countryMatches = countrySection[0].matchAll(/itemprop="name">([^<]+)<\/span>/gi);
-      for (const cMatch of countryMatches) {
-        countries.push(this._decodeHtmlEntities(cMatch[1].trim()));
-      }
-    }
+    // Extract cast information using helper method
+    const directors = this._extractCastSection(html, 'seriesDirector', '</li>');
+    const actors = this._extractCastSection(html, 'seriesActor', '<div class="cf"></div>');
+    const producers = this._extractCastSection(html, 'seriesProducer', '<div class="cf"></div>');
+    const countries = this._extractCastSection(html, 'seriesCountry', '<div class="cf"></div>');
 
     // Extract aggregate rating
     let rating = null;
@@ -591,8 +557,8 @@ const plugin = {
   _parseSeasons(html, animeId) {
     const seasons = [];
 
-    // Find the hosterSiteDirectNav section
-    const navSection = html.match(/<div[^>]*class="hosterSiteDirectNav"[^>]*id="stream"[^>]*>([\s\S]*?)<\/div>\s*<div/i);
+    // Find the hosterSiteDirectNav section (flexible attribute order)
+    const navSection = html.match(/<div[^>]*(?:class="hosterSiteDirectNav"[^>]*id="stream"|id="stream"[^>]*class="hosterSiteDirectNav")[^>]*>([\s\S]*?)<\/div>\s*<div/i);
     if (!navSection) {
       // Fallback: try to find seasons from URL patterns
       const seasonMatches = html.match(/staffel-(\d+)/gi) || [];
@@ -698,6 +664,27 @@ const plugin = {
     });
 
     return seasons;
+  },
+
+  /**
+   * Extract cast/crew information from a specific HTML section
+   * @param {string} html - HTML content
+   * @param {string} className - CSS class name to identify the section (e.g., 'seriesActor')
+   * @param {string} endMarker - End marker to limit the search scope
+   * @returns {Array} Array of names
+   * @private
+   */
+  _extractCastSection(html, className, endMarker) {
+    const results = [];
+    const pattern = new RegExp(`class="${className}"[^>]*>[\\s\\S]*?${endMarker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+    const section = html.match(pattern);
+    if (section) {
+      const nameMatches = section[0].matchAll(/itemprop="name">([^<]+)<\/span>/gi);
+      for (const match of nameMatches) {
+        results.push(this._decodeHtmlEntities(match[1].trim()));
+      }
+    }
+    return results;
   }
 };
 
