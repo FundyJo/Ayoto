@@ -30,11 +30,27 @@ export default function PluginAuthModal({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // Get plugin-specific authentication configuration
+  // Get plugin-specific authentication configuration from plugin manifest or fallback to defaults
+  // Plugin-specific configs are needed for proper localization (e.g., German for aniworld.to)
+  // Plugins can provide their own auth config via their manifest's authConfig property
   const getAuthConfig = () => {
-    // Default configuration - plugins can override via their capabilities
-    const configs = {
-      // Example for aniworld
+    // Check if plugin provides its own auth configuration
+    const pluginAuthConfig = pluginInfo?.authConfig
+    if (pluginAuthConfig) {
+      return {
+        loginUrl: pluginAuthConfig.loginUrl || '',
+        serviceName: pluginAuthConfig.serviceName || pluginInfo?.name || pluginId,
+        emailPlaceholder: pluginAuthConfig.emailPlaceholder || 'Email',
+        passwordPlaceholder: pluginAuthConfig.passwordPlaceholder || 'Password',
+        rememberMeLabel: pluginAuthConfig.rememberMeLabel || 'Remember me',
+        loginButtonText: pluginAuthConfig.loginButtonText || 'Login',
+        registerUrl: pluginAuthConfig.registerUrl,
+        forgotPasswordUrl: pluginAuthConfig.forgotPasswordUrl
+      }
+    }
+
+    // Default configuration for known plugins (for backwards compatibility)
+    const knownPluginConfigs = {
       'aniworld': {
         loginUrl: 'https://aniworld.to/login',
         serviceName: 'AniWorld',
@@ -48,7 +64,7 @@ export default function PluginAuthModal({
     }
 
     // Return plugin-specific config or default
-    return configs[pluginId] || {
+    return knownPluginConfigs[pluginId] || {
       loginUrl: '',
       serviceName: pluginInfo?.name || pluginId,
       emailPlaceholder: 'Email',
@@ -59,6 +75,31 @@ export default function PluginAuthModal({
   }
 
   const authConfig = getAuthConfig()
+
+  /**
+   * Validate URL to ensure it's a valid HTTP/HTTPS URL
+   * @param {string} url - URL to validate
+   * @returns {boolean} True if valid
+   */
+  const isValidUrl = (url) => {
+    if (!url) return false
+    try {
+      const parsed = new URL(url)
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Safely open an external URL
+   * @param {string} url - URL to open
+   */
+  const safeOpenUrl = (url) => {
+    if (isValidUrl(url)) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
+  }
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -92,10 +133,9 @@ export default function PluginAuthModal({
             }
           })
           
-          // Store authentication state in plugin storage
+          // Store only authentication state in plugin storage (not email for privacy)
           if (plugin.context?.storage) {
             plugin.context.storage.set('isAuthenticated', true)
-            plugin.context.storage.set('authEmail', email)
           }
           
           if (onAuthSuccess) {
@@ -116,10 +156,8 @@ export default function PluginAuthModal({
           duration: 5000
         })
         
-        // Open external login page
-        if (authConfig.loginUrl) {
-          window.open(authConfig.loginUrl, '_blank')
-        }
+        // Open external login page with URL validation
+        safeOpenUrl(authConfig.loginUrl)
       }
     } catch (err) {
       console.error('Login error:', err)

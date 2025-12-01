@@ -52,6 +52,7 @@ export default function PluginAnimePage() {
   const [pluginInfo, setPluginInfo] = useState(null)
   const [pluginCapabilities, setPluginCapabilities] = useState({})
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [refetchKey, setRefetchKey] = useState(0)
 
   useEffect(() => {
     async function fetchAnimeDetails() {
@@ -117,7 +118,7 @@ export default function PluginAnimePage() {
     }
 
     fetchAnimeDetails()
-  }, [pluginId, animeId, searchResultData])
+  }, [pluginId, animeId, searchResultData, refetchKey])
 
   if (isLoading) return <CenteredLoader />
 
@@ -368,8 +369,9 @@ export default function PluginAnimePage() {
         open={showAuthModal}
         onOpenChange={setShowAuthModal}
         onAuthSuccess={() => {
-          // Refresh data after successful auth
-          window.location.reload()
+          // Trigger re-fetch of anime details after successful authentication
+          // This may show new data like watchlist status
+          setRefetchKey(prev => prev + 1)
         }}
       />
     </div>
