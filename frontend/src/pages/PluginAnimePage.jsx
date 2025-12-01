@@ -1,14 +1,35 @@
-import { useParams, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState, useCallback } from 'react'
 import CenteredLoader from '../ui/CenteredLoader'
-import { Button, Skeleton } from '@radix-ui/themes'
+import { Button, Skeleton, TextField, Spinner, Tooltip, DropdownMenu } from '@radix-ui/themes'
 import { toast } from 'sonner'
-import { ExclamationTriangleIcon, GlobeIcon, StarIcon, PersonIcon, LockClosedIcon, InfoCircledIcon } from '@radix-ui/react-icons'
+import { ExclamationTriangleIcon, GlobeIcon, StarIcon, PersonIcon, LockClosedIcon, InfoCircledIcon, MagnifyingGlassIcon, EyeClosedIcon, EyeOpenIcon, PlayIcon } from '@radix-ui/react-icons'
 import { autop } from '@wordpress/autop'
 import parse from 'html-react-parser'
 import { useZenshinContext } from '../utils/ContextProvider'
 import { zpePluginManager } from '../zpe'
 import PluginAuthModal from '../components/PluginAuthModal'
+import Pagination from '../components/Pagination'
+
+// Constants
+const SEARCH_BLUR_DELAY_MS = 200 // Delay before hiding search results on blur
+const DEFAULT_SERVER_NAME = 'Unknown' // Default server name when not specified
+
+/**
+ * Helper function to get language display text
+ * Handles both string and object language formats
+ * @param {string|{name: string, code?: string, label?: string}} lang - Language info
+ * @returns {{display: string, title: string}} Display text and title for the language
+ */
+function getLanguageDisplay(lang) {
+  if (typeof lang === 'string') {
+    return { display: lang, title: lang }
+  }
+  // For object format, prefer code for display and label for title
+  const display = lang.code || lang.name || DEFAULT_SERVER_NAME
+  const title = lang.label || lang.name || display
+  return { display, title }
+}
 
 /**
  * Helper function to create anime data object from search result data
@@ -79,7 +100,7 @@ function mergeAnimeData(existingData, newData) {
  */
 function getDisplayName(item) {
   if (typeof item === 'string') return item
-  return item?.name || 'Unknown'
+  return item?.name || DEFAULT_SERVER_NAME
 }
 
 /**
@@ -106,6 +127,7 @@ function formatYearRange(startYear, endYear, status) {
 export default function PluginAnimePage() {
   const zenshinContext = useZenshinContext()
   const { glow } = zenshinContext
+  const navigate = useNavigate()
 
   const { pluginId, animeId } = useParams()
   const location = useLocation()
@@ -129,6 +151,35 @@ export default function PluginAnimePage() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [refetchKey, setRefetchKey] = useState(0)
   const [showAllTitles, setShowAllTitles] = useState(false)
+  
+  // Episode filtering and pagination state
+  const [hideWatchedEpisodes, setHideWatchedEpisodes] = useState(false)
+  const [watchedEpisodes, setWatchedEpisodes] = useState(() => {
+    // Load watched episodes from localStorage for this anime
+    try {
+      const stored = localStorage.getItem(`plugin_watched_${pluginId}_${animeId}`)
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  })
+  const [pageSize, setPageSize] = useState(100)
+  const [pageNo, setPageNo] = useState(0)
+  
+  // Manual search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchResults, setSearchResults] = useState([])
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  
+  // Stream loading state
+  const [loadingStreamsForEpisode, setLoadingStreamsForEpisode] = useState(null)
+  const [expandedEpisode, setExpandedEpisode] = useState(null)
+  const [episodeStreams, setEpisodeStreams] = useState({})
+  
+  // Season selection state
+  const [selectedSeason, setSelectedSeason] = useState(null)
 
   useEffect(() => {
     // Capture searchResultData in a local variable to avoid stale closure issues
@@ -223,6 +274,146 @@ export default function PluginAnimePage() {
 
     fetchAnimeDetails()
   }, [pluginId, animeId, searchResultData, refetchKey]) // Include searchResultData for proper re-fetching on navigation
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Perform search when debounced query changes
+  useEffect(() => {
+    async function performSearch() {
+      if (!debouncedQuery.trim()) {
+        setSearchResults([])
+        setShowSearchResults(false)
+        return
+      }
+      
+      setIsSearching(true)
+      try {
+        const plugin = await zpePluginManager.getPlugin(pluginId)
+        if (plugin && typeof plugin.search === 'function') {
+          const result = await plugin.search(debouncedQuery)
+          if (result && result.results) {
+            setSearchResults(result.results)
+            setShowSearchResults(true)
+          }
+        }
+      } catch (err) {
+        console.error('Plugin search error:', err)
+        setSearchResults([])
+      }
+      setIsSearching(false)
+    }
+    
+    performSearch()
+  }, [debouncedQuery, pluginId])
+
+  // Save watched episodes to localStorage whenever they change
+  useEffect(() => {
+    const storageKey = `plugin_watched_${pluginId}_${animeId}`
+    if (watchedEpisodes.length > 0) {
+      localStorage.setItem(storageKey, JSON.stringify(watchedEpisodes))
+    } else {
+      // Clear localStorage when all episodes are unwatched
+      localStorage.removeItem(storageKey)
+    }
+  }, [watchedEpisodes, pluginId, animeId])
+
+  // Mark episode as watched
+  const markEpisodeWatched = useCallback((episodeId) => {
+    setWatchedEpisodes(prev => {
+      if (prev.includes(episodeId)) return prev
+      return [...prev, episodeId]
+    })
+  }, [])
+
+  // Check if episode is watched
+  const isEpisodeWatched = useCallback((episodeId) => {
+    return watchedEpisodes.includes(episodeId)
+  }, [watchedEpisodes])
+
+  // Get unique seasons from episodes
+  const availableSeasons = [...new Set(episodes.map(ep => ep.season).filter(s => s !== undefined && s !== null))].sort((a, b) => a - b)
+
+  // Filter episodes based on hideWatchedEpisodes and selectedSeason
+  const filteredEpisodes = episodes.filter(episode => {
+    if (hideWatchedEpisodes && isEpisodeWatched(episode.id)) return false
+    if (selectedSeason !== null && episode.season !== selectedSeason) return false
+    return true
+  })
+
+  // Paginate filtered episodes
+  const paginatedEpisodes = filteredEpisodes.slice(pageNo * pageSize, pageNo * pageSize + pageSize)
+
+  // Fetch streams for an episode
+  const handleEpisodeClick = async (episode) => {
+    if (expandedEpisode === episode.id) {
+      // Collapse if clicking the same episode
+      setExpandedEpisode(null)
+      return
+    }
+    
+    setExpandedEpisode(episode.id)
+    
+    // Check if we already have streams for this episode
+    if (episodeStreams[episode.id]) {
+      return
+    }
+    
+    // Check if plugin supports getStreams
+    if (!pluginCapabilities.getStreams) {
+      return
+    }
+    
+    setLoadingStreamsForEpisode(episode.id)
+    try {
+      const plugin = await zpePluginManager.getPlugin(pluginId)
+      if (plugin && typeof plugin.getStreams === 'function') {
+        const streams = await plugin.getStreams(animeId, episode.id)
+        setEpisodeStreams(prev => ({
+          ...prev,
+          [episode.id]: streams || []
+        }))
+        // Mark episode as watched when streams are fetched
+        markEpisodeWatched(episode.id)
+      }
+    } catch (err) {
+      console.error('Failed to fetch streams:', err)
+      toast.error('Failed to load streams', {
+        description: err.message
+      })
+      setEpisodeStreams(prev => ({
+        ...prev,
+        [episode.id]: []
+      }))
+    }
+    setLoadingStreamsForEpisode(null)
+  }
+
+  // Handle search result selection
+  const handleSearchResultClick = (result) => {
+    // Navigate to the selected anime using React Router
+    const newAnimeId = result.id || result.link
+    if (newAnimeId && newAnimeId !== animeId) {
+      // Clear current state and navigate
+      setSearchQuery('')
+      setSearchResults([])
+      setShowSearchResults(false)
+      // Use React Router navigate for proper SPA navigation
+      navigate(`/plugin-anime/${pluginId}/${encodeURIComponent(newAnimeId)}`, {
+        state: {
+          title: result.title || result.name,
+          cover: result.cover,
+          description: result.description,
+          year: result.year
+        }
+      })
+    }
+  }
 
   if (isLoading) return <CenteredLoader />
 
@@ -458,78 +649,308 @@ export default function PluginAnimePage() {
 
         {/* Episodes Section */}
         <div className="mb-96 mt-12">
-          <div className="flex items-center gap-x-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <p className="font-space-mono text-lg font-medium opacity-90">Episodes</p>
             {isLoadingEpisodes && (
               <span className="text-xs text-blue-400 opacity-70">Loading...</span>
             )}
+            
+            {/* Hide Watched Episodes Toggle */}
+            <Button
+              variant="soft"
+              size="1"
+              onClick={() => setHideWatchedEpisodes(!hideWatchedEpisodes)}
+              color={hideWatchedEpisodes ? 'blue' : 'gray'}
+            >
+              {hideWatchedEpisodes ? <EyeClosedIcon /> : <EyeOpenIcon />}
+              Hide Watched
+            </Button>
+            
+            {/* Season Selector */}
+            {availableSeasons.length > 1 && (
+              <DropdownMenu.Root modal={false}>
+                <DropdownMenu.Trigger>
+                  <Button variant="soft" color="gray" size="1">
+                    <div className="flex items-center gap-x-2">
+                      Season: {selectedSeason === null ? 'All' : selectedSeason}
+                    </div>
+                    <DropdownMenu.TriggerIcon />
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content>
+                  <DropdownMenu.Item
+                    color={selectedSeason === null ? 'indigo' : 'gray'}
+                    onClick={() => { setSelectedSeason(null); setPageNo(0); }}
+                  >
+                    All Seasons
+                  </DropdownMenu.Item>
+                  {availableSeasons.map((season) => (
+                    <DropdownMenu.Item
+                      key={season}
+                      color={selectedSeason === season ? 'indigo' : 'gray'}
+                      onClick={() => { setSelectedSeason(season); setPageNo(0); }}
+                    >
+                      Season {season}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
+            )}
+            
+            {/* Pagination */}
+            {filteredEpisodes.length > pageSize && (
+              <Pagination
+                arraySize={filteredEpisodes.length}
+                pageSize={pageSize}
+                setPageSize={setPageSize}
+                pageNo={pageNo}
+                setPageNo={setPageNo}
+                position="relative"
+                progress={watchedEpisodes.length}
+              />
+            )}
+            
+            {/* Manual Search */}
+            <div className="relative ml-auto">
+              <TextField.Root
+                placeholder="Manually search for anime..."
+                className="nodrag w-64"
+                style={{
+                  backgroundColor: '#212225',
+                  height: '25px',
+                  boxShadow: 'none',
+                  borderRadius: '3px',
+                  border: '0px',
+                  fontSize: '13px'
+                }}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                type="text"
+                value={searchQuery}
+                onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
+                onBlur={() => setTimeout(() => setShowSearchResults(false), SEARCH_BLUR_DELAY_MS)}
+              >
+                <TextField.Slot style={{ paddingLeft: '12px' }}>
+                  {isSearching ? (
+                    <Spinner size="1" />
+                  ) : (
+                    <MagnifyingGlassIcon height="16" width="16" color="#9ca3af" />
+                  )}
+                </TextField.Slot>
+              </TextField.Root>
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && searchResults.length > 0 && (
+                <div className="absolute top-full right-0 z-50 mt-2 max-h-80 w-80 overflow-y-auto rounded-md border border-[#545454] bg-[#111113] shadow-xl">
+                  {searchResults.slice(0, 10).map((result, idx) => (
+                    <div
+                      key={result.id || idx}
+                      className="flex cursor-pointer items-center gap-x-3 border-b border-[#3a3b3f] px-3 py-2 transition-colors last:border-b-0 hover:bg-[#1e1e20]"
+                      onMouseDown={() => handleSearchResultClick(result)}
+                    >
+                      {result.cover ? (
+                        <img
+                          src={result.cover}
+                          alt=""
+                          className="h-12 w-10 rounded object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-12 w-10 items-center justify-center rounded bg-[#2a2a2d]">
+                          <GlobeIcon className="h-4 w-4 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex-1 overflow-hidden">
+                        <p className="truncate text-sm font-medium">{result.title}</p>
+                        {result.year && (
+                          <p className="text-xs opacity-50">{result.year}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Episode count summary */}
+          {episodes.length > 0 && (
+            <div className="mt-2 text-xs opacity-50">
+              Showing {paginatedEpisodes.length} of {filteredEpisodes.length} episodes
+              {hideWatchedEpisodes && watchedEpisodes.length > 0 && (
+                <span> ({watchedEpisodes.length} watched hidden)</span>
+              )}
+            </div>
+          )}
 
           {isLoadingEpisodes && episodes.length === 0 && <Skeleton className="mt-3 h-12" />}
 
-          {episodes.length > 0 && (
+          {paginatedEpisodes.length > 0 && (
             <div className="mt-3 grid grid-cols-1 gap-y-3">
-              {episodes.map((episode, ix) => (
-                <div
-                  key={episode.id || ix}
-                  className="flex cursor-pointer items-center gap-x-4 rounded-md bg-[#1a1a1d] p-3 transition-all hover:bg-[#232326]"
-                >
-                  {episode.thumbnail && (
-                    <img
-                      src={episode.thumbnail}
-                      alt=""
-                      className="h-16 w-28 rounded object-cover"
-                    />
-                  )}
-                  <div className="flex flex-1 flex-col">
-                    <p className="font-space-mono text-sm font-medium">
-                      {episode.fullTitle || (
-                        <>
-                          {episode.season !== undefined && episode.season !== null && `S${episode.season}`}
-                          E{episode.number || ix + 1}
-                          {episode.title && ` - ${episode.title}`}
-                        </>
+              {paginatedEpisodes.map((episode, ix) => {
+                const isWatched = isEpisodeWatched(episode.id)
+                const isExpanded = expandedEpisode === episode.id
+                const streams = episodeStreams[episode.id]
+                const isLoadingThisEpisode = loadingStreamsForEpisode === episode.id
+                
+                return (
+                  <div
+                    key={episode.id || ix}
+                    className={`flex flex-col rounded-md bg-[#1a1a1d] transition-all ${isExpanded ? 'ring-1 ring-purple-500/50' : ''}`}
+                  >
+                    {/* Episode Header Row */}
+                    <div
+                      onClick={() => handleEpisodeClick(episode)}
+                      className={`flex cursor-pointer items-center gap-x-4 p-3 transition-all hover:bg-[#232326] ${isWatched ? 'opacity-60' : ''}`}
+                    >
+                      {/* Watched indicator */}
+                      {isWatched && (
+                        <Tooltip content="Watched">
+                          <div className="h-2 w-2 min-w-2 rounded-full bg-green-500" />
+                        </Tooltip>
                       )}
-                    </p>
-                    {episode.description && (
-                      <p className="line-clamp-2 text-xs opacity-50">{episode.description}</p>
-                    )}
-                    {/* Display available hosters/streaming providers if provided */}
-                    {episode.hosters && episode.hosters.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {episode.hosters.map((hoster, hosterIdx) => (
-                          <span
-                            key={hosterIdx}
-                            className="rounded bg-[#2a2a2d] px-1.5 py-0.5 text-xs text-gray-400"
-                            title={getDisplayName(hoster)}
-                          >
-                            {getDisplayName(hoster)}
-                          </span>
-                        ))}
+                      
+                      {episode.thumbnail && (
+                        <img
+                          src={episode.thumbnail}
+                          alt=""
+                          className="h-16 w-28 rounded object-cover"
+                        />
+                      )}
+                      <div className="flex flex-1 flex-col">
+                        <p className="font-space-mono text-sm font-medium">
+                          {episode.fullTitle || (
+                            <>
+                              {episode.season !== undefined && episode.season !== null && `S${episode.season}`}
+                              E{episode.number || ix + 1}
+                              {episode.title && ` - ${episode.title}`}
+                            </>
+                          )}
+                        </p>
+                        {episode.description && (
+                          <p className="line-clamp-2 text-xs opacity-50">{episode.description}</p>
+                        )}
+                        
+                        {/* Hosters and Languages Row */}
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          {/* Display available hosters/streaming providers */}
+                          {episode.hosters && episode.hosters.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {episode.hosters.map((hoster, hosterIdx) => (
+                                <span
+                                  key={hosterIdx}
+                                  className="rounded bg-[#2a2a2d] px-1.5 py-0.5 text-xs text-gray-400"
+                                  title={getDisplayName(hoster)}
+                                >
+                                  {getDisplayName(hoster)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Also show providers from episode.providers if available (aniworld format) */}
+                          {episode.providers && episode.providers.length > 0 && !episode.hosters && (
+                            <div className="flex flex-wrap gap-1">
+                              {episode.providers.map((provider, provIdx) => (
+                                <span
+                                  key={provIdx}
+                                  className="rounded bg-[#2a2a2d] px-1.5 py-0.5 text-xs text-gray-400"
+                                >
+                                  {provider}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Display language info */}
+                          {episode.languages && episode.languages.length > 0 && (
+                            <div className="flex gap-1">
+                              {episode.languages.map((lang, langIdx) => {
+                                const langDisplay = getLanguageDisplay(lang)
+                                return (
+                                  <span
+                                    key={langIdx}
+                                    className="rounded bg-blue-900/30 px-1.5 py-0.5 text-xs text-blue-300"
+                                    title={langDisplay.title}
+                                  >
+                                    {langDisplay.display}
+                                  </span>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    {/* Display language info if provided */}
-                    {episode.languages && episode.languages.length > 0 && (
-                      <div className="mt-1 flex gap-1">
-                        {episode.languages.map((lang, langIdx) => (
-                          <span
-                            key={langIdx}
-                            className="rounded bg-blue-900/30 px-1.5 py-0.5 text-xs text-blue-300"
-                          >
-                            {getDisplayName(lang)}
-                          </span>
-                        ))}
+                      
+                      {/* Play/Expand indicator */}
+                      <div className="flex items-center gap-2">
+                        {isLoadingThisEpisode ? (
+                          <Spinner size="2" />
+                        ) : pluginCapabilities.getStreams ? (
+                          <PlayIcon className={`h-5 w-5 transition-transform ${isExpanded ? 'text-purple-400' : 'opacity-50'}`} />
+                        ) : null}
+                      </div>
+                    </div>
+                    
+                    {/* Expanded Streams Section */}
+                    {isExpanded && (
+                      <div className="border-t border-[#2a2a2d] p-3">
+                        {isLoadingThisEpisode && (
+                          <div className="flex items-center gap-2 text-sm opacity-50">
+                            <Spinner size="1" /> Loading streams...
+                          </div>
+                        )}
+                        
+                        {!isLoadingThisEpisode && streams && streams.length > 0 && (
+                          <div className="grid gap-2">
+                            <p className="text-xs font-medium opacity-70">Available Streams:</p>
+                            {streams.map((stream, streamIdx) => (
+                              <a
+                                key={streamIdx}
+                                href={stream.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-between rounded bg-[#232326] px-3 py-2 transition-colors hover:bg-[#2a2a2d]"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">{stream.server || DEFAULT_SERVER_NAME}</span>
+                                  {stream.quality && (
+                                    <span className="rounded bg-purple-900/30 px-1.5 py-0.5 text-xs text-purple-300">
+                                      {stream.quality}
+                                    </span>
+                                  )}
+                                  {stream.format && (
+                                    <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs opacity-60">
+                                      {stream.format}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-xs opacity-50">Open →</span>
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {!isLoadingThisEpisode && streams && streams.length === 0 && (
+                          <p className="text-sm opacity-50">No streams found for this episode.</p>
+                        )}
+                        
+                        {!isLoadingThisEpisode && !streams && !pluginCapabilities.getStreams && (
+                          <p className="text-sm opacity-50">This plugin does not support stream fetching.</p>
+                        )}
                       </div>
                     )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 
           {!isLoadingEpisodes && episodes.length === 0 && (
             <p className="mt-3 text-sm opacity-50">
               No episodes available. This plugin may not support episode listing.
+            </p>
+          )}
+          
+          {!isLoadingEpisodes && episodes.length > 0 && filteredEpisodes.length === 0 && (
+            <p className="mt-3 text-sm opacity-50">
+              All episodes are hidden. Click &quot;Hide Watched&quot; to show them.
             </p>
           )}
         </div>
