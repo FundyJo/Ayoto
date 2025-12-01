@@ -286,7 +286,7 @@ function Anime4KMenuItems({ preset, onPresetChange, enabled, onToggle, presets }
  */
 function Anime4KSVGFilters() {
   return (
-    <svg width="0" height="0" style={{ position: 'absolute' }}>
+    <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
       <defs>
         {/* Light sharpening filter - Mode A */}
         <filter id="anime4k-sharpen-light" colorInterpolationFilters="sRGB">
