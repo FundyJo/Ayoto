@@ -31,8 +31,55 @@ function createAnimeDataFromSearchResult(animeId, searchData) {
     mediaType: searchData.mediaType || searchData.type,
     genres: searchData.genres || [],
     rating: searchData.rating,
-    popularity: searchData.popularity
+    popularity: searchData.popularity,
+    episodeCount: searchData.episodeCount
   }
+}
+
+/**
+ * Merge anime data, preferring non-null values from the newer data
+ * @param {Object} existingData - Current anime data
+ * @param {Object} newData - New data to merge
+ * @returns {Object} Merged anime data
+ */
+function mergeAnimeData(existingData, newData) {
+  if (!existingData) return newData
+  if (!newData) return existingData
+  
+  const merged = { ...existingData }
+  for (const [key, newVal] of Object.entries(newData)) {
+    const existingVal = existingData[key]
+    
+    // Only update if new value is not null/undefined
+    if (newVal !== null && newVal !== undefined) {
+      if (existingVal === null || existingVal === undefined) {
+        // Fill in missing data
+        merged[key] = newVal
+      } else if (Array.isArray(newVal) && Array.isArray(existingVal)) {
+        // Prefer longer arrays
+        if (newVal.length > existingVal.length) {
+          merged[key] = newVal
+        }
+      } else if (typeof newVal === 'string' && typeof existingVal === 'string') {
+        // Prefer longer strings (more detailed descriptions)
+        if (newVal.length > existingVal.length) {
+          merged[key] = newVal
+        }
+      }
+    }
+  }
+  return merged
+}
+
+/**
+ * Normalize a hoster/language item to get its display name
+ * Items can be strings or objects with a name property
+ * @param {string|{name: string}} item - The item to normalize
+ * @returns {string} The display name
+ */
+function getDisplayName(item) {
+  if (typeof item === 'string') return item
+  return item?.name || 'Unknown'
 }
 
 /**
@@ -64,11 +111,18 @@ export default function PluginAnimePage() {
   const location = useLocation()
   const searchResultData = location.state // Data passed from search results
 
-  const [isLoading, setIsLoading] = useState(true)
-  const [animeData, setAnimeData] = useState(null)
+  // If we have search result data, use it immediately - no loading state needed
+  const hasInitialData = searchResultData && (searchResultData.title || searchResultData.cover)
+  const [isLoading, setIsLoading] = useState(!hasInitialData)
+  const [animeData, setAnimeData] = useState(
+    hasInitialData ? createAnimeDataFromSearchResult(animeId, searchResultData) : null
+  )
   const [error, setError] = useState(null)
-  const [episodes, setEpisodes] = useState([])
+  // Use pre-fetched episodes from search results if available
+  const initialEpisodes = Array.isArray(searchResultData?.episodes) ? searchResultData.episodes : []
+  const [episodes, setEpisodes] = useState(initialEpisodes)
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false)
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
   const [pluginInfo, setPluginInfo] = useState(null)
   const [pluginCapabilities, setPluginCapabilities] = useState({})
@@ -77,8 +131,16 @@ export default function PluginAnimePage() {
   const [showAllTitles, setShowAllTitles] = useState(false)
 
   useEffect(() => {
+    // Capture searchResultData in a local variable to avoid stale closure issues
+    const currentSearchData = searchResultData
+    const hasPreFetchedEpisodes = Array.isArray(currentSearchData?.episodes) && currentSearchData.episodes.length > 0
+    
     async function fetchAnimeDetails() {
-      setIsLoading(true)
+      // Only show loading spinner if we don't have any initial data
+      const hasCurrentInitialData = currentSearchData && (currentSearchData.title || currentSearchData.cover)
+      if (!hasCurrentInitialData) {
+        setIsLoading(true)
+      }
       setError(null)
 
       try {
@@ -93,54 +155,74 @@ export default function PluginAnimePage() {
         setPluginInfo(currentPluginInfo)
         setPluginCapabilities(currentPluginInfo?.capabilities || {})
 
-        // Try to get anime details if the plugin supports it
+        // Start fetching details and episodes in parallel for faster loading
+        let detailsPromise
         if (plugin.hasCapability('getAnimeDetails')) {
-          const details = await plugin.getAnimeDetails(animeId)
-          setAnimeData(details)
-        } else if (searchResultData) {
-          // Use the data passed from search results
-          setAnimeData(createAnimeDataFromSearchResult(animeId, searchResultData))
+          setIsFetchingDetails(true)
+          detailsPromise = plugin.getAnimeDetails(animeId).finally(() => setIsFetchingDetails(false))
         } else {
-          // Minimal data when no details available
-          setAnimeData({
-            id: animeId,
-            title: animeId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-          })
+          detailsPromise = Promise.resolve(null)
+        }
+        
+        // Only fetch episodes if we don't have them from search results
+        let episodesPromise
+        if (plugin.hasCapability('getEpisodes') && !hasPreFetchedEpisodes) {
+          setIsLoadingEpisodes(true)
+          episodesPromise = plugin.getEpisodes(animeId).finally(() => setIsLoadingEpisodes(false))
+        } else {
+          episodesPromise = Promise.resolve(null)
         }
 
-        // Try to fetch episodes if supported
-        if (plugin.hasCapability('getEpisodes')) {
-          setIsLoadingEpisodes(true)
-          try {
-            const episodesResult = await plugin.getEpisodes(animeId)
-            const episodesList = episodesResult?.results || []
-            setEpisodes(episodesList)
-            
-            // Update anime data with calculated episode count if not already set
-            setAnimeData(prev => ({
-              ...prev,
-              episodeCount: prev?.episodeCount || episodesList.length || undefined
-            }))
-          } catch (epError) {
-            console.error('Failed to fetch episodes:', epError)
+        // Wait for both to complete in parallel
+        const [details, episodesResult] = await Promise.all([detailsPromise, episodesPromise])
+
+        // Update anime data - always update if we got details
+        if (details) {
+          // Merge with existing data, preferring newer details
+          setAnimeData(prev => mergeAnimeData(prev, details))
+        }
+        
+        // Set initial anime data if not already set and we have search data
+        setAnimeData(prev => {
+          if (prev) return prev // Already have data
+          if (currentSearchData) {
+            return createAnimeDataFromSearchResult(animeId, currentSearchData)
           }
-          setIsLoadingEpisodes(false)
+          // Minimal data when nothing available
+          return {
+            id: animeId,
+            title: animeId.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+          }
+        })
+
+        // Update episodes if we fetched them
+        if (episodesResult?.results?.length > 0) {
+          setEpisodes(episodesResult.results)
+          // Update episode count
+          setAnimeData(prev => ({
+            ...prev,
+            episodeCount: prev?.episodeCount || episodesResult.results.length || undefined
+          }))
         }
       } catch (err) {
         console.error('Failed to fetch anime details:', err)
         setError(err.message)
         
         // Fallback to search result data if available
-        if (searchResultData) {
-          setAnimeData(createAnimeDataFromSearchResult(animeId, searchResultData))
-        }
+        setAnimeData(prev => {
+          if (prev) return prev // Already have data, keep it
+          if (currentSearchData) {
+            return createAnimeDataFromSearchResult(animeId, currentSearchData)
+          }
+          return null
+        })
       }
 
       setIsLoading(false)
     }
 
     fetchAnimeDetails()
-  }, [pluginId, animeId, searchResultData, refetchKey])
+  }, [pluginId, animeId, searchResultData, refetchKey]) // Include searchResultData for proper re-fetching on navigation
 
   if (isLoading) return <CenteredLoader />
 
@@ -203,7 +285,12 @@ export default function PluginAnimePage() {
 
           <div className="flex-1 justify-start gap-y-0">
             {/* Title - matches AnimePage.jsx exactly */}
-            <p className="font-space-mono text-xl font-medium tracking-wider">{data?.title}</p>
+            <div className="flex items-center gap-x-2">
+              <p className="font-space-mono text-xl font-medium tracking-wider">{data?.title}</p>
+              {isFetchingDetails && (
+                <span className="animate-pulse text-xs text-blue-400">Updating...</span>
+              )}
+            </div>
             {data?.altTitles && data.altTitles.length > 0 && (() => {
               const hasMoreTitles = data.altTitles.length > 3
               return (
@@ -373,11 +460,14 @@ export default function PluginAnimePage() {
         <div className="mb-96 mt-12">
           <div className="flex items-center gap-x-3">
             <p className="font-space-mono text-lg font-medium opacity-90">Episodes</p>
+            {isLoadingEpisodes && (
+              <span className="text-xs text-blue-400 opacity-70">Loading...</span>
+            )}
           </div>
 
-          {isLoadingEpisodes && <Skeleton className="mt-3 h-12" />}
+          {isLoadingEpisodes && episodes.length === 0 && <Skeleton className="mt-3 h-12" />}
 
-          {!isLoadingEpisodes && episodes.length > 0 && (
+          {episodes.length > 0 && (
             <div className="mt-3 grid grid-cols-1 gap-y-3">
               {episodes.map((episode, ix) => (
                 <div
@@ -391,13 +481,40 @@ export default function PluginAnimePage() {
                       className="h-16 w-28 rounded object-cover"
                     />
                   )}
-                  <div className="flex flex-col">
+                  <div className="flex flex-1 flex-col">
                     <p className="font-space-mono text-sm font-medium">
                       Episode {episode.number || ix + 1}
                       {episode.title && ` - ${episode.title}`}
                     </p>
                     {episode.description && (
                       <p className="line-clamp-2 text-xs opacity-50">{episode.description}</p>
+                    )}
+                    {/* Display available hosters/streaming providers if provided */}
+                    {episode.hosters && episode.hosters.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {episode.hosters.map((hoster, hosterIdx) => (
+                          <span
+                            key={hosterIdx}
+                            className="rounded bg-[#2a2a2d] px-1.5 py-0.5 text-xs text-gray-400"
+                            title={getDisplayName(hoster)}
+                          >
+                            {getDisplayName(hoster)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {/* Display language info if provided */}
+                    {episode.languages && episode.languages.length > 0 && (
+                      <div className="mt-1 flex gap-1">
+                        {episode.languages.map((lang, langIdx) => (
+                          <span
+                            key={langIdx}
+                            className="rounded bg-blue-900/30 px-1.5 py-0.5 text-xs text-blue-300"
+                          >
+                            {getDisplayName(lang)}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>

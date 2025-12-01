@@ -47,6 +47,9 @@ import { ZPE_PLUGIN_TYPE, ZPE_STREAM_FORMAT, ZPE_PLUGIN_STATE } from './ZPEManif
  * @property {number} [duration] - Duration in seconds
  * @property {string} [airDate] - Air date (ISO 8601)
  * @property {boolean} [isFiller] - Is filler episode
+ * @property {Array<{name: string, id?: string}>} [hosters] - Available streaming hosters (e.g., VOE, Filemoon)
+ * @property {Array<{name: string, code?: string}>} [languages] - Available languages/subtitles
+ * @property {string} [link] - Direct link to the episode page (for fetching stream URLs)
  */
 
 /**
@@ -537,7 +540,10 @@ export function createEpisode(data) {
     description: data.description || null,
     duration: data.duration || null,
     airDate: data.airDate || null,
-    isFiller: data.isFiller || false
+    isFiller: data.isFiller || false,
+    hosters: data.hosters || null,
+    languages: data.languages || null,
+    link: data.link || null
   }
 }
 
