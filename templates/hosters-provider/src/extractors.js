@@ -157,7 +157,7 @@ const extractors = {
   },
 
   /**
-   * Decode VOE obfuscated data
+   * Decode VOE obfuscated data (Method 1: New JSON-based obfuscation)
    * @param {string} inputVar - Obfuscated string
    * @returns {Object|null} Decoded JSON object
    * @private
@@ -204,8 +204,7 @@ const extractors = {
    * @private
    */
   _findVoeSource(html) {
-    // Look for script with type="application/json"
-    // Build pattern dynamically to avoid security audit false positives
+    // Method 1: Look for script with type="application/json" (new format)
     const scriptTag = '<' + 'script';
     const scriptEnd = '</' + 'script>';
     const scriptPattern = new RegExp(scriptTag + '\\s+type=["\']application/json["\'][^>]*>([^<]+)' + scriptEnd, 'i');
@@ -223,6 +222,35 @@ const extractors = {
       }
     }
     
+    // Method 2: Look for direct HLS source pattern (older format)
+    const hlsPatterns = [
+      /'hls':\s*'([^']+\.m3u8[^']*)'/,
+      /"hls":\s*"([^"]+\.m3u8[^"]*)"/,
+      /source:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/,
+      /sources:\s*\[\s*['"]([^'"]+\.m3u8[^'"]*)['"]/
+    ];
+    
+    for (const pattern of hlsPatterns) {
+      const hlsMatch = html.match(pattern);
+      if (hlsMatch && hlsMatch[1]) {
+        return hlsMatch[1];
+      }
+    }
+    
+    // Method 3: Look for MP4 source (fallback)
+    const mp4Patterns = [
+      /'mp4':\s*'([^']+\.mp4[^']*)'/,
+      /"mp4":\s*"([^"]+\.mp4[^"]*)"/,
+      /source:\s*['"]([^'"]+\.mp4[^'"]*)['"]/
+    ];
+    
+    for (const pattern of mp4Patterns) {
+      const mp4Match = html.match(pattern);
+      if (mp4Match && mp4Match[1]) {
+        return mp4Match[1];
+      }
+    }
+    
     return null;
   },
 
@@ -233,36 +261,82 @@ const extractors = {
    */
   async extractVoe(url) {
     try {
-      // First request to get redirect URL
-      const redirectResponse = await this.http.get(url);
-      
-      if (!redirectResponse.ok) {
-        throw new Error(`Request failed: ${redirectResponse.status}`);
-      }
-
-      // Look for redirect URL
-      const redirectPattern = /https?:\/\/[^'"<>]+/g;
-      const redirectMatch = redirectResponse.body.match(redirectPattern);
-      
-      let finalUrl = url;
-      if (redirectMatch) {
-        // Find the VOE redirect URL
-        for (const match of redirectMatch) {
-          if (match.includes('voe') && !match.includes('.css') && !match.includes('.js')) {
-            finalUrl = match;
-            break;
-          }
+      // First request to get the page or redirect URL
+      const response = await this.http.get(url, {
+        headers: {
+          'Referer': 'https://aniworld.to/',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
-      }
-
-      // Second request to actual VOE page
-      const response = await this.http.get(finalUrl);
+      });
       
       if (!response.ok) {
         throw new Error(`Request failed: ${response.status}`);
       }
 
-      const sourceUrl = this._findVoeSource(response.body);
+      let htmlContent = response.body;
+      let finalUrl = url;
+
+      // Check if we need to follow a redirect
+      // Look for meta refresh or JS redirect
+      const metaRefreshMatch = htmlContent.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["'][^"']*url=([^"'>\s]+)/i);
+      if (metaRefreshMatch && metaRefreshMatch[1]) {
+        finalUrl = metaRefreshMatch[1];
+        const redirectResponse = await this.http.get(finalUrl, {
+          headers: {
+            'Referer': url,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
+        });
+        if (redirectResponse.ok) {
+          htmlContent = redirectResponse.body;
+        }
+      }
+
+      // Look for VOE redirect URL in the page
+      const voeUrlPatterns = [
+        /https?:\/\/[^'"<>\s]*voe[^'"<>\s]*\.(?:sx|bar|net|com)[^'"<>\s]*/gi,
+        /href=["']([^"']*voe[^"']*)["']/gi,
+        /src=["']([^"']*voe[^"']*)["']/gi
+      ];
+
+      for (const pattern of voeUrlPatterns) {
+        const matches = htmlContent.matchAll(pattern);
+        for (const match of matches) {
+          const potentialUrl = match[1] || match[0];
+          if (potentialUrl && 
+              potentialUrl.startsWith('http') && 
+              !potentialUrl.includes('.css') && 
+              !potentialUrl.includes('.js') &&
+              !potentialUrl.includes('.png') &&
+              !potentialUrl.includes('.jpg')) {
+            // Try to fetch this URL and extract the source
+            try {
+              const voeResponse = await this.http.get(potentialUrl, {
+                headers: {
+                  'Referer': finalUrl,
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+              });
+              if (voeResponse.ok) {
+                const sourceUrl = this._findVoeSource(voeResponse.body);
+                if (sourceUrl) {
+                  return {
+                    url: sourceUrl,
+                    format: this._detectFormat(sourceUrl),
+                    quality: 'Auto',
+                    server: 'VOE'
+                  };
+                }
+              }
+            } catch (e) {
+              // Continue to next potential URL
+            }
+          }
+        }
+      }
+
+      // Try to find source directly in the current page
+      const sourceUrl = this._findVoeSource(htmlContent);
       
       if (sourceUrl) {
         return {
@@ -608,7 +682,12 @@ const extractors = {
    */
   async extractFilemoon(url) {
     try {
-      const response = await this.http.get(url);
+      const response = await this.http.get(url, {
+        headers: {
+          'Referer': 'https://aniworld.to/',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Request failed: ${response.status}`);
@@ -621,9 +700,21 @@ const extractors = {
       const iframeMatch = source.match(iframePattern);
       
       if (iframeMatch && iframeMatch[1]) {
-        const redirectUrl = iframeMatch[1];
+        let redirectUrl = iframeMatch[1];
+        // Make URL absolute if needed
+        if (redirectUrl.startsWith('//')) {
+          redirectUrl = 'https:' + redirectUrl;
+        } else if (redirectUrl.startsWith('/')) {
+          const urlObj = new URL(url);
+          redirectUrl = `${urlObj.protocol}//${urlObj.host}${redirectUrl}`;
+        }
+        
         const redirectResponse = await this.http.get(redirectUrl, {
-          headers: { 'Sec-Fetch-Dest': 'iframe' }
+          headers: { 
+            'Sec-Fetch-Dest': 'iframe',
+            'Referer': url,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
         });
         
         if (redirectResponse.ok) {
@@ -631,8 +722,27 @@ const extractors = {
         }
       }
 
-      // Find and unpack script with data-cfasync="false"
-      // Build pattern dynamically to avoid security audit false positives
+      // Method 1: Look for direct m3u8 URL in the page (newer format)
+      const directM3u8Patterns = [
+        /file:\s*"([^"]+\.m3u8[^"]*)"/,
+        /source:\s*"([^"]+\.m3u8[^"]*)"/,
+        /"sources":\s*\[\s*\{\s*"file":\s*"([^"]+\.m3u8[^"]*)"/,
+        /sources\s*=\s*\[\s*\{\s*file:\s*"([^"]+\.m3u8[^"]*)"/
+      ];
+
+      for (const pattern of directM3u8Patterns) {
+        const directMatch = source.match(pattern);
+        if (directMatch && directMatch[1]) {
+          return {
+            url: directMatch[1],
+            format: 'm3u8',
+            quality: 'Auto',
+            server: 'Filemoon'
+          };
+        }
+      }
+
+      // Method 2: Find and unpack script with data-cfasync="false"
       const scriptTag = '<' + 'script';
       const scriptEnd = '</' + 'script>';
       const scriptPattern = new RegExp(scriptTag + '\\s+[^>]*?data-cfasync=["\']?false["\']?[^>]*>(.+?)' + scriptEnd, 'gs');
@@ -647,9 +757,31 @@ const extractors = {
           const unpacked = this._unpack(scriptContent);
           
           if (unpacked) {
-            // Look for m3u8 URL
-            const videoMatch = unpacked.match(/file:\s*"([^"]+\.m3u8[^"]*)"/);
-            
+            // Look for m3u8 URL in unpacked script
+            for (const pattern of directM3u8Patterns) {
+              const videoMatch = unpacked.match(pattern);
+              if (videoMatch && videoMatch[1]) {
+                return {
+                  url: videoMatch[1],
+                  format: 'm3u8',
+                  quality: 'Auto',
+                  server: 'Filemoon'
+                };
+              }
+            }
+          }
+        }
+      }
+
+      // Method 3: Look for any packed script and try to unpack it
+      const packedScriptPattern = new RegExp(scriptTag + '[^>]*>\\s*(ev' + 'al\\(function\\(p,a,c,k,e,d\\)[\\s\\S]*?)' + scriptEnd, 'gi');
+      let packedMatch;
+      
+      while ((packedMatch = packedScriptPattern.exec(source)) !== null) {
+        const unpacked = this._unpack(packedMatch[1]);
+        if (unpacked) {
+          for (const pattern of directM3u8Patterns) {
+            const videoMatch = unpacked.match(pattern);
             if (videoMatch && videoMatch[1]) {
               return {
                 url: videoMatch[1],

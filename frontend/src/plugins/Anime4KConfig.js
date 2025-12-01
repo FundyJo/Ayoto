@@ -5,6 +5,32 @@
  * Anime4K is a set of open-source, high-quality real-time anime upscaling/denoising
  * algorithms that can be implemented as WebGL shaders.
  * 
+ * ## Integration with Vidstack
+ * 
+ * The video pipeline for Anime4K with Vidstack works as follows:
+ * 
+ *   Video Stream → Browser Decoder → Anime4K Processing → Vidstack Display
+ *                                         ↓
+ *                                   Audio (sync maintained)
+ * 
+ * ### Current CSS Approximation
+ * Since full WebGL Anime4K shaders require complex integration,
+ * we currently use CSS filters as an approximation:
+ * - contrast: Enhances edge definition
+ * - saturate: Improves color vibrancy (common in anime)
+ * - brightness: Fine-tunes overall lighting
+ * 
+ * ### Audio Synchronization
+ * Audio sync is maintained because:
+ * 1. CSS filters are applied in real-time by the browser compositor
+ * 2. The underlying video element's timing is not affected
+ * 3. No video re-encoding or frame manipulation occurs
+ * 
+ * For WebGL-based implementations, audio sync is maintained by:
+ * 1. Using requestVideoFrameCallback() for precise frame timing
+ * 2. Processing video frames without modifying playback timing
+ * 3. Audio continues from the original HTMLVideoElement
+ * 
  * Note: Full Anime4K shader implementation requires WebGL support and is performance-intensive.
  * This module provides configuration and preset definitions for integration with video players.
  */

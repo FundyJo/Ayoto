@@ -1,5 +1,7 @@
 import { GlobeIcon } from '@radix-ui/react-icons'
 import { useNavigate } from 'react-router-dom'
+import { useZenshinContext } from '../utils/ContextProvider'
+import { maybeProxyUrl } from '../utils/imageProxy'
 
 /**
  * Component to display search results from plugin providers
@@ -11,6 +13,7 @@ import { useNavigate } from 'react-router-dom'
  */
 export default function PluginSearchResults({ data, providerName, providerId, setIsActive }) {
   const navigate = useNavigate()
+  const { backendPort } = useZenshinContext()
 
   // Handle click - navigate to plugin anime page
   function handleClick() {
@@ -48,6 +51,9 @@ export default function PluginSearchResults({ data, providerName, providerId, se
     setIsActive(false)
   }
 
+  // Proxy the cover image URL if needed (for CORS-restricted sources like aniworld.to)
+  const proxiedCover = maybeProxyUrl(data.cover, backendPort)
+
   return (
     <div
       onClick={() => handleClick()}
@@ -56,7 +62,7 @@ export default function PluginSearchResults({ data, providerName, providerId, se
       {data.cover ? (
         <img
           className="duration-400 h-12 w-12 animate-fade rounded-lg object-cover transition-all ease-in-out hover:scale-150"
-          src={data.cover}
+          src={proxiedCover}
           alt="cover"
         />
       ) : (

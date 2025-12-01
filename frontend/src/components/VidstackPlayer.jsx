@@ -1,6 +1,43 @@
 /**
  * VidstackPlayer Component
  * A modern video player using Vidstack with HLS, Anime4K support, and mobile/desktop compatibility
+ * 
+ * ## Video Pipeline Architecture
+ * 
+ * The ideal Anime4K pipeline should work as follows:
+ * 
+ *   1. Video Stream Source (HLS/MP4/MKV)
+ *       ↓
+ *   2. Video Decoder (browser native)
+ *       ↓
+ *   3. WebGL Canvas (Anime4K shader processing)
+ *       - Applies upscaling/enhancement shaders
+ *       - Maintains original framerate and timing
+ *       ↓
+ *   4. Vidstack Display
+ *       - Audio remains synchronized via HTMLVideoElement
+ *       - Video frames are rendered from WebGL canvas
+ * 
+ * ## Current Implementation
+ * 
+ * Due to browser limitations and complexity, we use a CSS filter approximation:
+ *   - CSS filters (contrast, saturation, brightness) are applied to the video element
+ *   - This provides a visual enhancement without true Anime4K upscaling
+ *   - Audio sync is maintained as video is not re-encoded
+ * 
+ * ## Future WebGL Implementation Notes
+ * 
+ * For true Anime4K with WebGL shaders:
+ *   1. Create an offscreen canvas with WebGL2 context
+ *   2. Load Anime4K GLSL shaders (Clamp_Highlights, Restore_CNN, Upscale_CNN)
+ *   3. On each video frame (requestVideoFrameCallback):
+ *      - Draw video frame to WebGL canvas as texture
+ *      - Apply shader pipeline
+ *      - Display result
+ *   4. Audio continues from original video element (maintains sync)
+ * 
+ * Libraries like @aspect-analytics/anime4k or custom WebGL implementations
+ * can be integrated for true shader-based upscaling.
  */
 
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react'

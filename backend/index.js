@@ -902,6 +902,76 @@ app2.get('/ping', (req, res) => {
   res.status(200).send('pong')
 })
 
+/* ------------------------------------------------------ */
+/* -------------------- IMAGE PROXY --------------------- */
+/* ------------------------------------------------------ */
+
+/**
+ * Image proxy endpoint to bypass CORS restrictions for external images
+ * Usage: /proxy/image?url=<encoded-url>
+ * 
+ * This proxies images from external sources that don't have CORS headers,
+ * such as aniworld.to cover images.
+ */
+app2.get('/proxy/image', async (req, res) => {
+  const { url } = req.query
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL parameter is required' })
+  }
+
+  try {
+    // Decode the URL if it's encoded
+    const decodedUrl = decodeURIComponent(url)
+
+    // Validate that it's an HTTP(S) URL
+    if (!decodedUrl.startsWith('http://') && !decodedUrl.startsWith('https://')) {
+      return res.status(400).json({ error: 'Invalid URL protocol' })
+    }
+
+    // Parse the URL to get the host for the Referer header
+    const urlObj = new URL(decodedUrl)
+    const refererOrigin = `${urlObj.protocol}//${urlObj.host}`
+
+    // Fetch the image from the external source
+    const response = await fetch(decodedUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Referer: refererOrigin,
+        Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+      }
+    })
+
+    if (!response.ok) {
+      console.error(`Image proxy failed for ${decodedUrl}: HTTP ${response.status}`)
+      return res.status(response.status).json({
+        error: `Failed to fetch image: HTTP ${response.status}`
+      })
+    }
+
+    // Get the content type from the response
+    const contentType = response.headers.get('content-type') || 'image/jpeg'
+
+    // Read the response body as a buffer
+    const buffer = await response.arrayBuffer()
+
+    // Set appropriate headers
+    res.set('Content-Type', contentType)
+    res.set('Cache-Control', 'public, max-age=86400') // Cache for 24 hours
+    res.set('Access-Control-Allow-Origin', '*')
+
+    // Send the image buffer
+    res.send(Buffer.from(buffer))
+  } catch (error) {
+    console.error('Image proxy error:', error.message)
+    res.status(500).json({
+      error: 'Failed to proxy image',
+      message: error.message
+    })
+  }
+})
+
 // do not start the server again if it is already running
 
 // app2.listen(64621, () => {
