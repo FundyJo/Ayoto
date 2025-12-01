@@ -137,30 +137,57 @@ const plugin = {
 
   /**
    * Get episodes for an anime
+   * Fetches episodes from each season page to get detailed info (titles, providers, languages)
    * 
    * @param {string} animeId - Anime ID (the link slug from search)
    * @param {number} page - Page number
-   * @returns {Promise<Object>} Paginated episode list
+   * @returns {Promise<Object>} Paginated episode list with detailed info
    */
   async getEpisodes(animeId, page = 1) {
     try {
-      const url = `${this.baseUrl}/anime/stream/${animeId}`;
-      const response = await this.http.get(url);
+      // First, get the main anime page to find available seasons
+      const mainUrl = `${this.baseUrl}/anime/stream/${animeId}`;
+      const mainResponse = await this.http.get(mainUrl);
       
-      if (!response.ok) {
-        // Check for network error (status 0 indicates connection failure)
-        if (response.status === 0) {
-          throw new Error(`Network error: ${response.error || 'Unable to connect to aniworld.to'}`);
+      if (!mainResponse.ok) {
+        if (mainResponse.status === 0) {
+          throw new Error(`Network error: ${mainResponse.error || 'Unable to connect to aniworld.to'}`);
         }
-        throw new Error(`Failed to fetch episodes: HTTP ${response.status} ${response.statusText || ''}`);
+        throw new Error(`Failed to fetch anime page: HTTP ${mainResponse.status} ${mainResponse.statusText || ''}`);
       }
       
-      // Parse episode list from HTML
-      // Aniworld typically has seasons with episodes listed
-      const episodes = this._parseEpisodeList(response.body);
+      // Find available seasons from the main page
+      const seasons = this._findSeasons(mainResponse.body);
+      
+      // Fetch detailed episode info from each season page
+      const allEpisodes = [];
+      
+      for (const season of seasons) {
+        const seasonUrl = `${this.baseUrl}/anime/stream/${animeId}/${season.slug}`;
+        try {
+          const seasonResponse = await this.http.get(seasonUrl);
+          if (seasonResponse.ok) {
+            const seasonEpisodes = this._parseSeasonEpisodes(seasonResponse.body, animeId, season);
+            allEpisodes.push(...seasonEpisodes);
+          }
+        } catch (seasonError) {
+          console.error(`Failed to fetch season ${season.number}:`, seasonError);
+          // Continue with other seasons
+        }
+      }
+      
+      // If no season pages found, fall back to parsing from main page
+      if (allEpisodes.length === 0) {
+        const episodes = this._parseEpisodeList(mainResponse.body);
+        return {
+          results: episodes,
+          hasNextPage: false,
+          currentPage: page
+        };
+      }
       
       return {
-        results: episodes,
+        results: allEpisodes,
         hasNextPage: false,
         currentPage: page
       };
@@ -284,7 +311,209 @@ const plugin = {
   },
 
   /**
-   * Parse episode list from aniworld HTML page
+   * Find available seasons from the main anime page
+   * Looks for season links in the navigation (staffel-1, staffel-2, filme, etc.)
+   * 
+   * @param {string} html - HTML content of the main anime page
+   * @returns {Array} Array of season objects with number and slug
+   * @private
+   */
+  _findSeasons(html) {
+    const seasons = [];
+    const addedSlugs = new Set();
+
+    // Look for season links - more specific pattern targeting anchor tags
+    // Pattern: <a href="/anime/stream/{animeId}/staffel-{num}"> or /filme">
+    const seasonLinkRegex = /<a[^>]*href="[^"]*\/(staffel-(\d+)|filme)"[^>]*>/gi;
+    let match;
+
+    while ((match = seasonLinkRegex.exec(html)) !== null) {
+      const slug = match[1];
+      if (!addedSlugs.has(slug)) {
+        addedSlugs.add(slug);
+        const isMovies = slug === 'filme';
+        seasons.push({
+          number: isMovies ? 0 : parseInt(match[2], 10),
+          slug: slug,
+          isMovies: isMovies
+        });
+      }
+    }
+
+    // Sort: movies first (number 0), then by season number
+    seasons.sort((a, b) => a.number - b.number);
+
+    return seasons;
+  },
+
+  /**
+   * Parse detailed episode information from a season page
+   * Extracts episode titles, providers, and language availability from the seasonEpisodesList table
+   * 
+   * HTML structure (from aniworld.to/anime/stream/{anime}/staffel-{n}):
+   * <table class="seasonEpisodesList" data-season-id="1">
+   *   <tr data-episode-id="60606">
+   *     <td class="season1EpisodeID">
+   *       <meta itemprop="episodeNumber" content="1">
+   *       <a href="...">Folge 1</a>
+   *     </td>
+   *     <td class="seasonEpisodeTitle">
+   *       <a href="..."><span>The Hero Returns</span></a>
+   *     </td>
+   *     <td>
+   *       <a href="..."><i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i></a>
+   *     </td>
+   *     <td class="editFunctions">
+   *       <img class="flag" src="/public/img/japanese-german.svg" title="Mit deutschem Untertitel">
+   *       <img class="flag" src="/public/img/japanese-english.svg" title="Englisch">
+   *     </td>
+   *   </tr>
+   * </table>
+   * 
+   * @param {string} html - HTML content of the season page
+   * @param {string} animeId - Anime ID
+   * @param {Object} season - Season object with number, slug, isMovies
+   * @returns {Array} Array of episode objects with detailed info
+   * @private
+   */
+  _parseSeasonEpisodes(html, animeId, season) {
+    const episodes = [];
+    
+    // Find all episode rows in the seasonEpisodesList table
+    // Each row has data-episode-id attribute
+    const rowRegex = /<tr[^>]*data-episode-id="(\d+)"[^>]*>([\s\S]*?)<\/tr>/gi;
+    let rowMatch;
+    
+    while ((rowMatch = rowRegex.exec(html)) !== null) {
+      const rowContent = rowMatch[2];
+      
+      // Extract episode number from meta tag or link
+      let episodeNumber = null;
+      const epNumMatch = rowContent.match(/itemprop="episodeNumber"\s*content="(\d+)"/i);
+      if (epNumMatch) {
+        episodeNumber = parseInt(epNumMatch[1], 10);
+      } else {
+        // Fallback: extract from link text "Folge X" or "episode-X"
+        const folgeMatch = rowContent.match(/Folge\s*(\d+)/i);
+        if (folgeMatch) {
+          episodeNumber = parseInt(folgeMatch[1], 10);
+        }
+      }
+      
+      if (!episodeNumber) continue;
+      
+      // Extract episode title from seasonEpisodeTitle
+      let episodeTitle = `Episode ${episodeNumber}`;
+      const titleMatch = rowContent.match(/class="seasonEpisodeTitle"[^>]*>[\s\S]*?<span>([^<]+)<\/span>/i);
+      if (titleMatch && titleMatch[1]) {
+        const parsedTitle = this._decodeHtmlEntities(titleMatch[1].trim());
+        // Only use the title if it's not a generic placeholder like "Episode 09"
+        if (parsedTitle && !parsedTitle.match(/^Episode\s*\d+$/i)) {
+          episodeTitle = parsedTitle;
+        }
+      }
+      
+      // Extract available providers (hosters)
+      const providers = [];
+      const providerRegex = /<i[^>]*class="icon\s+([^"]+)"[^>]*title="([^"]*)"[^>]*>/gi;
+      let providerMatch;
+      while ((providerMatch = providerRegex.exec(rowContent)) !== null) {
+        const providerName = providerMatch[2] || providerMatch[1];
+        if (providerName && !providers.includes(providerName)) {
+          providers.push(providerName);
+        }
+      }
+      
+      // Extract language availability from flag images
+      const languages = [];
+      const flagRegex = /<img[^>]*class="flag"[^>]*(?:src="([^"]*)"[^>]*title="([^"]*)"|title="([^"]*)"[^>]*src="([^"]*)")/gi;
+      let flagMatch;
+      while ((flagMatch = flagRegex.exec(rowContent)) !== null) {
+        const src = flagMatch[1] || flagMatch[4];
+        const title = flagMatch[2] || flagMatch[3];
+        
+        if (src) {
+          const langInfo = this._detectLanguage(src, title);
+          if (langInfo && !languages.some(l => l.code === langInfo.code)) {
+            languages.push(langInfo);
+          }
+        }
+      }
+      
+      // Build episode object
+      const id = season.isMovies ? `filme-${episodeNumber}` : `${season.number}-${episodeNumber}`;
+      const fullTitle = this._formatEpisodeTitle(season, episodeNumber, episodeTitle);
+      
+      episodes.push({
+        id: id,
+        number: episodeNumber,
+        season: season.number,
+        title: episodeTitle,
+        fullTitle: fullTitle,
+        link: `/anime/stream/${animeId}/${season.slug}/episode-${episodeNumber}`,
+        providers: providers,
+        languages: languages,
+        thumbnail: null,
+        isMovie: season.isMovies
+      });
+    }
+    
+    // Sort by episode number
+    episodes.sort((a, b) => a.number - b.number);
+    
+    return episodes;
+  },
+
+  /**
+   * Detect language from flag image src and title
+   * @param {string} src - Image source path
+   * @param {string} title - Image title attribute
+   * @returns {Object|null} Language info object or null
+   * @private
+   */
+  _detectLanguage(src, title) {
+    // Language detection patterns - maps source/title patterns to language info
+    const langPatterns = [
+      { srcPattern: 'japanese-german', titlePattern: 'deutsch', code: 'de-sub', label: 'German Subtitles' },
+      { srcPattern: 'japanese-english', titlePattern: 'englisch', code: 'en', label: 'English' },
+      { srcPattern: 'german', titlePattern: null, code: 'de', label: 'German' }
+    ];
+    
+    const srcLower = (src || '').toLowerCase();
+    const titleLower = (title || '').toLowerCase();
+    
+    for (const pattern of langPatterns) {
+      const srcMatch = pattern.srcPattern && srcLower.includes(pattern.srcPattern);
+      const titleMatch = pattern.titlePattern && titleLower.includes(pattern.titlePattern);
+      
+      if (srcMatch || titleMatch) {
+        return {
+          code: pattern.code,
+          label: title || pattern.label
+        };
+      }
+    }
+    
+    return null;
+  },
+
+  /**
+   * Format episode title with season/episode prefix
+   * @param {Object} season - Season object with number and isMovies flag
+   * @param {number} episodeNumber - Episode number
+   * @param {string} episodeTitle - Episode title
+   * @returns {string} Formatted full title
+   * @private
+   */
+  _formatEpisodeTitle(season, episodeNumber, episodeTitle) {
+    if (season.isMovies) {
+      return `Film ${episodeNumber} - ${episodeTitle}`;
+    }
+    return `S${season.number}E${episodeNumber} - ${episodeTitle}`;
+  },
+
+  /**
+   * Parse episode list from aniworld HTML page (legacy fallback)
    * @param {string} html - HTML content
    * @returns {Array} Episode list
    * @private
