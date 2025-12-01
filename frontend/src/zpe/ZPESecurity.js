@@ -342,11 +342,13 @@ export class ZPEPermissionManager {
 
   /**
    * Check if plugin can use local storage
+   * Accepts both STORAGE_LOCAL (full access) and STORAGE_CACHE (cache access) permissions
    * @param {string} pluginId - Plugin ID
    * @returns {boolean}
    */
   canUseStorage(pluginId) {
-    return this.hasPermission(pluginId, ZPE_PERMISSION.STORAGE_LOCAL)
+    return this.hasPermission(pluginId, ZPE_PERMISSION.STORAGE_LOCAL) || 
+           this.hasPermission(pluginId, ZPE_PERMISSION.STORAGE_CACHE)
   }
 
   /**
