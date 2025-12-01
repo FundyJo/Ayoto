@@ -44,7 +44,7 @@ const plugin = {
       extractor: 'extractVidoza'
     },
     'vidmoly': {
-      pattern: /vidmoly\.(to|me|com)/i,
+      pattern: /vidmoly\.(to|me|com|net)/i,
       name: 'Vidmoly',
       extractor: 'extractVidmoly'
     },
