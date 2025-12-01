@@ -11,6 +11,7 @@ import { zpePluginManager, pluginAPI } from '../zpe'
 import PluginAuthModal from '../components/PluginAuthModal'
 import Pagination from '../components/Pagination'
 import VidstackPlayer from '../components/VidstackPlayer'
+import { maybeProxyUrl } from '../utils/imageProxy'
 
 // Constants
 const SEARCH_BLUR_DELAY_MS = 200 // Delay before hiding search results on blur
@@ -252,7 +253,7 @@ function formatYearRange(startYear, endYear, status) {
 
 export default function PluginAnimePage() {
   const zenshinContext = useZenshinContext()
-  const { glow } = zenshinContext
+  const { glow, backendPort } = zenshinContext
   const navigate = useNavigate()
 
   const { pluginId, animeId } = useParams()
@@ -740,6 +741,9 @@ export default function PluginAnimePage() {
 
   const data = animeData
   const bannerImage = data?.background_cover || data?.banner
+  // Proxy images that need it (e.g., from aniworld.to) to bypass CORS
+  const proxiedBannerImage = maybeProxyUrl(bannerImage, backendPort)
+  const proxiedCoverImage = maybeProxyUrl(data?.cover, backendPort)
 
   return (
     <div className="relative">
@@ -749,14 +753,14 @@ export default function PluginAnimePage() {
           {glow && (
             <div className="animate-fade-down">
               <img
-                src={bannerImage}
+                src={proxiedBannerImage}
                 className="absolute top-7 z-0 h-72 w-full object-cover opacity-70 blur-3xl brightness-75 saturate-150 2xl:h-96"
                 alt=""
               />
             </div>
           )}
           <img
-            src={bannerImage}
+            src={proxiedBannerImage}
             className="z-10 h-72 w-full animate-fade-down object-cover brightness-90 transition-all ease-in-out 2xl:h-96"
             alt=""
           />
@@ -768,7 +772,7 @@ export default function PluginAnimePage() {
           {/* Cover Image - matches AnimePage.jsx exactly */}
           {data?.cover ? (
             <img
-              src={data.cover}
+              src={proxiedCoverImage}
               alt=""
               className={`duration-400 relative ${bannerImage ? 'bottom-[4rem]' : ''} shadow-xl drop-shadow-2xl h-[25rem] w-72 animate-fade-up rounded-md object-cover transition-all ease-in-out`}
             />
@@ -1080,7 +1084,7 @@ export default function PluginAnimePage() {
                     >
                       {result.cover ? (
                         <img
-                          src={result.cover}
+                          src={maybeProxyUrl(result.cover, backendPort)}
                           alt=""
                           className="h-12 w-10 rounded object-cover"
                         />
@@ -1392,7 +1396,7 @@ export default function PluginAnimePage() {
               src={activeStream.url}
               format={activeStream.format === 'hls' ? 'm3u8' : activeStream.format}
               title={activeStream.episodeTitle}
-              poster={data?.cover}
+              poster={proxiedCoverImage}
               autoPlay={!showResumePrompt}
               anime4kEnabled={anime4kEnabled}
               anime4kPreset={anime4kPreset}
