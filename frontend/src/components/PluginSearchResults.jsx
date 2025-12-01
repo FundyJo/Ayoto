@@ -19,14 +19,30 @@ export default function PluginSearchResults({ data, providerName, providerId, se
     const titleSlug = (data.title || data.name || 'unknown')?.toLowerCase().replace(/[^a-z0-9]+/g, '-')
     const animeId = data.id || data.link || titleSlug
     
-    // Navigate to the plugin anime page with the search result data
+    // Navigate to the plugin anime page with all available search result data
+    // This allows the page to render faster by using cached data
     navigate(`/plugin-anime/${providerId}/${encodeURIComponent(animeId)}`, {
       state: {
+        // Basic info
         title: data.title || data.name,
         description: data.description,
         cover: data.cover,
         background_cover: data.background_cover,
-        year: data.year || data.productionYear
+        year: data.year || data.productionYear,
+        // Extended info that plugins may provide
+        altTitles: data.altTitles,
+        genres: data.genres,
+        status: data.status,
+        rating: data.rating,
+        popularity: data.popularity,
+        mediaType: data.mediaType || data.type,
+        startYear: data.startYear,
+        endYear: data.endYear,
+        episodeCount: data.episodeCount,
+        // Pre-fetched episodes if available (for faster loading)
+        episodes: data.episodes,
+        // Pre-fetched hosters/streams info if available
+        hosters: data.hosters
       }
     })
     setIsActive(false)
