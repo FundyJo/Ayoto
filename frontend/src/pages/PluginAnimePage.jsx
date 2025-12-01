@@ -28,6 +28,18 @@ const LANGUAGE_FILTERS = [
   { value: 'ja', label: 'Japanese', code: 'ja' }
 ]
 
+// Supported formats for Vidstack player
+const PLAYABLE_FORMATS = ['m3u8', 'mp4', 'hls', 'embed', 'webm', null, undefined]
+
+/**
+ * Check if a stream format is playable in Vidstack
+ * @param {string|null|undefined} format - Stream format
+ * @returns {boolean} Whether the format can be played in Vidstack
+ */
+function isPlayableInVidstack(format) {
+  return PLAYABLE_FORMATS.includes(format) || !format
+}
+
 /**
  * Helper function to get language display text
  * Handles both string and object language formats
@@ -541,11 +553,16 @@ export default function PluginAnimePage() {
     }
   }
 
-  // Handle video time update for progress tracking
+  // Handle video time update for progress tracking with throttling
+  const lastSaveTimeRef = useRef(0)
   const handleTimeUpdate = useCallback(({ currentTime, duration }) => {
     if (activeStream && duration > 0) {
-      // Save progress periodically (every 5 seconds approximately)
-      saveWatchProgress(pluginId, animeId, activeStream.episodeId, currentTime, duration)
+      const now = Date.now()
+      // Only save progress every 5 seconds to avoid excessive localStorage writes
+      if (now - lastSaveTimeRef.current >= 5000) {
+        lastSaveTimeRef.current = now
+        saveWatchProgress(pluginId, animeId, activeStream.episodeId, currentTime, duration)
+      }
       
       // Mark as watched when threshold is reached
       const percentage = currentTime / duration
@@ -566,14 +583,19 @@ export default function PluginAnimePage() {
   }, [activeStream, markEpisodeWatched])
 
   // Handle resume from saved position
-  const handleResumePlayback = () => {
+  const handleResumePlayback = useCallback(() => {
     setShowResumePrompt(false)
-    if (vidstackRef.current && resumeTime > 0) {
-      setTimeout(() => {
-        vidstackRef.current?.seek(resumeTime)
-      }, 500)
+    // Wait for player to be ready and then seek
+    const seekToResume = () => {
+      if (vidstackRef.current) {
+        vidstackRef.current.seek(resumeTime)
+      }
     }
-  }
+    // Use requestAnimationFrame for better timing than setTimeout
+    requestAnimationFrame(() => {
+      requestAnimationFrame(seekToResume)
+    })
+  }, [resumeTime])
 
   // Handle start from beginning
   const handleStartFromBeginning = () => {
@@ -1118,7 +1140,7 @@ export default function PluginAnimePage() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {/* Play in Vidstack button - for direct playable formats */}
-                                  {(stream.format === 'm3u8' || stream.format === 'mp4' || stream.format === 'hls' || !stream.format || stream.format === 'embed') && (
+                                  {isPlayableInVidstack(stream.format) && (
                                     <Button
                                       size="1"
                                       variant="soft"

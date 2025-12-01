@@ -149,16 +149,14 @@ export default function Settings() {
     setPluginCacheEnabled(newState)
     localStorage.setItem('pluginCacheEnabled', newState ? 'true' : 'false')
     if (!newState) {
-      // Clear plugin cache when disabled
+      // Clear plugin cache when disabled - iterate backwards to avoid index issues
       try {
-        const keysToRemove = []
-        for (let i = 0; i < localStorage.length; i++) {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
           const key = localStorage.key(i)
           if (key && (key.startsWith('plugin_cache_') || key.startsWith('watch_progress_'))) {
-            keysToRemove.push(key)
+            localStorage.removeItem(key)
           }
         }
-        keysToRemove.forEach(key => localStorage.removeItem(key))
         toast.success('Plugin cache cleared')
       } catch (e) {
         console.error('Failed to clear cache:', e)
