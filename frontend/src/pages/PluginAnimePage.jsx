@@ -483,8 +483,13 @@ export default function PluginAnimePage() {
                   )}
                   <div className="flex flex-1 flex-col">
                     <p className="font-space-mono text-sm font-medium">
-                      Episode {episode.number || ix + 1}
-                      {episode.title && ` - ${episode.title}`}
+                      {episode.fullTitle || (
+                        <>
+                          {episode.season !== undefined && episode.season !== null && `S${episode.season}`}
+                          E{episode.number || ix + 1}
+                          {episode.title && ` - ${episode.title}`}
+                        </>
+                      )}
                     </p>
                     {episode.description && (
                       <p className="line-clamp-2 text-xs opacity-50">{episode.description}</p>
