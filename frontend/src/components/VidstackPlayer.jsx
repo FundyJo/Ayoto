@@ -45,9 +45,7 @@ import {
   MediaPlayer,
   MediaProvider,
   Poster,
-  Track,
-  AirPlayButton,
-  GoogleCastButton
+  Track
 } from '@vidstack/react'
 import {
   DefaultVideoLayout,
@@ -63,41 +61,6 @@ import '@vidstack/react/player/styles/default/layouts/video.css'
 import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo } from '../plugins/Anime4KConfig'
 import { STREAM_FORMATS } from '../plugins'
 import MiracastControls from './MiracastControls'
-
-// Custom AirPlay Icon (Apple-style)
-function AirPlayIcon({ className = '' }) {
-  return (
-    <svg 
-      className={className}
-      width="20" 
-      height="20" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    >
-      <path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" />
-      <polygon points="12 15 17 21 7 21 12 15" />
-    </svg>
-  )
-}
-
-// Custom Chromecast Icon (Google-style)
-function ChromecastIcon({ className = '' }) {
-  return (
-    <svg 
-      className={className}
-      width="20" 
-      height="20" 
-      viewBox="0 0 24 24" 
-      fill="currentColor"
-    >
-      <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
-    </svg>
-  )
-}
 
 /**
  * Device detection utilities for iOS, Android, and desktop
@@ -502,8 +465,6 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   }
   
   // Determine which casting controls to show based on device
-  const showAirPlay = showCastControls && deviceInfo.supportsAirPlay
-  const showChromecast = showCastControls && deviceInfo.supportsChromecast
   const showMiracast = showMiracastControls && deviceInfo.supportsMiracast
   
   // Mobile-specific class adjustments
@@ -514,32 +475,13 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
       {/* SVG Filters for Anime4K sharpening effect */}
       <Anime4KSVGFilters />
       
-      {/* Casting controls bar - shows available casting options based on device */}
-      {(showMiracast || showAirPlay || showChromecast) && (
+      {/* Miracast controls bar - Miracast needs to be outside MediaPlayer as it doesn't require media context */}
+      {showMiracast && (
         <div className={`flex justify-end mb-2 gap-2 ${deviceInfo.isMobile ? 'flex-wrap' : ''}`}>
-          {/* AirPlay for iOS/Mac */}
-          {showAirPlay && (
-            <AirPlayButton className="casting-button airplay-button">
-              <AirPlayIcon className="w-5 h-5" />
-              <span className="text-sm hidden sm:inline">AirPlay</span>
-            </AirPlayButton>
-          )}
-          
-          {/* Chromecast for Android/Desktop */}
-          {showChromecast && (
-            <GoogleCastButton className="casting-button chromecast-button">
-              <ChromecastIcon className="w-5 h-5" />
-              <span className="text-sm hidden sm:inline">Chromecast</span>
-            </GoogleCastButton>
-          )}
-          
-          {/* Miracast for Windows/Linux */}
-          {showMiracast && (
-            <MiracastControls 
-              videoUrl={src}
-              videoTitle={title}
-            />
-          )}
+          <MiracastControls 
+            videoUrl={src}
+            videoTitle={title}
+          />
         </div>
       )}
       
@@ -584,7 +526,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
         <DefaultVideoLayout
           icons={defaultLayoutIcons}
           thumbnails=""
-          smallLayoutWhen="(max-width: 768px)"
+          smallLayoutWhen={({ width, height }) => width < 768 || height < 480}
           slots={{
             // Add Anime4K settings to the settings menu
             settingsMenuItemsEnd: showAnime4KControls && presets.length > 0 ? (
