@@ -1,7 +1,6 @@
 import { GlobeIcon } from '@radix-ui/react-icons'
 import { useNavigate } from 'react-router-dom'
-import { useZenshinContext } from '../utils/ContextProvider'
-import { maybeProxyUrl } from '../utils/imageProxy'
+import ProxiedImage from './ProxiedImage'
 
 /**
  * Component to display search results from plugin providers
@@ -13,7 +12,6 @@ import { maybeProxyUrl } from '../utils/imageProxy'
  */
 export default function PluginSearchResults({ data, providerName, providerId, setIsActive }) {
   const navigate = useNavigate()
-  const { backendPort } = useZenshinContext()
 
   // Handle click - navigate to plugin anime page
   function handleClick() {
@@ -51,20 +49,21 @@ export default function PluginSearchResults({ data, providerName, providerId, se
     setIsActive(false)
   }
 
-  // Proxy the cover image URL if needed (for CORS-restricted sources like aniworld.to)
-  const proxiedCover = maybeProxyUrl(data.cover, backendPort)
-
   return (
     <div
       onClick={() => handleClick()}
       className="hover:drop-shadow-xl flex animate-fade cursor-pointer gap-x-5 bg-[#111113] px-2 py-1 font-inter transition-all duration-200 ease-in-out hover:z-10 hover:scale-105 hover:rounded-md hover:bg-[#232326]"
     >
       {data.cover ? (
-        <img
+        <ProxiedImage
           className="duration-400 h-12 w-12 animate-fade rounded-lg object-cover transition-all ease-in-out hover:scale-150"
-          src={proxiedCover}
+          src={data.cover}
           alt="cover"
-        />
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#2a2a2d]">
+            <GlobeIcon className="h-6 w-6 text-gray-400" />
+          </div>
+        </ProxiedImage>
       ) : (
         <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#2a2a2d]">
           <GlobeIcon className="h-6 w-6 text-gray-400" />
