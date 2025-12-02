@@ -39,7 +39,7 @@ const plugin = {
   // Supported hosters configuration
   supportedHosters: {
     'vidoza': {
-      pattern: /vidoza\.(net|org|co)/i,
+      pattern: /vidoza\.(net|org|co|com)/i,
       name: 'Vidoza',
       extractor: 'extractVidoza'
     },
@@ -49,12 +49,12 @@ const plugin = {
       extractor: 'extractVidmoly'
     },
     'voe': {
-      pattern: /voe\.(sx|bar)|voe-network\.(net|com)/i,
+      pattern: /voe\.(sx|bar|net|com|gg)|voe-network\.(net|com)|voesx\.(com|net)|voesex\.(com|net)|voeun\w*\.(com|net)/i,
       name: 'VOE',
       extractor: 'extractVoe'
     },
     'streamtape': {
-      pattern: /streamtape\.(com|net|to|xyz)/i,
+      pattern: /streamtape\.(com|net|to|xyz|site)/i,
       name: 'Streamtape',
       extractor: 'extractStreamtape'
     },
@@ -74,12 +74,12 @@ const plugin = {
       extractor: 'extractLoadX'
     },
     'filemoon': {
-      pattern: /filemoon\.(sx|to|in|wf)/i,
+      pattern: /filemoon\.(sx|to|in|wf|com|net|me)|moonmov\.(to|net|com)|fmoon\.(to|net|sx)/i,
       name: 'Filemoon',
       extractor: 'extractFilemoon'
     },
     'doodstream': {
-      pattern: /doodstream\.(com|co)|dood\.(re|watch|wf|to|la|pm|sh)/i,
+      pattern: /doodstream\.(com|co)|dood\.(re|watch|wf|to|la|pm|sh|so|cx)/i,
       name: 'Doodstream',
       extractor: 'extractDoodstream'
     }

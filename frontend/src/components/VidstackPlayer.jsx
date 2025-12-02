@@ -49,7 +49,10 @@ import {
 } from '@vidstack/react'
 import {
   DefaultVideoLayout,
-  defaultLayoutIcons
+  defaultLayoutIcons,
+  DefaultMenuSection,
+  DefaultMenuRadioGroup,
+  DefaultMenuCheckbox
 } from '@vidstack/react/player/layouts/default'
 
 // Import Vidstack styles
@@ -117,12 +120,12 @@ function useAnime4KRust() {
           setConfig(rustConfig)
           setIsRustAvailable(true)
         } else {
-          // Fallback to JavaScript config
+          // Fallback to JavaScript config with enhanced CSS-only sharpening
           setPresets(getLegacyPresets())
           setConfig({
             enabled: anime4kConfig.enabled,
             presetId: anime4kConfig.preset?.id || 'none',
-            cssFilter: anime4kConfig.getCSSApproximation()
+            cssFilter: anime4kConfig.getCSSOnlyApproximation()
           })
           setIsRustAvailable(false)
         }
@@ -143,15 +146,16 @@ function useAnime4KRust() {
         setConfig(newConfig)
         return newConfig
       } else {
-        // Fallback to JavaScript
+        // Fallback to JavaScript with enhanced CSS-only sharpening
         anime4kConfig.setPreset(presetId)
         anime4kConfig.enabled = enabled
+        const cssFilter = anime4kConfig.getCSSOnlyApproximation()
         setConfig({
           enabled,
           presetId,
-          cssFilter: anime4kConfig.getCSSApproximation()
+          cssFilter
         })
-        return { enabled, presetId, cssFilter: anime4kConfig.getCSSApproximation() }
+        return { enabled, presetId, cssFilter }
       }
     } catch (error) {
       console.error('Failed to set Anime4K config:', error)
@@ -176,6 +180,7 @@ function useAnime4KRust() {
 
 /**
  * Anime4K Settings Panel Component (Updated for Rust backend)
+ * This is the standalone panel displayed below the player
  */
 function Anime4KSettings({ preset, onPresetChange, enabled, onToggle, presets, isRustBackend }) {
   const gpuInfo = getGPUInfo()
@@ -237,6 +242,97 @@ function Anime4KSettings({ preset, onPresetChange, enabled, onToggle, presets, i
         </>
       )}
     </div>
+  )
+}
+
+/**
+ * Anime4K Menu Item for Vidstack Settings Menu
+ * Integrates directly into the player's settings menu
+ */
+function Anime4KMenuItems({ preset, onPresetChange, enabled, onToggle, presets }) {
+  const hasWebGL = checkWebGLSupport()
+  
+  // Create options for radio group
+  const presetOptions = presets.map(p => ({
+    label: p.name,
+    value: p.id
+  }))
+  
+  if (!hasWebGL) {
+    return null
+  }
+  
+  return (
+    <DefaultMenuSection label="Anime4K Upscaling">
+      <DefaultMenuCheckbox
+        label="Enable Anime4K"
+        checked={enabled}
+        onChange={onToggle}
+      />
+      {enabled && presetOptions.length > 0 && (
+        <DefaultMenuRadioGroup
+          value={preset?.id || 'mode-b'}
+          options={presetOptions}
+          onChange={(value) => onPresetChange(value)}
+        />
+      )}
+    </DefaultMenuSection>
+  )
+}
+
+/**
+ * SVG Filter Definitions for Anime4K Sharpening Effect
+ * These filters simulate the sharpening effect of Anime4K using SVG convolution matrices
+ */
+function Anime4KSVGFilters() {
+  return (
+    <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+      <defs>
+        {/* Light sharpening filter - Mode A */}
+        <filter id="anime4k-sharpen-light" colorInterpolationFilters="sRGB">
+          <feConvolveMatrix
+            order="3 3"
+            kernelMatrix="0 -0.5 0 -0.5 3 -0.5 0 -0.5 0"
+            divisor="1"
+            bias="0"
+            preserveAlpha="true"
+          />
+        </filter>
+        
+        {/* Medium sharpening filter - Mode B */}
+        <filter id="anime4k-sharpen-medium" colorInterpolationFilters="sRGB">
+          <feConvolveMatrix
+            order="3 3"
+            kernelMatrix="0 -0.75 0 -0.75 4 -0.75 0 -0.75 0"
+            divisor="1"
+            bias="0"
+            preserveAlpha="true"
+          />
+        </filter>
+        
+        {/* Strong sharpening filter - Mode C */}
+        <filter id="anime4k-sharpen-strong" colorInterpolationFilters="sRGB">
+          <feConvolveMatrix
+            order="3 3"
+            kernelMatrix="-0.25 -0.75 -0.25 -0.75 5 -0.75 -0.25 -0.75 -0.25"
+            divisor="1"
+            bias="0"
+            preserveAlpha="true"
+          />
+        </filter>
+        
+        {/* Edge enhancement filter with unsharp mask effect */}
+        <filter id="anime4k-unsharp" colorInterpolationFilters="sRGB">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur" />
+          <feComponentTransfer in="blur" result="blur-dark">
+            <feFuncR type="linear" slope="0.5" />
+            <feFuncG type="linear" slope="0.5" />
+            <feFuncB type="linear" slope="0.5" />
+          </feComponentTransfer>
+          <feComposite in="SourceGraphic" in2="blur-dark" operator="arithmetic" k1="0" k2="1.5" k3="-0.5" k4="0" />
+        </filter>
+      </defs>
+    </svg>
   )
 }
 
@@ -352,6 +448,9 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   
   return (
     <div className={`vidstack-player-wrapper ${className}`}>
+      {/* SVG Filters for Anime4K sharpening effect */}
+      <Anime4KSVGFilters />
+      
       {/* Miracast controls */}
       {showMiracastControls && (
         <div className="flex justify-end mb-2">
@@ -399,17 +498,26 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           ))}
         </MediaProvider>
         
-        {/* Default video layout with controls */}
+        {/* Default video layout with Anime4K integrated in settings menu */}
         <DefaultVideoLayout
           icons={defaultLayoutIcons}
           thumbnails=""
           slots={{
-            // Custom settings menu can be added here
+            // Add Anime4K settings to the settings menu
+            settingsMenuItemsEnd: showAnime4KControls && presets.length > 0 ? (
+              <Anime4KMenuItems
+                preset={currentPreset}
+                onPresetChange={handlePresetChange}
+                enabled={isAnime4KEnabled}
+                onToggle={handleAnime4KToggle}
+                presets={presets}
+              />
+            ) : null
           }}
         />
       </MediaPlayer>
       
-      {/* Anime4K Settings Panel */}
+      {/* External Anime4K Settings Panel (optional, shown below player) */}
       {showAnime4KControls && presets.length > 0 && (
         <div className="mt-4">
           <Anime4KSettings

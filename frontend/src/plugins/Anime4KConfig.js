@@ -286,21 +286,66 @@ export class Anime4KConfig {
   
   /**
    * Get CSS filter approximation for Anime4K effect
-   * This is a simple CSS-based alternative when WebGL shaders aren't available
+   * This is a CSS-based alternative that simulates sharpening effects
+   * Uses contrast enhancement and SVG filter URL for edge sharpening
    * @returns {string} CSS filter string
    */
   getCSSApproximation() {
     if (!this.enabled) return 'none'
     
-    // Simple CSS approximation of Anime4K effects
+    // Enhanced CSS approximation with sharpening simulation
+    // Uses higher contrast and SVG sharpen filter URL
     switch (this.preset.id) {
       case 'mode-a':
-        return 'contrast(1.05) saturate(1.1)'
+        // Light sharpening for weak GPUs
+        return 'contrast(1.08) saturate(1.12) url(#anime4k-sharpen-light)'
       case 'mode-b':
-        return 'contrast(1.08) saturate(1.15) brightness(1.02)'
+        // Medium sharpening - balanced
+        return 'contrast(1.12) saturate(1.18) brightness(1.01) url(#anime4k-sharpen-medium)'
+      case 'mode-a+a':
+        // Light+ sharpening
+        return 'contrast(1.1) saturate(1.15) url(#anime4k-sharpen-light)'
+      case 'mode-b+b':
+        // Medium+ sharpening with detail enhancement
+        return 'contrast(1.15) saturate(1.2) brightness(1.01) url(#anime4k-sharpen-medium)'
       case 'mode-c':
+        // High quality sharpening
+        return 'contrast(1.15) saturate(1.22) brightness(1.01) url(#anime4k-sharpen-strong)'
       case 'mode-c+a':
-        return 'contrast(1.1) saturate(1.2) brightness(1.02)'
+        // Maximum sharpening
+        return 'contrast(1.18) saturate(1.25) brightness(1.01) url(#anime4k-sharpen-strong)'
+      default:
+        return 'none'
+    }
+  }
+  
+  /**
+   * Get CSS-only filter approximation (without SVG dependency)
+   * Uses only CSS filters for maximum compatibility
+   * @returns {string} CSS filter string
+   */
+  getCSSOnlyApproximation() {
+    if (!this.enabled) return 'none'
+    
+    // CSS-only approximation using contrast/brightness to simulate sharpness
+    // Higher contrast enhances edges, which creates a sharpening-like effect
+    switch (this.preset.id) {
+      case 'mode-a':
+        // Light enhancement
+        return 'contrast(1.12) saturate(1.15) brightness(1.02)'
+      case 'mode-b':
+        // Medium enhancement with edge boost
+        return 'contrast(1.18) saturate(1.2) brightness(1.02)'
+      case 'mode-a+a':
+        return 'contrast(1.15) saturate(1.18) brightness(1.02)'
+      case 'mode-b+b':
+        return 'contrast(1.22) saturate(1.25) brightness(1.02)'
+      case 'mode-c':
+        // High enhancement
+        return 'contrast(1.25) saturate(1.28) brightness(1.02)'
+      case 'mode-c+a':
+        // Maximum enhancement
+        return 'contrast(1.3) saturate(1.32) brightness(1.02)'
       default:
         return 'none'
     }
