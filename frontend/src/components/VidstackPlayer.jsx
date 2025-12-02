@@ -179,93 +179,56 @@ function useAnime4KRust() {
 }
 
 /**
- * Anime4K Settings Panel Component (Updated for Rust backend)
- * This is the standalone panel displayed below the player
- */
-function Anime4KSettings({ preset, onPresetChange, enabled, onToggle, presets, isRustBackend }) {
-  const gpuInfo = getGPUInfo()
-  const hasWebGL = checkWebGLSupport()
-  
-  return (
-    <div className="anime4k-settings bg-[#1a1a1d] p-3 rounded-md text-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-white">Anime4K Upscaling</span>
-          {isRustBackend && (
-            <span className="text-xs bg-orange-600/30 text-orange-400 px-1.5 py-0.5 rounded">
-              Rust
-            </span>
-          )}
-        </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(e) => onToggle(e.target.checked)}
-            className="sr-only peer"
-            disabled={!hasWebGL}
-          />
-          <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-        </label>
-      </div>
-      
-      {!hasWebGL && (
-        <div className="text-yellow-400 text-xs mb-2">
-          ⚠️ WebGL not supported - Anime4K unavailable
-        </div>
-      )}
-      
-      {enabled && hasWebGL && (
-        <>
-          <div className="space-y-2">
-            {presets.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => onPresetChange(p.id)}
-                className={`w-full text-left px-3 py-2 rounded transition-colors ${
-                  preset?.id === p.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-[#2a2a2d] text-gray-300 hover:bg-[#3a3a3d]'
-                }`}
-              >
-                <div className="font-medium">{p.name}</div>
-                <div className="text-xs opacity-70">{p.description}</div>
-              </button>
-            ))}
-          </div>
-          
-          {gpuInfo && (
-            <div className="mt-3 text-xs text-gray-400">
-              GPU: {gpuInfo.renderer}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  )
-}
-
-/**
  * Anime4K Menu Item for Vidstack Settings Menu
  * Integrates directly into the player's settings menu
+ * Enhanced with friendly labels and performance indicators
  */
 function Anime4KMenuItems({ preset, onPresetChange, enabled, onToggle, presets }) {
   const hasWebGL = checkWebGLSupport()
   
-  // Create options for radio group
-  const presetOptions = presets.map(p => ({
-    label: p.name,
-    value: p.id
-  }))
+  // Create user-friendly options with performance indicators
+  const presetOptions = presets
+    .filter(p => p.id !== 'none') // Don't show "Off" in the list when enabled
+    .map(p => {
+      // Add performance emoji indicators
+      let performanceIcon = ''
+      switch (p.performance) {
+        case 'low':
+          performanceIcon = '⚡'
+          break
+        case 'low-medium':
+          performanceIcon = '⚡'
+          break
+        case 'medium':
+          performanceIcon = '⚖️'
+          break
+        case 'medium-high':
+          performanceIcon = '🔥'
+          break
+        case 'high':
+          performanceIcon = '🔥'
+          break
+        case 'very-high':
+          performanceIcon = '💎'
+          break
+        default:
+          performanceIcon = ''
+      }
+      
+      return {
+        label: `${performanceIcon} ${p.name}`,
+        value: p.id
+      }
+    })
   
   if (!hasWebGL) {
     return null
   }
   
   return (
-    <DefaultMenuSection label="Anime4K Upscaling">
+    <DefaultMenuSection label="🎨 Anime4K Upscaling">
       <DefaultMenuCheckbox
-        label="Enable Anime4K"
+        label="Anime4K aktivieren"
         checked={enabled}
         onChange={onToggle}
       />
@@ -365,8 +328,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   const { 
     presets, 
     config, 
-    setAnime4KConfig, 
-    isRustAvailable 
+    setAnime4KConfig
   } = useAnime4KRust()
   
   const [isAnime4KEnabled, setIsAnime4KEnabled] = useState(anime4kEnabled)
@@ -517,19 +479,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
         />
       </MediaPlayer>
       
-      {/* External Anime4K Settings Panel (optional, shown below player) */}
-      {showAnime4KControls && presets.length > 0 && (
-        <div className="mt-4">
-          <Anime4KSettings
-            preset={currentPreset}
-            onPresetChange={handlePresetChange}
-            enabled={isAnime4KEnabled}
-            onToggle={handleAnime4KToggle}
-            presets={presets}
-            isRustBackend={isRustAvailable}
-          />
-        </div>
-      )}
+
     </div>
   )
 })
