@@ -29,9 +29,7 @@ export default function AnimePahePlayer() {
           className="rounded-lg overflow-hidden"
         />
         
-        <div className="mt-4 text-sm text-gray-400">
-          <span>{title}</span>
-        </div>
+        <p className="mt-4 text-sm text-gray-400">{title}</p>
       </div>
     </div>
   )
