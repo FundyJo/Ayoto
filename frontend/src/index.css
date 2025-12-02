@@ -103,3 +103,70 @@
     outline: 2px solid #f00;
   }
 } */
+
+/* ------------------ VIDSTACK PLAYER MOBILE STYLES ----------------- */
+.vidstack-mobile .vds-video-layout {
+  /* Larger touch targets on mobile */
+  --touch-target-size: 44px;
+}
+
+.vidstack-mobile [data-media-controls] button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px;
+}
+
+/* Casting button base styles - shared between AirPlay, Chromecast, and Miracast */
+.casting-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 36px;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  background-color: #252528;
+  color: #ffffff;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.casting-button:hover {
+  background-color: #303033;
+  color: #a855f7;
+}
+
+/* Platform-specific hover colors */
+.casting-button.airplay-button:hover {
+  color: #007AFF; /* Apple blue */
+}
+
+.casting-button.chromecast-button:hover {
+  color: #4285F4; /* Google blue */
+}
+
+/* Mobile-specific touch handling */
+.touch-action-manipulation {
+  touch-action: manipulation;
+}
+
+/* Responsive casting controls - hide text on small screens */
+@media (max-width: 640px) {
+  .casting-button span {
+    display: none;
+  }
+  
+  .vidstack-player-wrapper .flex.gap-2 {
+    gap: 0.25rem;
+  }
+}
+
+/* Improve touch responsiveness on touch devices */
+@media (pointer: coarse) {
+  .casting-button {
+    min-width: 48px;
+    min-height: 48px;
+  }
+}
+/* ---------------------------------------------------------------------- */

@@ -40,19 +40,20 @@
  * can be integrated for true shader-based upscaling.
  */
 
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from 'react'
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback, useMemo } from 'react'
 import {
   MediaPlayer,
   MediaProvider,
   Poster,
-  Track
+  Track,
+  AirPlayButton,
+  GoogleCastButton
 } from '@vidstack/react'
 import {
   DefaultVideoLayout,
   defaultLayoutIcons,
   DefaultMenuSection,
-  DefaultMenuRadioGroup,
-  DefaultMenuCheckbox
+  DefaultMenuRadioGroup
 } from '@vidstack/react/player/layouts/default'
 
 // Import Vidstack styles
@@ -62,6 +63,78 @@ import '@vidstack/react/player/styles/default/layouts/video.css'
 import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo } from '../plugins/Anime4KConfig'
 import { STREAM_FORMATS } from '../plugins'
 import MiracastControls from './MiracastControls'
+
+// Custom AirPlay Icon (Apple-style)
+function AirPlayIcon({ className = '' }) {
+  return (
+    <svg 
+      className={className}
+      width="20" 
+      height="20" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" />
+      <polygon points="12 15 17 21 7 21 12 15" />
+    </svg>
+  )
+}
+
+// Custom Chromecast Icon (Google-style)
+function ChromecastIcon({ className = '' }) {
+  return (
+    <svg 
+      className={className}
+      width="20" 
+      height="20" 
+      viewBox="0 0 24 24" 
+      fill="currentColor"
+    >
+      <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+    </svg>
+  )
+}
+
+/**
+ * Device detection utilities for iOS, Android, and desktop
+ */
+function getDeviceInfo() {
+  const userAgent = navigator.userAgent || navigator.vendor || window.opera || ''
+  
+  const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream
+  const isAndroid = /Android/i.test(userAgent)
+  const isMobile = isIOS || isAndroid || /webOS|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
+  const isMac = /Macintosh|MacIntel|MacPPC|Mac68K/i.test(userAgent)
+  const isWindows = /Win32|Win64|Windows|WinCE/i.test(userAgent)
+  const isLinux = /Linux/i.test(userAgent) && !isAndroid
+  
+  // Determine casting support based on device
+  const supportsAirPlay = isIOS || isMac
+  const supportsChromecast = !isIOS // Chromecast works on Android, Windows, Linux
+  const supportsMiracast = isWindows || isLinux
+  
+  return {
+    isIOS,
+    isAndroid,
+    isMobile,
+    isMac,
+    isWindows,
+    isLinux,
+    supportsAirPlay,
+    supportsChromecast,
+    supportsMiracast,
+    platform: isIOS ? 'ios' : isAndroid ? 'android' : isMac ? 'mac' : isWindows ? 'windows' : isLinux ? 'linux' : 'unknown'
+  }
+}
+
+// Hook for device info
+function useDeviceInfo() {
+  return useMemo(() => getDeviceInfo(), [])
+}
 
 /**
  * Get source type for Vidstack based on format
@@ -180,65 +253,79 @@ function useAnime4KRust() {
 
 /**
  * Anime4K Menu Item for Vidstack Settings Menu
- * Integrates directly into the player's settings menu
+ * Uses submenu style: "Anime4K >" → "Deaktiviert", "Mode A", "Mode B", etc.
  * Enhanced with friendly labels and performance indicators
  */
 function Anime4KMenuItems({ preset, onPresetChange, enabled, onToggle, presets }) {
   const hasWebGL = checkWebGLSupport()
   
-  // Create user-friendly options with performance indicators
-  const presetOptions = presets
-    .filter(p => p.id !== 'none') // Don't show "Off" in the list when enabled
-    .map(p => {
-      // Add performance emoji indicators
-      let performanceIcon = ''
-      switch (p.performance) {
-        case 'low':
-          performanceIcon = '⚡'
-          break
-        case 'low-medium':
-          performanceIcon = '⚡'
-          break
-        case 'medium':
-          performanceIcon = '⚖️'
-          break
-        case 'medium-high':
-          performanceIcon = '🔥'
-          break
-        case 'high':
-          performanceIcon = '🔥'
-          break
-        case 'very-high':
-          performanceIcon = '💎'
-          break
-        default:
-          performanceIcon = ''
+  // Create all options including "Deaktiviert" (disabled)
+  const allOptions = [
+    {
+      label: 'Deaktiviert',
+      value: 'none'
+    },
+    ...presets
+      .filter(p => p.id !== 'none')
+      .map(p => {
+        // Add performance emoji indicators
+        let performanceIcon = ''
+        switch (p.performance) {
+          case 'low':
+            performanceIcon = '⚡'
+            break
+          case 'low-medium':
+            performanceIcon = '⚡'
+            break
+          case 'medium':
+            performanceIcon = '⚖️'
+            break
+          case 'medium-high':
+            performanceIcon = '🔥'
+            break
+          case 'high':
+            performanceIcon = '🔥'
+            break
+          case 'very-high':
+            performanceIcon = '💎'
+            break
+          default:
+            performanceIcon = ''
+        }
+        
+        return {
+          label: `${performanceIcon} ${p.name}`,
+          value: p.id
+        }
+      })
+  ]
+  
+  // Handle selection change - toggles enabled state and changes preset
+  const handleChange = (value) => {
+    if (value === 'none') {
+      onToggle(false)
+    } else {
+      if (!enabled) {
+        onToggle(true)
       }
-      
-      return {
-        label: `${performanceIcon} ${p.name}`,
-        value: p.id
-      }
-    })
+      onPresetChange(value)
+    }
+  }
+  
+  // Get current value for the radio group
+  const currentValue = enabled ? (preset?.id || 'mode-b') : 'none'
   
   if (!hasWebGL) {
     return null
   }
   
   return (
-    <DefaultMenuSection label="🎨 Anime4K Upscaling">
-      <DefaultMenuCheckbox
-        label="Enable Anime4K"
-        checked={enabled}
-        onChange={onToggle}
+    <DefaultMenuSection label="Anime4K">
+      <DefaultMenuRadioGroup
+        value={currentValue}
+        options={allOptions}
+        onChange={handleChange}
       />
-      {enabled && presetOptions.length > 0 && (
-        <DefaultMenuRadioGroup
-          value={preset?.id || 'mode-b'}
-          options={presetOptions}
-          onChange={(value) => onPresetChange(value)}
-        />
-      )}
     </DefaultMenuSection>
   )
 }
@@ -302,6 +389,7 @@ function Anime4KSVGFilters() {
 /**
  * VidstackPlayer Component
  * Unified video player supporting multiple formats with Anime4K shaders
+ * Supports iOS AirPlay, Android/desktop Chromecast, and Windows/Linux Miracast
  */
 const VidstackPlayer = forwardRef(function VidstackPlayer(
   {
@@ -318,11 +406,15 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
     anime4kPreset = 'mode-b',
     className = '',
     showAnime4KControls = true,
-    showMiracastControls = true
+    showMiracastControls = true,
+    showCastControls = true
   },
   ref
 ) {
   const playerRef = useRef(null)
+  
+  // Device detection for casting support
+  const deviceInfo = useDeviceInfo()
   
   // Use Rust Anime4K backend
   const { 
@@ -381,7 +473,8 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
       if (preset) {
         await handlePresetChange(preset)
       }
-    }
+    },
+    getDeviceInfo: () => deviceInfo
   }))
   
   // Handle preset change
@@ -408,18 +501,45 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
     }
   }
   
+  // Determine which casting controls to show based on device
+  const showAirPlay = showCastControls && deviceInfo.supportsAirPlay
+  const showChromecast = showCastControls && deviceInfo.supportsChromecast
+  const showMiracast = showMiracastControls && deviceInfo.supportsMiracast
+  
+  // Mobile-specific class adjustments
+  const mobileClass = deviceInfo.isMobile ? 'vidstack-mobile' : ''
+  
   return (
-    <div className={`vidstack-player-wrapper ${className}`}>
+    <div className={`vidstack-player-wrapper ${className} ${mobileClass}`}>
       {/* SVG Filters for Anime4K sharpening effect */}
       <Anime4KSVGFilters />
       
-      {/* Miracast controls */}
-      {showMiracastControls && (
-        <div className="flex justify-end mb-2">
-          <MiracastControls 
-            videoUrl={src}
-            videoTitle={title}
-          />
+      {/* Casting controls bar - shows available casting options based on device */}
+      {(showMiracast || showAirPlay || showChromecast) && (
+        <div className={`flex justify-end mb-2 gap-2 ${deviceInfo.isMobile ? 'flex-wrap' : ''}`}>
+          {/* AirPlay for iOS/Mac */}
+          {showAirPlay && (
+            <AirPlayButton className="casting-button airplay-button">
+              <AirPlayIcon className="w-5 h-5" />
+              <span className="text-sm hidden sm:inline">AirPlay</span>
+            </AirPlayButton>
+          )}
+          
+          {/* Chromecast for Android/Desktop */}
+          {showChromecast && (
+            <GoogleCastButton className="casting-button chromecast-button">
+              <ChromecastIcon className="w-5 h-5" />
+              <span className="text-sm hidden sm:inline">Chromecast</span>
+            </GoogleCastButton>
+          )}
+          
+          {/* Miracast for Windows/Linux */}
+          {showMiracast && (
+            <MiracastControls 
+              videoUrl={src}
+              videoTitle={title}
+            />
+          )}
         </div>
       )}
       
@@ -441,7 +561,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           console.error('Video error:', e)
           onError?.(e)
         }}
-        className="w-full aspect-video bg-black"
+        className={`w-full aspect-video bg-black ${deviceInfo.isMobile ? 'touch-action-manipulation' : ''}`}
         style={videoStyle}
       >
         <MediaProvider>
@@ -464,6 +584,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
         <DefaultVideoLayout
           icons={defaultLayoutIcons}
           thumbnails=""
+          smallLayoutWhen="(max-width: 768px)"
           slots={{
             // Add Anime4K settings to the settings menu
             settingsMenuItemsEnd: showAnime4KControls && presets.length > 0 ? (
@@ -478,8 +599,6 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           }}
         />
       </MediaPlayer>
-      
-
     </div>
   )
 })
