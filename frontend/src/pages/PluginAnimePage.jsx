@@ -1,7 +1,7 @@
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import CenteredLoader from '../ui/CenteredLoader'
-import { Button, Skeleton, TextField, Spinner, Tooltip, DropdownMenu, Switch } from '@radix-ui/themes'
+import { Button, Skeleton, TextField, Spinner, Tooltip, DropdownMenu } from '@radix-ui/themes'
 import { toast } from 'sonner'
 import { ExclamationTriangleIcon, GlobeIcon, StarIcon, PersonIcon, LockClosedIcon, InfoCircledIcon, MagnifyingGlassIcon, EyeClosedIcon, EyeOpenIcon, PlayIcon, Cross2Icon } from '@radix-ui/react-icons'
 import { autop } from '@wordpress/autop'
@@ -320,15 +320,12 @@ export default function PluginAnimePage() {
   
   // Stream extraction state (for embed/redirect URLs that need hoster extraction)
   const [isExtractingStream, setIsExtractingStream] = useState(false)
+  // eslint-disable-next-line no-unused-vars
   const [extractionError, setExtractionError] = useState(null)
   
-  // Anime4K settings for Vidstack player
-  const [anime4kEnabled, setAnime4kEnabled] = useState(() => {
-    return localStorage.getItem('anime4k_enabled') === 'true'
-  })
-  const [anime4kPreset, setAnime4kPreset] = useState(() => {
-    return localStorage.getItem('anime4k_preset') || 'mode-b'
-  })
+  // Anime4K settings for Vidstack player (read-only from localStorage)
+  const anime4kEnabled = localStorage.getItem('anime4k_enabled') === 'true'
+  const anime4kPreset = localStorage.getItem('anime4k_preset') || 'mode-b'
 
   // Proxy images that need it (e.g., from aniworld.to) to bypass CORS
   // Use Tauri's HTTP plugin to fetch images from CORS-restricted domains
@@ -1415,20 +1412,6 @@ export default function PluginAnimePage() {
               className="rounded-lg overflow-hidden"
             />
             
-            {/* Anime4K Quick Toggle */}
-            <div className="mt-3 flex items-center justify-end gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-400">Anime4K:</span>
-                <Switch
-                  checked={anime4kEnabled}
-                  onCheckedChange={(checked) => {
-                    setAnime4kEnabled(checked)
-                    localStorage.setItem('anime4k_enabled', checked ? 'true' : 'false')
-                  }}
-                  size="1"
-                />
-              </div>
-            </div>
           </div>
         </div>
       )}

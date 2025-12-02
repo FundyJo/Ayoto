@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
 import VidstackPlayer from '../../../components/VidstackPlayer'
 
@@ -6,7 +6,6 @@ export default function AnimePahePlayer() {
   const { videoSrc } = useParams()
   const location = useLocation()
   const playerRef = useRef(null)
-  const [showAnime4K, setShowAnime4K] = useState(true)
 
   // Get additional info from navigation state if available
   const { title = 'Playing Video', poster = '' } = location.state || {}
@@ -24,20 +23,14 @@ export default function AnimePahePlayer() {
           title={title}
           poster={poster}
           autoPlay={true}
-          showAnime4KControls={showAnime4K}
+          showAnime4KControls={true}
           anime4kEnabled={false}
           anime4kPreset="mode-b"
           className="rounded-lg overflow-hidden"
         />
         
-        <div className="mt-4 flex justify-between items-center text-sm text-gray-400">
+        <div className="mt-4 text-sm text-gray-400">
           <span>{title}</span>
-          <button
-            onClick={() => setShowAnime4K(!showAnime4K)}
-            className="px-3 py-1 rounded bg-[#2a2a2d] hover:bg-[#3a3a3d] transition-colors"
-          >
-            {showAnime4K ? 'Hide' : 'Show'} Anime4K Settings
-          </button>
         </div>
       </div>
     </div>
