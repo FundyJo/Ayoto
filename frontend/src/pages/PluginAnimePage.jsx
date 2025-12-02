@@ -11,7 +11,8 @@ import { zpePluginManager, pluginAPI } from '../zpe'
 import PluginAuthModal from '../components/PluginAuthModal'
 import Pagination from '../components/Pagination'
 import VidstackPlayer from '../components/VidstackPlayer'
-import { maybeProxyUrl } from '../utils/imageProxy'
+import { useProxiedImage } from '../hooks/useProxiedImage'
+import ProxiedImage from '../components/ProxiedImage'
 
 // Constants
 const SEARCH_BLUR_DELAY_MS = 200 // Delay before hiding search results on blur
@@ -253,7 +254,7 @@ function formatYearRange(startYear, endYear, status) {
 
 export default function PluginAnimePage() {
   const zenshinContext = useZenshinContext()
-  const { glow, backendPort } = zenshinContext
+  const { glow } = zenshinContext
   const navigate = useNavigate()
 
   const { pluginId, animeId } = useParams()
@@ -328,6 +329,13 @@ export default function PluginAnimePage() {
   const [anime4kPreset, setAnime4kPreset] = useState(() => {
     return localStorage.getItem('anime4k_preset') || 'mode-b'
   })
+
+  // Proxy images that need it (e.g., from aniworld.to) to bypass CORS
+  // Use Tauri's HTTP plugin to fetch images from CORS-restricted domains
+  const bannerImageUrl = animeData?.background_cover || animeData?.banner
+  const coverImageUrl = animeData?.cover
+  const { src: proxiedBannerImage } = useProxiedImage(bannerImageUrl)
+  const { src: proxiedCoverImage } = useProxiedImage(coverImageUrl)
 
   useEffect(() => {
     // Capture searchResultData in a local variable to avoid stale closure issues
@@ -740,15 +748,11 @@ export default function PluginAnimePage() {
   }
 
   const data = animeData
-  const bannerImage = data?.background_cover || data?.banner
-  // Proxy images that need it (e.g., from aniworld.to) to bypass CORS
-  const proxiedBannerImage = maybeProxyUrl(bannerImage, backendPort)
-  const proxiedCoverImage = maybeProxyUrl(data?.cover, backendPort)
 
   return (
     <div className="relative">
       {/* Background Cover / Backdrop - matches AnimePage.jsx exactly */}
-      {bannerImage && (
+      {bannerImageUrl && (
         <div className="relative">
           {glow && (
             <div className="animate-fade-down">
@@ -774,11 +778,11 @@ export default function PluginAnimePage() {
             <img
               src={proxiedCoverImage}
               alt=""
-              className={`duration-400 relative ${bannerImage ? 'bottom-[4rem]' : ''} shadow-xl drop-shadow-2xl h-[25rem] w-72 animate-fade-up rounded-md object-cover transition-all ease-in-out`}
+              className={`duration-400 relative ${bannerImageUrl ? 'bottom-[4rem]' : ''} shadow-xl drop-shadow-2xl h-[25rem] w-72 animate-fade-up rounded-md object-cover transition-all ease-in-out`}
             />
           ) : (
             <div
-              className={`duration-400 relative ${bannerImage ? 'bottom-[4rem]' : ''} shadow-xl drop-shadow-2xl flex h-[25rem] w-72 animate-fade-up items-center justify-center rounded-md bg-[#2a2a2d] transition-all ease-in-out`}
+              className={`duration-400 relative ${bannerImageUrl ? 'bottom-[4rem]' : ''} shadow-xl drop-shadow-2xl flex h-[25rem] w-72 animate-fade-up items-center justify-center rounded-md bg-[#2a2a2d] transition-all ease-in-out`}
             >
               <GlobeIcon className="h-16 w-16 text-gray-400" />
             </div>
@@ -1083,11 +1087,15 @@ export default function PluginAnimePage() {
                       onMouseDown={() => handleSearchResultClick(result)}
                     >
                       {result.cover ? (
-                        <img
-                          src={maybeProxyUrl(result.cover, backendPort)}
+                        <ProxiedImage
+                          src={result.cover}
                           alt=""
                           className="h-12 w-10 rounded object-cover"
-                        />
+                        >
+                          <div className="flex h-12 w-10 items-center justify-center rounded bg-[#2a2a2d]">
+                            <GlobeIcon className="h-4 w-4 text-gray-400" />
+                          </div>
+                        </ProxiedImage>
                       ) : (
                         <div className="flex h-12 w-10 items-center justify-center rounded bg-[#2a2a2d]">
                           <GlobeIcon className="h-4 w-4 text-gray-400" />
