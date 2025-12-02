@@ -4,7 +4,7 @@ import { useLocation, useParams } from 'react-router-dom'
 // import VideoJS, { PlyrPlayer } from './VideoJs'
 // import videojs from 'video.js'
 import StreamStats from '../components/StreamStats'
-import { Button, Switch } from '@radix-ui/themes'
+import { Button } from '@radix-ui/themes'
 import { toast } from 'sonner'
 import { ExclamationTriangleIcon, LightningBoltIcon, TrashIcon } from '@radix-ui/react-icons'
 import EpisodesPlayer from '../components/EpisodesPlayer'
@@ -216,24 +216,10 @@ export default function Player(query) {
     localStorage.getItem('preferred_player') || 'vidstack'
   )
   
-  // Anime4K settings
-  const [anime4kEnabled, setAnime4kEnabled] = useState(
-    localStorage.getItem('anime4k_enabled') === 'true'
-  )
-  const [anime4kPreset, setAnime4kPreset] = useState(
-    localStorage.getItem('anime4k_preset') || 'mode-b'
-  )
-  
   // Save player preference
   const handlePlayerTypeChange = (type) => {
     setPlayerType(type)
     localStorage.setItem('preferred_player', type)
-  }
-  
-  // Toggle Anime4K
-  const handleAnime4kToggle = (enabled) => {
-    setAnime4kEnabled(enabled)
-    localStorage.setItem('anime4k_enabled', enabled ? 'true' : 'false')
   }
 
   const plyrProps = {
@@ -367,7 +353,7 @@ export default function Player(query) {
   return (
     <div className="mb-32 flex items-center justify-center px-8 font-space-mono">
       <div className="w-full">
-        {/* Player Type Selection */}
+        {/* Player Type Selection - simplified, Anime4K settings now only in player menu */}
         <div className="mb-4 flex items-center justify-center gap-4">
           <span className="text-sm opacity-70">Player:</span>
           <Button 
@@ -386,20 +372,6 @@ export default function Player(query) {
           >
             Plyr
           </Button>
-          
-          {playerType === 'vidstack' && (
-            <>
-              <div className="mx-2 h-5 w-[1px] bg-gray-600" />
-              <div className="flex items-center gap-2">
-                <span className="text-sm opacity-70">Anime4K:</span>
-                <Switch
-                  checked={anime4kEnabled}
-                  onCheckedChange={handleAnime4kToggle}
-                  size="1"
-                />
-              </div>
-            </>
-          )}
         </div>
         
         {/* Video Player */}
@@ -413,8 +385,6 @@ export default function Player(query) {
                   format="mp4"
                   title={`${animeTitle} - Episode ${episodeNumber}`}
                   autoPlay={true}
-                  anime4kEnabled={anime4kEnabled}
-                  anime4kPreset={anime4kPreset}
                   showAnime4KControls={true}
                   showMiracastControls={true}
                   className="rounded-lg overflow-hidden"
