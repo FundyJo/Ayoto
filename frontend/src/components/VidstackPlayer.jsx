@@ -228,7 +228,7 @@ function Anime4KMenuItems({ preset, onPresetChange, enabled, onToggle, presets }
   return (
     <DefaultMenuSection label="🎨 Anime4K Upscaling">
       <DefaultMenuCheckbox
-        label="Anime4K aktivieren"
+        label="Enable Anime4K"
         checked={enabled}
         onChange={onToggle}
       />
