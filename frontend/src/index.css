@@ -169,4 +169,89 @@
     min-height: 48px;
   }
 }
+
+/* ------------------ VIDSTACK PLAYER RESPONSIVE STYLES ----------------- */
+/* Player wrapper - responsive container */
+.vidstack-player-wrapper {
+  width: 100%;
+  position: relative;
+}
+
+/* MediaPlayer responsive styles */
+.vidstack-player-wrapper [data-media-player] {
+  width: 100%;
+  height: auto;
+}
+
+/* Ensure video maintains aspect ratio and doesn't overflow viewport */
+.vidstack-player-wrapper [data-media-player] video {
+  max-height: 100vh;
+}
+
+/* Medium window responsive styles (641px - 768px) */
+@media (max-width: 768px) {
+  .vidstack-player-wrapper .vds-settings-menu {
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+}
+
+/* Small window responsive styles (481px - 640px) */
+@media (max-width: 640px) {
+  .vidstack-player-wrapper [data-media-player] {
+    font-size: 13px;
+  }
+  
+  .vidstack-player-wrapper .vds-settings-menu {
+    max-height: 75vh;
+  }
+}
+
+/* Extra small window responsive styles (up to 480px) */
+@media (max-width: 480px) {
+  .vidstack-player-wrapper [data-media-player] {
+    font-size: 12px;
+  }
+  
+  .vidstack-player-wrapper .vds-controls {
+    padding: 4px;
+  }
+  
+  .vidstack-player-wrapper .vds-settings-menu {
+    max-height: 70vh;
+    font-size: 12px;
+  }
+}
+
+/* Minimized window styles - ensure player scales properly */
+@media (max-height: 400px) {
+  .vidstack-player-wrapper [data-media-player] {
+    max-height: 100vh;
+  }
+  
+  .vidstack-player-wrapper .vds-controls {
+    padding: 2px;
+  }
+  
+  .vidstack-player-wrapper .vds-settings-menu {
+    max-height: 60vh;
+    font-size: 11px;
+  }
+}
+
+/* Very small windows - picture-in-picture like */
+@media (max-width: 320px), (max-height: 240px) {
+  .vidstack-player-wrapper .vds-time,
+  .vidstack-player-wrapper .vds-chapter-title {
+    font-size: 0;
+    visibility: hidden;
+    width: 0;
+    overflow: hidden;
+  }
+  
+  .vidstack-player-wrapper .vds-settings-menu {
+    max-height: 50vh;
+    min-width: 150px;
+  }
+}
 /* ---------------------------------------------------------------------- */
