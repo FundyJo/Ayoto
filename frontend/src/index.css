@@ -103,3 +103,63 @@
     outline: 2px solid #f00;
   }
 } */
+
+/* ------------------ VIDSTACK PLAYER MOBILE STYLES ----------------- */
+.vidstack-mobile .vds-video-layout {
+  /* Larger touch targets on mobile */
+  --touch-target-size: 44px;
+}
+
+.vidstack-mobile [data-media-controls] button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px;
+}
+
+/* Casting button styles */
+.casting-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  color: #ffffff;
+  font-size: 0.875rem;
+}
+
+.casting-button:hover {
+  color: #a855f7;
+}
+
+.casting-button.airplay-button:hover {
+  color: #007AFF; /* Apple blue */
+}
+
+.casting-button.chromecast-button:hover {
+  color: #4285F4; /* Google blue */
+}
+
+/* Mobile-specific touch handling */
+.touch-action-manipulation {
+  touch-action: manipulation;
+}
+
+/* Responsive casting controls */
+@media (max-width: 640px) {
+  .casting-button span {
+    display: none;
+  }
+  
+  .vidstack-player-wrapper .flex.gap-2 {
+    gap: 0.25rem;
+  }
+}
+
+/* Improve touch responsiveness on mobile devices */
+@media (pointer: coarse) {
+  .casting-button {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 12px;
+  }
+}
+/* ---------------------------------------------------------------------- */

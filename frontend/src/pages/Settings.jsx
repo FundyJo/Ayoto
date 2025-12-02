@@ -459,21 +459,26 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Miracast Section */}
+      {/* Screen Casting Section */}
       <div className="mt-8">
         <div className="mb-8 border-b border-gray-700 pb-2 font-semibold tracking-wider text-[#b5b5b5ff]">
-          Screen Casting (Miracast)
+          Screen Casting
         </div>
         <div className="flex flex-col gap-4 tracking-wide text-[#b5b5b5ff]">
           <div className="flex w-full items-center justify-between bg-[#202022] px-4 py-2">
             <div className="switch_card">
-              <p className="font-bold">Miracast Support</p>
+              <p className="font-bold">Casting Support</p>
               <p className="text-xs">
-                Cast video content to Miracast-compatible displays and TVs. 
-                Use the cast button in the video player to connect to nearby devices.
+                Cast video content to external displays and TVs. 
+                The appropriate casting method is automatically selected based on your device:
               </p>
-              <p className="text-xs mt-1 text-gray-500">
-                Note: Miracast is supported on Windows and Linux. macOS uses AirPlay instead.
+              <ul className="text-xs mt-2 ml-4 list-disc text-gray-400">
+                <li><span className="text-white">AirPlay</span> - iOS and macOS devices</li>
+                <li><span className="text-white">Chromecast</span> - Android, Windows, and Linux devices</li>
+                <li><span className="text-white">Miracast</span> - Windows and Linux devices (secondary option)</li>
+              </ul>
+              <p className="text-xs mt-2 text-gray-500">
+                Use the cast button in the video player to connect to nearby devices.
               </p>
             </div>
           </div>
