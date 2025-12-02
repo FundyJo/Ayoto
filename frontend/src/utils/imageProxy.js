@@ -114,10 +114,11 @@ export async function fetchProxiedImage(url) {
       const refererOrigin = `${urlObj.protocol}//${urlObj.host}`
 
       // Fetch using Tauri's HTTP plugin (bypasses CORS)
+      // Using a generic modern browser user agent for compatibility
       const response = await tauriFetch(url, {
         method: 'GET',
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (compatible; ZenshinApp/1.0)',
           'Referer': refererOrigin,
           'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
         }
@@ -134,13 +135,15 @@ export async function fetchProxiedImage(url) {
       const contentType = response.headers.get('content-type') || 'image/jpeg'
       const arrayBuffer = await response.arrayBuffer()
       
-      // Convert to base64 data URL
+      // Convert to base64 data URL using efficient array join
       const uint8Array = new Uint8Array(arrayBuffer)
-      let binary = ''
-      for (let i = 0; i < uint8Array.length; i++) {
-        binary += String.fromCharCode(uint8Array[i])
+      const chunkSize = 8192
+      const chunks = []
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length))
+        chunks.push(String.fromCharCode.apply(null, chunk))
       }
-      const base64 = btoa(binary)
+      const base64 = btoa(chunks.join(''))
       const dataUrl = `data:${contentType};base64,${base64}`
 
       // Cache the result

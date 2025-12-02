@@ -5,7 +5,7 @@
  * and converts them to data URLs for display.
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { needsProxy, fetchProxiedImage } from '../utils/imageProxy'
 
 /**
@@ -23,8 +23,6 @@ export function useProxiedImage(url) {
   const isMountedRef = useRef(true)
 
   useEffect(() => {
-    isMountedRef.current = true
-    
     // Reset state when URL changes
     setSrc(url)
     setError(null)
@@ -73,10 +71,14 @@ export function useProxiedImages(urls) {
   const [sources, setSources] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const isMountedRef = useRef(true)
+  
+  // Memoize the URL array to avoid unnecessary re-renders
+  const urlsKey = useMemo(() => {
+    if (!urls || urls.length === 0) return ''
+    return urls.filter(Boolean).sort().join('|')
+  }, [urls])
 
   useEffect(() => {
-    isMountedRef.current = true
-    
     if (!urls || urls.length === 0) {
       setSources({})
       setIsLoading(false)
@@ -131,7 +133,7 @@ export function useProxiedImages(urls) {
     return () => {
       isMountedRef.current = false
     }
-  }, [JSON.stringify(urls)]) // Use JSON.stringify for array comparison
+  }, [urlsKey, urls])
 
   return { sources, isLoading }
 }
