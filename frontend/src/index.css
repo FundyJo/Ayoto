@@ -116,20 +116,28 @@
   padding: 10px;
 }
 
-/* Casting button styles */
+/* Casting button base styles - shared between AirPlay, Chromecast, and Miracast */
 .casting-button {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.25rem;
   min-height: 36px;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  background-color: #252528;
   color: #ffffff;
   font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .casting-button:hover {
+  background-color: #303033;
   color: #a855f7;
 }
 
+/* Platform-specific hover colors */
 .casting-button.airplay-button:hover {
   color: #007AFF; /* Apple blue */
 }
@@ -143,7 +151,7 @@
   touch-action: manipulation;
 }
 
-/* Responsive casting controls */
+/* Responsive casting controls - hide text on small screens */
 @media (max-width: 640px) {
   .casting-button span {
     display: none;
@@ -154,12 +162,11 @@
   }
 }
 
-/* Improve touch responsiveness on mobile devices */
+/* Improve touch responsiveness on touch devices */
 @media (pointer: coarse) {
   .casting-button {
     min-width: 48px;
     min-height: 48px;
-    padding: 12px;
   }
 }
 /* ---------------------------------------------------------------------- */

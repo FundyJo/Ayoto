@@ -519,7 +519,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
         <div className={`flex justify-end mb-2 gap-2 ${deviceInfo.isMobile ? 'flex-wrap' : ''}`}>
           {/* AirPlay for iOS/Mac */}
           {showAirPlay && (
-            <AirPlayButton className="casting-button airplay-button p-2 rounded bg-[#252528] hover:bg-[#303033] transition-colors cursor-pointer flex items-center gap-1">
+            <AirPlayButton className="casting-button airplay-button">
               <AirPlayIcon className="w-5 h-5" />
               <span className="text-sm hidden sm:inline">AirPlay</span>
             </AirPlayButton>
@@ -527,7 +527,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           
           {/* Chromecast for Android/Desktop */}
           {showChromecast && (
-            <GoogleCastButton className="casting-button chromecast-button p-2 rounded bg-[#252528] hover:bg-[#303033] transition-colors cursor-pointer flex items-center gap-1">
+            <GoogleCastButton className="casting-button chromecast-button">
               <ChromecastIcon className="w-5 h-5" />
               <span className="text-sm hidden sm:inline">Chromecast</span>
             </GoogleCastButton>
@@ -584,7 +584,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
         <DefaultVideoLayout
           icons={defaultLayoutIcons}
           thumbnails=""
-          smallLayoutWhen={deviceInfo.isMobile}
+          smallLayoutWhen="(max-width: 768px)"
           slots={{
             // Add Anime4K settings to the settings menu
             settingsMenuItemsEnd: showAnime4KControls && presets.length > 0 ? (
