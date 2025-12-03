@@ -395,10 +395,14 @@ function useAnime4KOptions(presets, preset, enabled, onPresetChange, onToggle) {
           description: p.description,
           // Vidstack's onSelect passes a trigger event - we don't need it but must accept it
           select(_trigger) {
+            // When selecting a preset, we always want to enable Anime4K
+            // Pass true as the second argument to ensure the config is set correctly
+            // even before React state updates
             if (!enabled) {
               onToggle(true)
             }
-            onPresetChange(p.id)
+            // Pass true as the enabled state since selecting a preset enables Anime4K
+            onPresetChange(p.id, true)
           }
         }
       })
@@ -882,13 +886,20 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   }))
   
   // Handle preset change
-  const handlePresetChange = async (presetId) => {
+  // The enabled parameter allows the caller to specify the enabled state
+  // This is needed because React state updates are async, so isAnime4KEnabled
+  // may not be updated yet when this is called after onToggle
+  const handlePresetChange = async (presetId, enabled = null) => {
     const preset = presets.find(p => p.id === presetId)
     if (preset) {
       setCurrentPreset(preset)
-      const newConfig = await setAnime4KConfig(isAnime4KEnabled, presetId)
-      if (newConfig?.cssFilter) {
+      // Use the provided enabled value if given, otherwise use current state
+      const effectiveEnabled = enabled !== null ? enabled : isAnime4KEnabled
+      const newConfig = await setAnime4KConfig(effectiveEnabled, presetId)
+      if (newConfig?.cssFilter && effectiveEnabled) {
         setVideoStyle({ filter: newConfig.cssFilter })
+      } else if (!effectiveEnabled) {
+        setVideoStyle({})
       }
     }
   }
