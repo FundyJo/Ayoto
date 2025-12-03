@@ -50,7 +50,7 @@ import {
 import {
   DefaultVideoLayout,
   defaultLayoutIcons,
-  DefaultMenuSection,
+  DefaultMenuItem,
   DefaultMenuRadioGroup
 } from '@vidstack/react/player/layouts/default'
 
@@ -283,13 +283,13 @@ function Anime4KMenuItems({ preset, onPresetChange, enabled, onToggle, presets }
   }
   
   return (
-    <DefaultMenuSection label="Anime4K">
+    <DefaultMenuItem label="Anime4K">
       <DefaultMenuRadioGroup
         value={currentValue}
         options={allOptions}
         onChange={handleChange}
       />
-    </DefaultMenuSection>
+    </DefaultMenuItem>
   )
 }
 
