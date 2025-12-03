@@ -57,7 +57,7 @@ import {
 import '@vidstack/react/player/styles/default/theme.css'
 import '@vidstack/react/player/styles/default/layouts/video.css'
 
-import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo } from '../plugins/Anime4KConfig'
+import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo, getUpscaleDisplayInfo } from '../plugins/Anime4KConfig'
 import { STREAM_FORMATS } from '../plugins'
 import MiracastControls from './MiracastControls'
 
@@ -266,48 +266,13 @@ function Anime4KIcon(props) {
 }
 
 /**
- * Get upscale resolution info based on original resolution
- * Anime4K upscales by 2x (e.g., 720p → 1440p, 1080p → 2160p)
- * @param {number|null} height - Original video height
- * @returns {Object} Resolution information with upscaled values
- */
-function getUpscaleInfo(height) {
-  if (!height || height <= 0) {
-    return { original: 'Auto', upscaled: '2x', label: 'Auto → 2x' }
-  }
-  
-  const upscaledHeight = height * 2
-  
-  // Common resolution names
-  const getResolutionName = (h) => {
-    if (h <= 480) return '480p (SD)'
-    if (h <= 720) return '720p (HD)'
-    if (h <= 1080) return '1080p (Full HD)'
-    if (h <= 1440) return '1440p (2K)'
-    if (h <= 2160) return '2160p (4K UHD)'
-    return `${h}p`
-  }
-  
-  const originalName = getResolutionName(height)
-  const upscaledName = getResolutionName(upscaledHeight)
-  
-  return {
-    original: originalName,
-    originalHeight: height,
-    upscaled: upscaledName,
-    upscaledHeight: upscaledHeight,
-    label: `${originalName} → ${upscaledName}`
-  }
-}
-
-/**
  * Anime4K Submenu Component
  * Standalone submenu outside of settings menu, similar to Audio submenu pattern
  * Features 2x upscaling display and mode selection
  */
 function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, videoHeight }) {
   const hasWebGL = checkWebGLSupport()
-  const upscaleInfo = getUpscaleInfo(videoHeight)
+  const upscaleInfo = getUpscaleDisplayInfo(videoHeight, enabled)
   
   // Get current value for the radio group
   const currentValue = enabled ? (preset?.id || 'mode-b') : 'none'
@@ -617,10 +582,23 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           })
         }}
         onLoadedMetadata={(e) => {
-          // Get the video element and extract its natural height
-          const videoEl = e.target.querySelector?.('video') || e.target
-          if (videoEl?.videoHeight) {
-            setVideoHeight(videoEl.videoHeight)
+          // Get video height - try multiple approaches for compatibility
+          let height = null
+          
+          // Try direct access on e.target (if it's the video element)
+          if (e.target?.videoHeight) {
+            height = e.target.videoHeight
+          }
+          // Try querySelector if available (if e.target is the player)
+          else if (typeof e.target?.querySelector === 'function') {
+            const videoEl = e.target.querySelector('video')
+            if (videoEl?.videoHeight) {
+              height = videoEl.videoHeight
+            }
+          }
+          
+          if (height) {
+            setVideoHeight(height)
           }
         }}
         onEnded={onEnded}

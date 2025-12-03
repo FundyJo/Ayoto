@@ -363,7 +363,7 @@ export class Anime4KConfig {
    * @returns {number} Upscale factor (2 for all presets, 1 for none)
    */
   getUpscaleFactor() {
-    if (!this.enabled || this.preset.id === 'none') return 1
+    if (!this.enabled || !this.preset || this.preset.id === 'none') return 1
     // Anime4K uses 2x upscaling by default
     return 2
   }
