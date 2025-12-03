@@ -63,7 +63,7 @@
     "react-sliding-pane": "^7.3.0",
     "react-spinners": "^0.14.1",
     "sonner": "^1.5.0",
-    "tailwind-merge": "^3.4.0",
+    "tailwind-merge": "^1.14.0",
     "tailwindcss-animated": "^1.1.2",
     "tauri-controls": "^0.4.0",
     "webtorrent": "^2.5.19",
