@@ -358,7 +358,10 @@ function useAnime4KOptions(presets, preset, enabled, onPresetChange, onToggle) {
     const disabledOption = {
       label: 'Deaktiviert',
       value: 'none',
-      select: () => onToggle(false)
+      // Vidstack's onSelect passes a trigger event - we don't need it but must accept it
+      select(_trigger) {
+        onToggle(false)
+      }
     }
     
     // Map presets to options format
@@ -390,7 +393,8 @@ function useAnime4KOptions(presets, preset, enabled, onPresetChange, onToggle) {
           label: `${performanceIcon} ${p.name}`,
           value: p.id,
           description: p.description,
-          select: () => {
+          // Vidstack's onSelect passes a trigger event - we don't need it but must accept it
+          select(_trigger) {
             if (!enabled) {
               onToggle(true)
             }
@@ -448,7 +452,7 @@ function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, vi
   }
   
   return (
-    <Menu.Root className="vds-menu anime4k-settings-submenu">
+    <Menu.Root className="vds-anime4k-menu vds-menu anime4k-settings-submenu">
       <SubmenuButton label="Anime4K" hint={anime4kOptions.hint} disabled={anime4kOptions.disabled} Icon={Anime4KIcon} />
       <Menu.Content className="vds-menu-items anime4k-menu-content">
         {/* Upscale resolution info section */}
@@ -459,9 +463,9 @@ function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, vi
           </div>
         )}
         
-        <Menu.RadioGroup className="vds-radio-group" value={anime4kOptions.selectedValue}>
+        <Menu.RadioGroup className="vds-anime4k-radio-group vds-radio-group" value={anime4kOptions.selectedValue}>
           {anime4kOptions.options.map(({ label, value, description, select }) => (
-            <Menu.Radio className="vds-radio" value={value} onSelect={select} key={value}>
+            <Menu.Radio className="vds-anime4k-radio vds-radio" value={value} onSelect={select} key={value}>
               <CheckIcon className="vds-icon" />
               <span className="vds-radio-label">{label}</span>
               {description && <span className="vds-radio-hint anime4k-preset-hint">{description}</span>}
