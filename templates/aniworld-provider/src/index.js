@@ -264,7 +264,25 @@ const plugin = {
       }
       
       // Parse anime details from the page
-      return this._parseAnimeDetails(response.body, animeId);
+      const details = this._parseAnimeDetails(response.body, animeId);
+      
+      // Try to fetch AniList data for cover and banner images
+      const anilistData = await this._fetchAnilistData(response.body, details);
+      if (anilistData) {
+        // Use AniList cover and banner if available
+        if (anilistData.coverImage) {
+          details.cover = anilistData.coverImage;
+        }
+        if (anilistData.bannerImage) {
+          details.banner = anilistData.bannerImage;
+        }
+        // Store AniList ID if found
+        if (anilistData.id) {
+          details.anilistId = anilistData.id;
+        }
+      }
+      
+      return details;
     } catch (error) {
       console.error('Get anime details error:', error);
       return { id: animeId, title: 'Unknown', error: error.message };
@@ -337,6 +355,152 @@ const plugin = {
   // ============================================================================
   // Private Helper Methods
   // ============================================================================
+
+  /**
+   * Fetch anime data from AniList API based on aniworld page content
+   * Extracts the first alternative title from the h1 title attribute and searches AniList
+   * 
+   * @param {string} html - HTML content of the aniworld page
+   * @param {Object} details - Parsed anime details (used as fallback for search)
+   * @returns {Promise<Object|null>} AniList data with coverImage, bannerImage, id or null if not found
+   * @private
+   */
+  async _fetchAnilistData(html, details) {
+    try {
+      // Extract the search title from h1 title attribute
+      // The title attribute contains: "Animes Stream: {FirstTitle}, {OtherTitles}..."
+      // We need to extract the first title after "Animes Stream: "
+      const searchTitle = this._extractAnilistSearchTitle(html);
+      
+      if (!searchTitle) {
+        console.log('No title found for AniList search');
+        return null;
+      }
+      
+      console.log('Searching AniList for:', searchTitle);
+      
+      // Search AniList using the extracted title
+      const anilistResult = await this._searchAnilist(searchTitle);
+      
+      if (anilistResult) {
+        return anilistResult;
+      }
+      
+      // If first search fails, try with the main title as fallback
+      if (details.title && details.title !== searchTitle) {
+        console.log('Trying AniList search with main title:', details.title);
+        return await this._searchAnilist(details.title);
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching AniList data:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Extract the search title for AniList from the aniworld page HTML
+   * Looks for the first alternative title in the h1 title attribute after "Animes Stream: "
+   * 
+   * @param {string} html - HTML content of the aniworld page
+   * @returns {string|null} The extracted search title or null
+   * @private
+   */
+  _extractAnilistSearchTitle(html) {
+    // Look for h1 with itemprop="name" and extract the title attribute
+    // Pattern: <h1 itemprop="name" title="Animes Stream: FirstTitle, SecondTitle, ..."
+    const h1TitleMatch = html.match(/<h1[^>]*itemprop="name"[^>]*title="([^"]+)"/i);
+    
+    if (h1TitleMatch && h1TitleMatch[1]) {
+      const titleAttr = this._decodeHtmlEntities(h1TitleMatch[1]);
+      
+      // Remove "Animes Stream: " prefix if present
+      let cleanedTitle = titleAttr;
+      if (titleAttr.startsWith('Animes Stream: ')) {
+        cleanedTitle = titleAttr.substring('Animes Stream: '.length);
+      }
+      
+      // Get the first title (before the first comma)
+      const firstTitle = cleanedTitle.split(',')[0].trim();
+      
+      if (firstTitle && firstTitle.length > 0) {
+        return firstTitle;
+      }
+    }
+    
+    return null;
+  },
+
+  /**
+   * Search AniList API for an anime by title
+   * 
+   * @param {string} title - The anime title to search for
+   * @returns {Promise<Object|null>} Object with coverImage, bannerImage, id or null if not found
+   * @private
+   */
+  async _searchAnilist(title) {
+    const anilistUrl = 'https://graphql.anilist.co';
+    
+    const query = `
+      query ($search: String) {
+        Media(search: $search, type: ANIME) {
+          id
+          coverImage {
+            extraLarge
+            large
+          }
+          bannerImage
+        }
+      }
+    `;
+    
+    const variables = {
+      search: title
+    };
+    
+    try {
+      const response = await this.http.post(anilistUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          query: query,
+          variables: variables
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('AniList API error:', response.status, response.statusText);
+        return null;
+      }
+      
+      const data = JSON.parse(response.body);
+      
+      if (data.errors) {
+        console.error('AniList GraphQL errors:', data.errors);
+        return null;
+      }
+      
+      const media = data.data?.Media;
+      if (!media) {
+        console.log('No AniList result found for:', title);
+        return null;
+      }
+      
+      console.log('Found AniList anime:', media.id);
+      
+      return {
+        id: media.id,
+        coverImage: media.coverImage?.extraLarge || media.coverImage?.large || null,
+        bannerImage: media.bannerImage || null
+      };
+    } catch (error) {
+      console.error('Error searching AniList:', error);
+      return null;
+    }
+  },
 
   /**
    * Decode HTML entities in text
