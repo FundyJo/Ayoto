@@ -93,9 +93,80 @@ function ChevronRightIcon(props) {
  */
 function CastIcon(props) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
       <path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
       <line x1="2" y1="20" x2="2.01" y2="20" />
+    </svg>
+  )
+}
+
+/**
+ * Stop Icon for Miracast Menu
+ */
+function StopIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <rect x="6" y="6" width="12" height="12" rx="1" />
+    </svg>
+  )
+}
+
+/**
+ * Play Icon for Miracast Menu
+ */
+function PlayIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <polygon points="5 3 19 12 5 21 5 3" />
+    </svg>
+  )
+}
+
+/**
+ * X/Close Icon for Miracast Menu
+ */
+function XIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
+}
+
+/**
+ * Search/Scan Icon for Miracast Menu
+ */
+function SearchIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  )
+}
+
+/**
+ * Refresh/Loading Icon for Miracast Menu
+ */
+function RefreshIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <polyline points="23 4 23 10 17 10" />
+      <polyline points="1 20 1 14 7 14" />
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </svg>
+  )
+}
+
+/**
+ * TV/Monitor Icon for Miracast Menu
+ */
+function TvIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <rect x="2" y="7" width="20" height="15" rx="2" ry="2" />
+      <polyline points="17 2 12 7 7 2" />
     </svg>
   )
 }
@@ -406,7 +477,9 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
           const presets = await window.api.miracast.getQualityPresets()
           setQualityPresets(presets)
           if (presets.length > 0) {
-            setSelectedQuality(presets[1] || presets[0])
+            // Find 1080p preset as default, fallback to first preset
+            const defaultPreset = presets.find(p => p.resolution === '1080p') || presets[0]
+            setSelectedQuality(defaultPreset)
           }
           const currentSession = await window.api.miracast.getSession()
           setSession(currentSession)
@@ -510,7 +583,7 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
         {session && (session.state === 'connected' || session.state === 'casting') && (
           <div className="miracast-session-info">
             <div className="miracast-device-name">
-              <CastIcon className="vds-icon" style={{ width: '16px', height: '16px' }} />
+              <CastIcon className="vds-icon miracast-device-icon" />
               <span>{session.device?.name || 'Connected Device'}</span>
             </div>
             {session.state === 'casting' && (
@@ -518,7 +591,8 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
                 className="vds-menu-item miracast-action-item"
                 onSelect={handleStopCast}
               >
-                <span className="vds-menu-item-label">⏹️ Stop Casting</span>
+                <StopIcon className="vds-icon miracast-action-icon" />
+                <span className="vds-menu-item-label">Stop Casting</span>
               </Menu.Item>
             )}
             {session.state === 'connected' && videoUrl && (
@@ -526,14 +600,16 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
                 className="vds-menu-item miracast-action-item"
                 onSelect={handleStartCast}
               >
-                <span className="vds-menu-item-label">▶️ Cast Current Video</span>
+                <PlayIcon className="vds-icon miracast-action-icon" />
+                <span className="vds-menu-item-label">Cast Current Video</span>
               </Menu.Item>
             )}
             <Menu.Item 
               className="vds-menu-item miracast-action-item"
               onSelect={handleDisconnect}
             >
-              <span className="vds-menu-item-label">❌ Disconnect</span>
+              <XIcon className="vds-icon miracast-action-icon" />
+              <span className="vds-menu-item-label">Disconnect</span>
             </Menu.Item>
           </div>
         )}
@@ -545,8 +621,13 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
               className="vds-menu-item miracast-scan-item"
               onSelect={handleScan}
             >
+              {isScanning ? (
+                <RefreshIcon className="vds-icon miracast-action-icon miracast-spinning" />
+              ) : (
+                <SearchIcon className="vds-icon miracast-action-icon" />
+              )}
               <span className="vds-menu-item-label">
-                {isScanning ? '🔄 Scanning...' : '🔍 Scan for Devices'}
+                {isScanning ? 'Scanning...' : 'Scan for Devices'}
               </span>
             </Menu.Item>
             
@@ -560,10 +641,12 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
                     onSelect={() => handleConnect(device)}
                     disabled={connectingDeviceId === device.id}
                   >
-                    <span className="vds-menu-item-label">
-                      {connectingDeviceId === device.id ? '⏳ ' : '📺 '}
-                      {device.name}
-                    </span>
+                    {connectingDeviceId === device.id ? (
+                      <RefreshIcon className="vds-icon miracast-action-icon miracast-spinning" />
+                    ) : (
+                      <TvIcon className="vds-icon miracast-action-icon" />
+                    )}
+                    <span className="vds-menu-item-label">{device.name}</span>
                     {device.supportedResolutions?.length > 0 && (
                       <span className="vds-menu-item-hint">{device.supportedResolutions[0]}</span>
                     )}
@@ -574,7 +657,7 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
 
             {devices.length === 0 && !isScanning && (
               <div className="miracast-no-devices">
-                <span className="vds-menu-item-label" style={{ opacity: 0.6, fontSize: '12px' }}>
+                <span className="vds-menu-item-label miracast-no-devices-text">
                   Click Scan to find devices
                 </span>
               </div>

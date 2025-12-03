@@ -487,3 +487,103 @@
   }
 }
 /* -------------------------------------------------------------- */
+
+/* -------------------------------------------------------------- */
+/* Miracast Menu Styles - Integrated into Vidstack player */
+/* -------------------------------------------------------------- */
+
+/* Miracast icon sizing */
+.miracast-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.miracast-device-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.miracast-action-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+/* Spinning animation for loading states */
+.miracast-spinning {
+  animation: miracast-spin 1s linear infinite;
+}
+
+@keyframes miracast-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Session info container */
+.miracast-session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+/* Connected device name display */
+.miracast-device-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-gray-100);
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+/* Device list container */
+.miracast-device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* No devices message */
+.miracast-no-devices {
+  padding: 12px;
+  text-align: center;
+}
+
+.miracast-no-devices-text {
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+/* Scrollbar styling for miracast menu */
+.miracast-menu-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.miracast-menu-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.miracast-menu-content::-webkit-scrollbar-thumb {
+  background: var(--color-gray-50);
+  border-radius: 3px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .miracast-menu-content {
+    min-width: 220px;
+    max-height: 250px;
+    font-size: 13px;
+  }
+}
+/* -------------------------------------------------------------- */
