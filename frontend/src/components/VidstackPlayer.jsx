@@ -59,7 +59,6 @@ import '@vidstack/react/player/styles/default/layouts/video.css'
 
 import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo, getUpscaleDisplayInfo } from '../plugins/Anime4KConfig'
 import { STREAM_FORMATS } from '../plugins'
-import MiracastControls from './MiracastControls'
 
 /**
  * Custom SVG Icons for Anime4K Menu
@@ -85,6 +84,18 @@ function ChevronRightIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <polyline points="9 18 15 12 9 6" />
+    </svg>
+  )
+}
+
+/**
+ * Cast Icon for Miracast Menu
+ */
+function CastIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
+      <line x1="2" y1="20" x2="2.01" y2="20" />
     </svg>
   )
 }
@@ -376,6 +387,241 @@ function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, vi
 }
 
 /**
+ * Miracast Submenu Component
+ * Integrated into the settings menu for casting to Miracast devices
+ */
+function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
+  const [isScanning, setIsScanning] = useState(false)
+  const [devices, setDevices] = useState([])
+  const [session, setSession] = useState(null)
+  const [qualityPresets, setQualityPresets] = useState([])
+  const [selectedQuality, setSelectedQuality] = useState(null)
+  const [connectingDeviceId, setConnectingDeviceId] = useState(null)
+
+  // Load quality presets and session on mount
+  useEffect(() => {
+    const init = async () => {
+      try {
+        if (window.api?.miracast) {
+          const presets = await window.api.miracast.getQualityPresets()
+          setQualityPresets(presets)
+          if (presets.length > 0) {
+            setSelectedQuality(presets[1] || presets[0])
+          }
+          const currentSession = await window.api.miracast.getSession()
+          setSession(currentSession)
+        }
+      } catch (error) {
+        console.error('Failed to initialize Miracast:', error)
+      }
+    }
+    init()
+  }, [])
+
+  // Scan for devices
+  const handleScan = useCallback(async () => {
+    setIsScanning(true)
+    try {
+      if (window.api?.miracast) {
+        await window.api.miracast.startScan()
+        const foundDevices = await window.api.miracast.getDevices()
+        setDevices(foundDevices)
+      }
+    } catch (error) {
+      console.error('Failed to scan:', error)
+    }
+    setIsScanning(false)
+  }, [])
+
+  // Connect to device
+  const handleConnect = async (device) => {
+    setConnectingDeviceId(device.id)
+    try {
+      if (window.api?.miracast) {
+        const newSession = await window.api.miracast.connect(device.id, selectedQuality)
+        setSession(newSession)
+      }
+    } catch (error) {
+      console.error('Failed to connect:', error)
+    }
+    setConnectingDeviceId(null)
+  }
+
+  // Disconnect
+  const handleDisconnect = async () => {
+    try {
+      if (window.api?.miracast) {
+        await window.api.miracast.disconnect()
+        setSession(null)
+      }
+    } catch (error) {
+      console.error('Failed to disconnect:', error)
+    }
+  }
+
+  // Start casting
+  const handleStartCast = async () => {
+    if (!videoUrl) return
+    try {
+      if (window.api?.miracast) {
+        const updatedSession = await window.api.miracast.startCast(videoUrl, videoTitle)
+        setSession(updatedSession)
+        onCastStart?.()
+      }
+    } catch (error) {
+      console.error('Failed to start cast:', error)
+    }
+  }
+
+  // Stop casting
+  const handleStopCast = async () => {
+    try {
+      if (window.api?.miracast) {
+        const updatedSession = await window.api.miracast.stopCast()
+        setSession(updatedSession)
+      }
+    } catch (error) {
+      console.error('Failed to stop cast:', error)
+    }
+  }
+
+  // Get hint text showing current status
+  const getHintText = () => {
+    if (session?.state === 'casting') return 'Casting'
+    if (session?.state === 'connected') return 'Connected'
+    return 'Disconnected'
+  }
+
+  if (!isSupported) {
+    return null
+  }
+
+  return (
+    <Menu.Root className="vds-menu miracast-settings-submenu">
+      <Menu.Button className="vds-menu-item miracast-menu-button">
+        <ChevronLeftIcon className="vds-menu-close-icon vds-icon" />
+        <CastIcon className="vds-icon miracast-icon" />
+        <span className="vds-menu-item-label">Miracast</span>
+        <span className="vds-menu-item-hint">{getHintText()}</span>
+        <ChevronRightIcon className="vds-menu-open-icon vds-icon" />
+      </Menu.Button>
+      <Menu.Content className="vds-menu-items miracast-menu-content">
+        {/* Active session display */}
+        {session && (session.state === 'connected' || session.state === 'casting') && (
+          <div className="miracast-session-info">
+            <div className="miracast-device-name">
+              <CastIcon className="vds-icon" style={{ width: '16px', height: '16px' }} />
+              <span>{session.device?.name || 'Connected Device'}</span>
+            </div>
+            {session.state === 'casting' && (
+              <Menu.Item 
+                className="vds-menu-item miracast-action-item"
+                onSelect={handleStopCast}
+              >
+                <span className="vds-menu-item-label">⏹️ Stop Casting</span>
+              </Menu.Item>
+            )}
+            {session.state === 'connected' && videoUrl && (
+              <Menu.Item 
+                className="vds-menu-item miracast-action-item"
+                onSelect={handleStartCast}
+              >
+                <span className="vds-menu-item-label">▶️ Cast Current Video</span>
+              </Menu.Item>
+            )}
+            <Menu.Item 
+              className="vds-menu-item miracast-action-item"
+              onSelect={handleDisconnect}
+            >
+              <span className="vds-menu-item-label">❌ Disconnect</span>
+            </Menu.Item>
+          </div>
+        )}
+
+        {/* Device discovery - only show when not connected */}
+        {(!session || (session.state !== 'connected' && session.state !== 'casting')) && (
+          <>
+            <Menu.Item 
+              className="vds-menu-item miracast-scan-item"
+              onSelect={handleScan}
+            >
+              <span className="vds-menu-item-label">
+                {isScanning ? '🔄 Scanning...' : '🔍 Scan for Devices'}
+              </span>
+            </Menu.Item>
+            
+            {/* Device list */}
+            {devices.length > 0 && (
+              <div className="miracast-device-list">
+                {devices.map((device) => (
+                  <Menu.Item 
+                    key={device.id}
+                    className="vds-menu-item miracast-device-item"
+                    onSelect={() => handleConnect(device)}
+                    disabled={connectingDeviceId === device.id}
+                  >
+                    <span className="vds-menu-item-label">
+                      {connectingDeviceId === device.id ? '⏳ ' : '📺 '}
+                      {device.name}
+                    </span>
+                    {device.supportedResolutions?.length > 0 && (
+                      <span className="vds-menu-item-hint">{device.supportedResolutions[0]}</span>
+                    )}
+                  </Menu.Item>
+                ))}
+              </div>
+            )}
+
+            {devices.length === 0 && !isScanning && (
+              <div className="miracast-no-devices">
+                <span className="vds-menu-item-label" style={{ opacity: 0.6, fontSize: '12px' }}>
+                  Click Scan to find devices
+                </span>
+              </div>
+            )}
+
+            {/* Quality selector */}
+            {qualityPresets.length > 0 && (
+              <Menu.Root className="vds-menu miracast-quality-submenu">
+                <Menu.Button className="vds-menu-item">
+                  <ChevronLeftIcon className="vds-menu-close-icon vds-icon" />
+                  <span className="vds-menu-item-label">Quality</span>
+                  <span className="vds-menu-item-hint">
+                    {selectedQuality ? `${selectedQuality.resolution}` : 'Auto'}
+                  </span>
+                  <ChevronRightIcon className="vds-menu-open-icon vds-icon" />
+                </Menu.Button>
+                <Menu.Content className="vds-menu-items">
+                  <Menu.RadioGroup 
+                    className="vds-radio-group" 
+                    value={selectedQuality ? `${selectedQuality.resolution}@${selectedQuality.frameRate}` : ''}
+                  >
+                    {qualityPresets.map((preset, idx) => (
+                      <Menu.Radio 
+                        className="vds-radio" 
+                        value={`${preset.resolution}@${preset.frameRate}`}
+                        key={idx}
+                        onSelect={() => setSelectedQuality(preset)}
+                      >
+                        <CheckIcon className="vds-icon" />
+                        <span className="vds-radio-label">
+                          {preset.resolution} @ {preset.frameRate}fps
+                        </span>
+                        <span className="vds-radio-hint">{preset.bitrateMbps} Mbps</span>
+                      </Menu.Radio>
+                    ))}
+                  </Menu.RadioGroup>
+                </Menu.Content>
+              </Menu.Root>
+            )}
+          </>
+        )}
+      </Menu.Content>
+    </Menu.Root>
+  )
+}
+
+/**
  * SVG Filter Definitions for Anime4K Sharpening Effect
  * These filters simulate the sharpening effect of Anime4K using SVG convolution matrices
  */
@@ -472,6 +718,23 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   const [currentPreset, setCurrentPreset] = useState(null)
   const [videoStyle, setVideoStyle] = useState({})
   const [videoHeight, setVideoHeight] = useState(null)
+  const [isMiracastSupported, setIsMiracastSupported] = useState(false)
+  
+  // Check Miracast support on mount
+  useEffect(() => {
+    const checkMiracastSupport = async () => {
+      try {
+        if (window.api?.miracast) {
+          const supported = await window.api.miracast.isSupported()
+          setIsMiracastSupported(supported)
+        }
+      } catch (error) {
+        console.error('Failed to check Miracast support:', error)
+        setIsMiracastSupported(false)
+      }
+    }
+    checkMiracastSupport()
+  }, [])
   
   // Initialize preset when presets are loaded
   useEffect(() => {
@@ -548,7 +811,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   }
   
   // Determine which casting controls to show based on device
-  const showMiracast = showMiracastControls && deviceInfo.supportsMiracast
+  const showMiracast = showMiracastControls && deviceInfo.supportsMiracast && isMiracastSupported
   
   // Mobile-specific class adjustments
   const mobileClass = deviceInfo.isMobile ? 'vidstack-mobile' : ''
@@ -557,16 +820,6 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
     <div className={`vidstack-player-wrapper ${className} ${mobileClass}`}>
       {/* SVG Filters for Anime4K sharpening effect */}
       <Anime4KSVGFilters />
-      
-      {/* Miracast controls bar - Miracast needs to be outside MediaPlayer as it doesn't require media context */}
-      {showMiracast && (
-        <div className={`flex justify-end mb-2 gap-2 ${deviceInfo.isMobile ? 'flex-wrap' : ''}`}>
-          <MiracastControls 
-            videoUrl={src}
-            videoTitle={title}
-          />
-        </div>
-      )}
       
       <MediaPlayer
         ref={playerRef}
@@ -625,23 +878,34 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           ))}
         </MediaProvider>
         
-        {/* Default video layout with Anime4K integrated via settings menu slot */}
+        {/* Default video layout with Anime4K and Miracast integrated via settings menu slot */}
         <DefaultVideoLayout
           icons={defaultLayoutIcons}
           thumbnails=""
           smallLayoutWhen={({ width, height }) => width < 768 || height < 480}
           slots={{
-            // Add Anime4K submenu at the end of settings menu items
-            settingsMenuItemsEnd: showAnime4KControls && presets.length > 0 ? (
-              <Anime4KSubmenu
-                preset={currentPreset}
-                onPresetChange={handlePresetChange}
-                enabled={isAnime4KEnabled}
-                onToggle={handleAnime4KToggle}
-                presets={presets}
-                videoHeight={videoHeight}
-              />
-            ) : null
+            // Add Anime4K and Miracast submenus at the end of settings menu items
+            settingsMenuItemsEnd: (
+              <>
+                {showAnime4KControls && presets.length > 0 && (
+                  <Anime4KSubmenu
+                    preset={currentPreset}
+                    onPresetChange={handlePresetChange}
+                    enabled={isAnime4KEnabled}
+                    onToggle={handleAnime4KToggle}
+                    presets={presets}
+                    videoHeight={videoHeight}
+                  />
+                )}
+                {showMiracast && (
+                  <MiracastSubmenu
+                    videoUrl={src}
+                    videoTitle={title}
+                    isSupported={isMiracastSupported}
+                  />
+                )}
+              </>
+            )
           }}
         />
       </MediaPlayer>
