@@ -476,7 +476,13 @@ const plugin = {
         return null;
       }
       
-      const data = JSON.parse(response.body);
+      let data;
+      try {
+        data = JSON.parse(response.body);
+      } catch (e) {
+        console.error('Failed to parse AniList response as JSON');
+        return null;
+      }
       
       if (data.errors) {
         console.error('AniList GraphQL errors:', data.errors);
