@@ -358,8 +358,11 @@
   --divider: 1px solid rgb(255 255 255 / 0.1);
   --checkbox-height: 18px;
   
-  /* No scrollview - match audio submenu style */
-  min-width: 260px;
+  /* Proper sizing for all presets to be visible */
+  min-width: 280px;
+  min-height: 280px;
+  max-height: 450px;
+  overflow-y: auto;
 }
 
 /* Upscale resolution info section */
@@ -387,31 +390,43 @@
 }
 
 /* Radio items in menu */
-.anime4k-menu-content .vds-radio {
+.anime4k-menu-content .vds-radio,
+.anime4k-menu-content .vds-anime4k-radio {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px;
+  padding: 10px 12px;
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.15s;
+  min-height: 42px;
 }
 
-.anime4k-menu-content .vds-radio:hover {
+.anime4k-menu-content .vds-radio:hover,
+.anime4k-menu-content .vds-anime4k-radio:hover {
   background: var(--color-gray-50);
 }
 
-.anime4k-menu-content .vds-radio[data-checked] {
+.anime4k-menu-content .vds-radio[data-checked],
+.anime4k-menu-content .vds-anime4k-radio[data-checked] {
   background: rgba(78, 156, 246, 0.1);
 }
 
-.anime4k-menu-content .vds-radio[data-checked] .vds-icon {
+.anime4k-menu-content .vds-radio[data-checked] .vds-icon,
+.anime4k-menu-content .vds-anime4k-radio[data-checked] .vds-icon {
   color: rgb(78 156 246);
 }
 
 .anime4k-menu-content .vds-radio-label {
   flex: 1;
   color: var(--text-color);
+}
+
+/* Radio group styling */
+.vds-anime4k-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 /* Preset description hints */
@@ -498,6 +513,8 @@
 @media (max-width: 640px) {
   .anime4k-menu-content {
     min-width: 220px;
+    min-height: 250px;
+    max-height: 400px;
     font-size: 13px;
   }
   
