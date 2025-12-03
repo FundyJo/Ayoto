@@ -23,6 +23,7 @@ import AniListLogo from '../assets/symbols/AniListLogo'
 import { useZenshinContext } from '../utils/ContextProvider'
 import DownloadMeter from './DownloadMeter'
 import { AVATAR_COLORS } from './ProfileSelector'
+import WindowControls from './WindowControls'
 
 export default function Header() {
   const navigate = useNavigate()
@@ -202,7 +203,7 @@ export default function Header() {
       </div>
 
       <div className="nodrag mx-5 w-2/6">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
-      <div className="nodrag mr-36 flex items-center justify-center gap-x-4">
+      <div className="nodrag mr-4 flex items-center justify-center gap-x-4">
         <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/downloads')}>
           <DownloadIcon />
         </Button>
@@ -361,6 +362,9 @@ export default function Header() {
           <GearIcon className="my-1 cursor-pointer" width={16} height={16} />
         </Button> */}
       </div>
+      
+      {/* Window Controls - minimize, maximize, close */}
+      <WindowControls />
     </div>
   )
 }
