@@ -202,7 +202,7 @@ export default function Header() {
         )}
       </div>
 
-      <div className="nodrag absolute left-1/2 transform -translate-x-1/2 w-2/6 max-w-md">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
+      <div className="nodrag absolute left-1/2 transform -translate-x-1/2 w-2/6 max-w-md z-10">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
       <div className="nodrag ml-auto flex items-center justify-center gap-x-4">
         <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/downloads')}>
           <DownloadIcon />
