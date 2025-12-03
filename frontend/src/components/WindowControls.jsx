@@ -57,7 +57,9 @@ export default function WindowControls() {
 
   // Check if window is maximized on mount and listen for changes
   useEffect(() => {
-    const checkMaximized = async () => {
+    let unlistenResize = null
+    
+    const initWindowState = async () => {
       try {
         // Use Tauri API to check if window is maximized
         if (window.__TAURI__) {
@@ -67,21 +69,24 @@ export default function WindowControls() {
           setIsMaximized(maximized)
           
           // Listen for resize events to update maximized state
-          const unlistenResize = await currentWindow.onResized(async () => {
+          unlistenResize = await currentWindow.onResized(async () => {
             const newMaximized = await currentWindow.isMaximized()
             setIsMaximized(newMaximized)
           })
-          
-          return () => {
-            unlistenResize()
-          }
         }
       } catch (error) {
         console.error('Failed to check window state:', error)
       }
     }
     
-    checkMaximized()
+    initWindowState()
+    
+    // Cleanup function
+    return () => {
+      if (unlistenResize) {
+        unlistenResize()
+      }
+    }
   }, [])
 
   const handleMinimize = async () => {
@@ -101,7 +106,7 @@ export default function WindowControls() {
     try {
       if (window.api?.maximize) {
         await window.api.maximize()
-        setIsMaximized(!isMaximized)
+        // State will be updated by the resize listener
       } else if (window.__TAURI__) {
         const { getCurrentWindow } = await import('@tauri-apps/api/window')
         const currentWindow = getCurrentWindow()
@@ -110,7 +115,7 @@ export default function WindowControls() {
         } else {
           await currentWindow.maximize()
         }
-        setIsMaximized(!isMaximized)
+        // State will be updated by the resize listener
       }
     } catch (error) {
       console.error('Failed to maximize:', error)
@@ -131,7 +136,7 @@ export default function WindowControls() {
   }
 
   return (
-    <div className="window-controls nodrag flex items-center">
+    <div className="window-controls nodrag">
       <button
         className="window-control-button window-minimize"
         onClick={handleMinimize}
