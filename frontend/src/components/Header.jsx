@@ -128,8 +128,8 @@ export default function Header() {
   const animepahe = pathname.includes('/animepahe')
 
   return (
-    <div className="draggable sticky top-0 z-50 flex h-11 items-center justify-between border-[#5a5e6750] bg-[#111113] bg-opacity-60 px-4 pr-[150px] py-3 backdrop-blur-md relative">
-      <div className="nodrag flex items-center justify-center gap-x-2">
+    <div className="draggable sticky top-0 z-50 flex h-11 items-center border-[#5a5e6750] bg-[#111113] bg-opacity-60 px-4 pr-[150px] py-3 backdrop-blur-md relative">
+      <div className="nodrag flex items-center justify-center gap-x-2 flex-shrink-0">
         <Link
           className="nodrag hover: font-spaceMono flex w-fit cursor-pointer select-none gap-x-2 rounded-sm p-1 text-sm transition-all duration-200 hover:bg-[#70707030]"
           to={'/'}
@@ -202,8 +202,8 @@ export default function Header() {
         )}
       </div>
 
-      <div className="nodrag mx-5 w-2/6">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
-      <div className="nodrag mr-4 flex items-center justify-center gap-x-4">
+      <div className="nodrag absolute left-1/2 transform -translate-x-1/2 w-2/6 max-w-md">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
+      <div className="nodrag ml-auto flex items-center justify-center gap-x-4">
         <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/downloads')}>
           <DownloadIcon />
         </Button>
