@@ -4,40 +4,33 @@
  * 
  * ## Video Pipeline Architecture
  * 
- * The ideal Anime4K pipeline should work as follows:
+ * The Anime4K pipeline works as follows:
  * 
  *   1. Video Stream Source (HLS/MP4/MKV)
  *       ↓
  *   2. Video Decoder (browser native)
  *       ↓
- *   3. WebGL Canvas (Anime4K shader processing)
- *       - Applies upscaling/enhancement shaders
+ *   3. WebGPU Canvas (Anime4K shader processing) - NEW!
+ *       - Applies real upscaling/enhancement shaders using anime4k-webgpu
+ *       - Uses WebGPU compute shaders for high-performance processing
  *       - Maintains original framerate and timing
  *       ↓
  *   4. Vidstack Display
  *       - Audio remains synchronized via HTMLVideoElement
- *       - Video frames are rendered from WebGL canvas
+ *       - Video frames are rendered from WebGPU canvas overlay
  * 
- * ## Current Implementation
+ * ## Implementation
  * 
- * Due to browser limitations and complexity, we use a CSS filter approximation:
- *   - CSS filters (contrast, saturation, brightness) are applied to the video element
- *   - This provides a visual enhancement without true Anime4K upscaling
- *   - Audio sync is maintained as video is not re-encoded
+ * This component now uses the anime4k-webgpu library for real Anime4K processing:
+ *   - WebGPU-based compute shaders for true upscaling and sharpening
+ *   - Falls back to CSS filters if WebGPU is not available
+ *   - Audio sync is maintained as the original video element continues playing
  * 
- * ## Future WebGL Implementation Notes
- * 
- * For true Anime4K with WebGL shaders:
- *   1. Create an offscreen canvas with WebGL2 context
- *   2. Load Anime4K GLSL shaders (Clamp_Highlights, Restore_CNN, Upscale_CNN)
- *   3. On each video frame (requestVideoFrameCallback):
- *      - Draw video frame to WebGL canvas as texture
- *      - Apply shader pipeline
- *      - Display result
- *   4. Audio continues from original video element (maintains sync)
- * 
- * Libraries like @aspect-analytics/anime4k or custom WebGL implementations
- * can be integrated for true shader-based upscaling.
+ * Supported preset modes:
+ *   - Mode A: Fast, optimized for weak GPUs
+ *   - Mode B: Balanced quality and performance
+ *   - Mode C: High quality, requires powerful GPU
+ *   - Mode A+A, B+B, C+A: Enhanced versions with multiple passes
  */
 
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback, useMemo } from 'react'
@@ -59,6 +52,7 @@ import '@vidstack/react/player/styles/default/layouts/video.css'
 
 import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo, getUpscaleDisplayInfo, DEFAULT_ANIME4K_PRESET_ID } from '../plugins/Anime4KConfig'
 import { STREAM_FORMATS } from '../plugins'
+import { isWebGPUSupported } from './Anime4KWebGPU'
 
 /**
  * Custom SVG Icons for Anime4K Menu
@@ -321,6 +315,170 @@ function useAnime4KRust() {
   }, [isRustAvailable])
 
   return { presets, config, setAnime4KConfig, recommendPreset, isRustAvailable }
+}
+
+/**
+ * Hook to manage WebGPU-based Anime4K rendering
+ * This provides real sharpening and upscaling using WebGPU compute shaders
+ */
+function useAnime4KWebGPURenderer() {
+  const canvasRef = useRef(null)
+  const videoRef = useRef(null)
+  const [webGPUSupported, setWebGPUSupported] = useState(null)
+  const [isRendering, setIsRendering] = useState(false)
+  const [renderError, setRenderError] = useState(null)
+  const anime4kModuleRef = useRef(null)
+  const renderCleanupRef = useRef(null)
+
+  // Check WebGPU support on mount
+  useEffect(() => {
+    isWebGPUSupported().then(supported => {
+      setWebGPUSupported(supported)
+      if (supported) {
+        console.log('WebGPU is supported - real Anime4K shaders available')
+      } else {
+        console.log('WebGPU not supported - using CSS filter fallback')
+      }
+    })
+  }, [])
+
+  // Load anime4k-webgpu module lazily
+  const loadModule = useCallback(async () => {
+    if (anime4kModuleRef.current) return anime4kModuleRef.current
+    try {
+      const module = await import('anime4k-webgpu')
+      anime4kModuleRef.current = module
+      return module
+    } catch (error) {
+      console.error('Failed to load anime4k-webgpu:', error)
+      return null
+    }
+  }, [])
+
+  // Start WebGPU rendering
+  const startRendering = useCallback(async (videoElement, presetId = 'mode-b') => {
+    if (!webGPUSupported || !videoElement) {
+      return false
+    }
+
+    try {
+      // Cleanup previous renderer if any
+      if (renderCleanupRef.current) {
+        renderCleanupRef.current()
+        renderCleanupRef.current = null
+      }
+
+      const module = await loadModule()
+      if (!module) {
+        setRenderError('Failed to load Anime4K module')
+        return false
+      }
+
+      // Create canvas if not exists
+      let canvas = canvasRef.current
+      if (!canvas) {
+        canvas = document.createElement('canvas')
+        canvasRef.current = canvas
+      }
+
+      // Store video reference
+      videoRef.current = videoElement
+
+      // Set canvas size (2x upscale)
+      const nativeWidth = videoElement.videoWidth || 1920
+      const nativeHeight = videoElement.videoHeight || 1080
+      canvas.width = nativeWidth * 2
+      canvas.height = nativeHeight * 2
+
+      // Get preset class based on ID
+      let PresetClass
+      switch (presetId) {
+        case 'mode-a':
+          PresetClass = module.ModeA
+          break
+        case 'mode-b':
+          PresetClass = module.ModeB
+          break
+        case 'mode-c':
+          PresetClass = module.ModeC
+          break
+        case 'mode-a+a':
+          PresetClass = module.ModeAA
+          break
+        case 'mode-b+b':
+          PresetClass = module.ModeBB
+          break
+        case 'mode-c+a':
+          PresetClass = module.ModeCA
+          break
+        default:
+          PresetClass = module.ModeB
+      }
+
+      // Start WebGPU rendering
+      await module.render({
+        video: videoElement,
+        canvas,
+        pipelineBuilder: (device, inputTexture) => {
+          const preset = new PresetClass({
+            device,
+            inputTexture,
+            nativeDimensions: {
+              width: nativeWidth,
+              height: nativeHeight,
+            },
+            targetDimensions: {
+              width: canvas.width,
+              height: canvas.height,
+            }
+          })
+          return [preset]
+        },
+      })
+
+      setIsRendering(true)
+      setRenderError(null)
+
+      // Store cleanup function
+      renderCleanupRef.current = () => {
+        setIsRendering(false)
+      }
+
+      return true
+    } catch (error) {
+      console.error('WebGPU Anime4K rendering failed:', error)
+      setRenderError(error.message || 'WebGPU rendering failed')
+      setIsRendering(false)
+      return false
+    }
+  }, [webGPUSupported, loadModule])
+
+  // Stop rendering
+  const stopRendering = useCallback(() => {
+    if (renderCleanupRef.current) {
+      renderCleanupRef.current()
+      renderCleanupRef.current = null
+    }
+    setIsRendering(false)
+  }, [])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (renderCleanupRef.current) {
+        renderCleanupRef.current()
+      }
+    }
+  }, [])
+
+  return {
+    canvasRef,
+    webGPUSupported,
+    isRendering,
+    renderError,
+    startRendering,
+    stopRendering
+  }
 }
 
 /**
@@ -812,12 +970,23 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
     config, 
     setAnime4KConfig
   } = useAnime4KRust()
+
+  // Use WebGPU-based Anime4K rendering for real sharpening effects
+  const {
+    canvasRef: webGPUCanvasRef,
+    webGPUSupported,
+    isRendering: isWebGPURendering,
+    renderError: webGPURenderError,
+    startRendering: startWebGPURendering,
+    stopRendering: stopWebGPURendering
+  } = useAnime4KWebGPURenderer()
   
   const [isAnime4KEnabled, setIsAnime4KEnabled] = useState(anime4kEnabled)
   const [currentPreset, setCurrentPreset] = useState(null)
   const [videoStyle, setVideoStyle] = useState({})
   const [videoHeight, setVideoHeight] = useState(null)
   const [isMiracastSupported, setIsMiracastSupported] = useState(false)
+  const [useWebGPUMode, setUseWebGPUMode] = useState(false)
   
   // Check Miracast support on mount
   useEffect(() => {
@@ -847,13 +1016,59 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   useEffect(() => {
     if (config) {
       setIsAnime4KEnabled(config.enabled)
-      if (config.cssFilter && config.cssFilter !== 'none') {
+      // Only use CSS filters as fallback when WebGPU is not available
+      if (!webGPUSupported && config.cssFilter && config.cssFilter !== 'none') {
         setVideoStyle({ filter: config.cssFilter })
       } else {
         setVideoStyle({})
       }
     }
-  }, [config])
+  }, [config, webGPUSupported])
+
+  // Start/stop WebGPU rendering when Anime4K is enabled/disabled
+  useEffect(() => {
+    const handleWebGPURendering = async () => {
+      if (!webGPUSupported || !isAnime4KEnabled) {
+        stopWebGPURendering()
+        setUseWebGPUMode(false)
+        return
+      }
+
+      // Try to get the video element from the player
+      const player = playerRef.current
+      if (!player) return
+
+      // Access the underlying video element
+      // Vidstack stores it differently based on version
+      let videoElement = null
+      
+      // Try multiple approaches to get the video element
+      if (typeof player.el?.querySelector === 'function') {
+        videoElement = player.el.querySelector('video')
+      }
+      
+      if (!videoElement && typeof document !== 'undefined') {
+        // Fallback: query from DOM
+        const wrapper = document.querySelector('.vidstack-player-wrapper')
+        if (wrapper) {
+          videoElement = wrapper.querySelector('video')
+        }
+      }
+
+      if (videoElement && videoElement.readyState >= 1) {
+        const presetId = currentPreset?.id || DEFAULT_ANIME4K_PRESET_ID
+        const success = await startWebGPURendering(videoElement, presetId)
+        setUseWebGPUMode(success)
+        
+        if (success) {
+          // Clear CSS filters when WebGPU is active
+          setVideoStyle({})
+        }
+      }
+    }
+
+    handleWebGPURendering()
+  }, [webGPUSupported, isAnime4KEnabled, currentPreset, startWebGPURendering, stopWebGPURendering])
   
   // Detect format if not provided
   const detectedFormat = format || detectFormat(src)
@@ -896,7 +1111,9 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
       // Use the provided enabled value if given, otherwise use current state
       const effectiveEnabled = enabled !== null ? enabled : isAnime4KEnabled
       const newConfig = await setAnime4KConfig(effectiveEnabled, presetId)
-      if (newConfig?.cssFilter && effectiveEnabled) {
+      
+      // Only use CSS filters when WebGPU is not available or not working
+      if (!webGPUSupported && newConfig?.cssFilter && effectiveEnabled) {
         setVideoStyle({ filter: newConfig.cssFilter })
       } else if (!effectiveEnabled) {
         setVideoStyle({})
@@ -907,9 +1124,18 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   // Handle Anime4K toggle
   const handleAnime4KToggle = async (enabled) => {
     setIsAnime4KEnabled(enabled)
+    
+    if (!enabled) {
+      // Stop WebGPU rendering if disabled
+      stopWebGPURendering()
+      setUseWebGPUMode(false)
+    }
+    
     const presetId = currentPreset?.id || DEFAULT_ANIME4K_PRESET_ID
     const newConfig = await setAnime4KConfig(enabled, presetId)
-    if (newConfig?.cssFilter && enabled) {
+    
+    // Only use CSS filters as fallback when WebGPU is not available
+    if (!webGPUSupported && newConfig?.cssFilter && enabled) {
       setVideoStyle({ filter: newConfig.cssFilter })
     } else {
       setVideoStyle({})
@@ -1015,6 +1241,51 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           }}
         />
       </MediaPlayer>
+
+      {/* WebGPU Canvas Overlay for real Anime4K processing */}
+      {useWebGPUMode && isWebGPURendering && (
+        <canvas
+          ref={webGPUCanvasRef}
+          className="anime4k-webgpu-canvas"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            pointerEvents: 'none',
+            zIndex: 1
+          }}
+        />
+      )}
+
+      {/* WebGPU status indicator (only shown when Anime4K is enabled) */}
+      {isAnime4KEnabled && webGPUSupported !== null && (
+        <div 
+          className="anime4k-status-indicator"
+          role="status"
+          aria-label={useWebGPUMode ? 'Anime4K WebGPU processing active' : 'Anime4K CSS filter fallback active'}
+          style={{
+            position: 'absolute',
+            top: '8px',
+            left: '8px',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            fontSize: '10px',
+            fontWeight: 'bold',
+            backgroundColor: useWebGPUMode ? 'rgba(0, 200, 83, 0.8)' : 'rgba(255, 152, 0, 0.8)',
+            color: 'white',
+            zIndex: 10,
+            pointerEvents: 'none',
+            opacity: 0.9,
+            transition: 'opacity 0.3s ease'
+          }}
+        >
+          <span aria-hidden="true">{useWebGPUMode ? '⚡' : '🎨'}</span>
+          <span>{useWebGPUMode ? ' WebGPU Anime4K' : ' CSS Filter'}</span>
+        </div>
+      )}
     </div>
   )
 })
