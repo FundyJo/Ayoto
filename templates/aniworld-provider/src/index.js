@@ -22,6 +22,11 @@ const plugin = {
   storage: null,
   // Base URL for aniworld.to
   baseUrl: 'https://aniworld.to',
+  // Cache for main anime page responses to avoid duplicate fetches
+  // Structure: { [animeId]: { response: Object, timestamp: number } }
+  _mainPageCache: {},
+  // Cache expiry time in milliseconds (30 seconds)
+  _cacheExpiryMs: 30000,
 
   /**
    * Initialize the plugin
@@ -145,9 +150,8 @@ const plugin = {
    */
   async getEpisodes(animeId, page = 1) {
     try {
-      // First, get the main anime page to find available seasons
-      const mainUrl = `${this.baseUrl}/anime/stream/${animeId}`;
-      const mainResponse = await this.http.get(mainUrl);
+      // Get the main anime page (uses caching to avoid duplicate fetches)
+      const mainResponse = await this._getMainAnimePage(animeId);
       
       if (!mainResponse.ok) {
         if (mainResponse.status === 0) {
@@ -159,21 +163,31 @@ const plugin = {
       // Find available seasons from the main page
       const seasons = this._findSeasons(mainResponse.body);
       
-      // Fetch detailed episode info from each season page
+      // Fetch detailed episode info from all season pages in parallel for better performance
       const allEpisodes = [];
       
-      for (const season of seasons) {
-        const seasonUrl = `${this.baseUrl}/anime/stream/${animeId}/${season.slug}`;
-        try {
-          const seasonResponse = await this.http.get(seasonUrl);
-          if (seasonResponse.ok) {
-            const seasonEpisodes = this._parseSeasonEpisodes(seasonResponse.body, animeId, season);
+      if (seasons.length > 0) {
+        // Build list of season requests
+        const seasonRequests = seasons.map(season => ({
+          url: `${this.baseUrl}/anime/stream/${animeId}/${season.slug}`,
+          options: {}
+        }));
+        
+        // Fetch all season pages in parallel using the http client's batch method
+        const seasonResponses = await this.http.getAllSettled(seasonRequests);
+        
+        // Process each response
+        seasonResponses.forEach((result, index) => {
+          const season = seasons[index];
+          if (result.status === 'fulfilled' && result.value.ok) {
+            const seasonEpisodes = this._parseSeasonEpisodes(result.value.body, animeId, season);
             allEpisodes.push(...seasonEpisodes);
+          } else {
+            const error = result.status === 'rejected' ? result.reason : 'HTTP error';
+            console.error(`Failed to fetch season ${season.number}:`, error);
+            // Continue with other seasons - errors don't block overall result
           }
-        } catch (seasonError) {
-          console.error(`Failed to fetch season ${season.number}:`, seasonError);
-          // Continue with other seasons
-        }
+        });
       }
       
       // If no season pages found, fall back to parsing from main page
@@ -238,8 +252,8 @@ const plugin = {
    */
   async getAnimeDetails(animeId) {
     try {
-      const url = `${this.baseUrl}/anime/stream/${animeId}`;
-      const response = await this.http.get(url);
+      // Get the main anime page (uses caching to avoid duplicate fetches)
+      const response = await this._getMainAnimePage(animeId);
       
       if (!response.ok) {
         // Check for network error (status 0 indicates connection failure)
@@ -261,7 +275,66 @@ const plugin = {
    * Cleanup when plugin is unloaded
    */
   async shutdown() {
+    // Clear the cache on shutdown
+    this._mainPageCache = {};
     console.log('Aniworld.to Media Provider shutdown');
+  },
+
+  /**
+   * Get the main anime page with caching to avoid duplicate fetches
+   * When both getAnimeDetails and getEpisodes are called simultaneously,
+   * this ensures we only make one HTTP request for the main page.
+   * 
+   * @param {string} animeId - Anime ID (the link slug)
+   * @returns {Promise<Object>} Response object with body, ok, status
+   * @private
+   */
+  async _getMainAnimePage(animeId) {
+    const now = Date.now();
+    const cached = this._mainPageCache[animeId];
+    
+    // Return cached response if still valid
+    if (cached && (now - cached.timestamp) < this._cacheExpiryMs) {
+      console.log(`Using cached main page for: ${animeId}`);
+      return cached.response;
+    }
+    
+    // Fetch the main anime page
+    const url = `${this.baseUrl}/anime/stream/${animeId}`;
+    const response = await this.http.get(url);
+    
+    // Cache the response
+    this._mainPageCache[animeId] = {
+      response: response,
+      timestamp: now
+    };
+    
+    // Clean up old cache entries to prevent memory leaks
+    this._cleanupCache();
+    
+    return response;
+  },
+
+  /**
+   * Clean up expired cache entries
+   * @private
+   */
+  _cleanupCache() {
+    const now = Date.now();
+    const keysToDelete = [];
+    
+    for (const key in this._mainPageCache) {
+      if (Object.prototype.hasOwnProperty.call(this._mainPageCache, key)) {
+        const entry = this._mainPageCache[key];
+        if ((now - entry.timestamp) >= this._cacheExpiryMs) {
+          keysToDelete.push(key);
+        }
+      }
+    }
+    
+    for (const key of keysToDelete) {
+      delete this._mainPageCache[key];
+    }
   },
 
   // ============================================================================
