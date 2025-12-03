@@ -1161,9 +1161,13 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
         crossOrigin="anonymous"
         playsInline
         onTimeUpdate={(e) => {
+          // Vidstack MediaTimeUpdateEvent has detail with currentTime
+          // e.target is the MediaPlayer which has duration property
+          const currentTime = e?.detail?.currentTime ?? e?.target?.currentTime ?? 0
+          const duration = e?.target?.duration ?? 0
           onTimeUpdate?.({
-            currentTime: e.target.currentTime,
-            duration: e.target.duration
+            currentTime,
+            duration
           })
         }}
         onLoadedMetadata={(e) => {
@@ -1343,9 +1347,13 @@ export function HLSVidstackPlayer({
       crossOrigin="anonymous"
       playsInline
       onTimeUpdate={(e) => {
+        // Vidstack MediaTimeUpdateEvent has detail with currentTime
+        // e.target is the MediaPlayer which has duration property
+        const currentTime = e?.detail?.currentTime ?? e?.target?.currentTime ?? 0
+        const duration = e?.target?.duration ?? 0
         onTimeUpdate?.({
-          currentTime: e.target.currentTime,
-          duration: e.target.duration
+          currentTime,
+          duration
         })
       }}
       onEnded={onEnded}
