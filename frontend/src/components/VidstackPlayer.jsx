@@ -358,7 +358,8 @@ function useAnime4KOptions(presets, preset, enabled, onPresetChange, onToggle) {
     const disabledOption = {
       label: 'Deaktiviert',
       value: 'none',
-      select(trigger) {
+      // Vidstack's onSelect passes a trigger event - we don't need it but must accept it
+      select(_trigger) {
         onToggle(false)
       }
     }
@@ -392,7 +393,8 @@ function useAnime4KOptions(presets, preset, enabled, onPresetChange, onToggle) {
           label: `${performanceIcon} ${p.name}`,
           value: p.id,
           description: p.description,
-          select(trigger) {
+          // Vidstack's onSelect passes a trigger event - we don't need it but must accept it
+          select(_trigger) {
             if (!enabled) {
               onToggle(true)
             }
