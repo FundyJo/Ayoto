@@ -255,3 +255,235 @@
   }
 }
 /* ---------------------------------------------------------------------- */
+
+/* ------------------ ANIME4K MENU STYLES ----------------- */
+/* 
+ * Custom menu styling for Anime4K upscaling controls
+ * Follows Vidstack menu CSS variable conventions
+ */
+
+/* Media player CSS variables */
+.media-player,
+[data-media-player] {
+  --media-font-family: sans-serif;
+  --media-controls-color: #f5f5f5;
+  --media-focus-ring: 0 0 0 3px rgb(78 156 246);
+}
+
+/* Anime4K Menu specific styling */
+.anime4k-menu {
+  /* Menu positioning - place in control bar area */
+  position: absolute;
+  right: 12px;
+  bottom: 64px;
+  z-index: 50;
+}
+
+/* Anime4K Menu button styling */
+.anime4k-menu > .vds-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: rgba(10, 10, 10, 0.8);
+  color: #f5f5f5;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.anime4k-menu > .vds-menu-item:hover {
+  background: rgba(40, 40, 40, 0.9);
+}
+
+/* Anime4K Menu content panel */
+.anime4k-menu-content {
+  /* CSS variables for customization (defaults shown) */
+  --color-gray-50: rgb(245 245 245 / 0.1);
+  --color-gray-100: rgb(245 245 245 / 0.45);
+  --color-gray-200: rgb(10 10 10 / 0.6);
+  --color-gray-300: rgb(27 27 27);
+  --color-inverse: #f5f5f5;
+  --text-color: #f5f5f5;
+  --text-secondary-color: #6b6b6b;
+  --divider: 1px solid rgb(255 255 255 / 0.1);
+  --checkbox-height: 18px;
+  
+  background: var(--color-gray-300);
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow: 2px 2px 8px rgb(10 10 10 / 0.6);
+  font-size: 14px;
+  font-weight: 500;
+  max-height: 300px;
+  min-width: 260px;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+/* Upscale resolution info section */
+.anime4k-upscale-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: rgba(78, 156, 246, 0.15);
+  border-radius: 4px;
+  border-left: 3px solid rgb(78 156 246);
+}
+
+.anime4k-upscale-label {
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.anime4k-upscale-value {
+  color: rgb(78 156 246);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Radio items in menu */
+.anime4k-menu-content .vds-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.anime4k-menu-content .vds-radio:hover {
+  background: var(--color-gray-50);
+}
+
+.anime4k-menu-content .vds-radio[data-checked] {
+  background: rgba(78, 156, 246, 0.1);
+}
+
+.anime4k-menu-content .vds-radio[data-checked] .vds-icon {
+  color: rgb(78 156 246);
+}
+
+.anime4k-menu-content .vds-radio-label {
+  flex: 1;
+  color: var(--text-color);
+}
+
+/* Preset description hints */
+.anime4k-preset-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary-color);
+  margin-top: 2px;
+}
+
+.anime4k-menu-content .vds-radio .vds-radio-hint {
+  font-size: 11px;
+  color: var(--text-secondary-color);
+  margin-left: auto;
+  max-width: 120px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Menu icons */
+.anime4k-menu .vds-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.anime4k-menu .vds-menu-close-icon,
+.anime4k-menu .vds-menu-open-icon {
+  width: 16px;
+  height: 16px;
+  color: #9ca3af;
+}
+
+/* Hide close icon when menu is closed, show when open */
+.anime4k-menu:not([data-open]) .vds-menu-close-icon {
+  display: none;
+}
+
+.anime4k-menu[data-open] .vds-menu-open-icon {
+  display: none;
+}
+
+/* Hint text in button */
+.anime4k-menu .vds-menu-item-hint {
+  color: #6b6b6b;
+  font-size: 13px;
+  font-weight: 400;
+  margin-left: auto;
+  margin-right: 4px;
+}
+
+/* Menu animations */
+.anime4k-menu-content {
+  animation: anime4k-menu-enter 0.2s ease-out;
+}
+
+@keyframes anime4k-menu-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scrollbar styling for menu */
+.anime4k-menu-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.anime4k-menu-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.anime4k-menu-content::-webkit-scrollbar-thumb {
+  background: var(--color-gray-50);
+  border-radius: 3px;
+}
+
+/* Responsive adjustments for small screens */
+@media (max-width: 640px) {
+  .anime4k-menu {
+    right: 8px;
+    bottom: 56px;
+  }
+  
+  .anime4k-menu-content {
+    min-width: 220px;
+    max-height: 250px;
+    font-size: 13px;
+  }
+  
+  .anime4k-upscale-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 400px) {
+  .anime4k-menu > .vds-menu-item {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  
+  .anime4k-menu .vds-menu-item-label {
+    display: none;
+  }
+}
+/* -------------------------------------------------------------- */

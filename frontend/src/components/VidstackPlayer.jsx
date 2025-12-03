@@ -45,22 +45,49 @@ import {
   MediaPlayer,
   MediaProvider,
   Poster,
-  Track
+  Track,
+  Menu
 } from '@vidstack/react'
 import {
   DefaultVideoLayout,
-  defaultLayoutIcons,
-  DefaultMenuItem,
-  DefaultMenuRadioGroup
+  defaultLayoutIcons
 } from '@vidstack/react/player/layouts/default'
 
 // Import Vidstack styles
 import '@vidstack/react/player/styles/default/theme.css'
 import '@vidstack/react/player/styles/default/layouts/video.css'
 
-import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo } from '../plugins/Anime4KConfig'
+import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo, getUpscaleDisplayInfo } from '../plugins/Anime4KConfig'
 import { STREAM_FORMATS } from '../plugins'
 import MiracastControls from './MiracastControls'
+
+/**
+ * Custom SVG Icons for Anime4K Menu
+ * These avoid the dependency on @vidstack/react/icons which requires media-icons
+ */
+function CheckIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
+function ChevronLeftIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  )
+}
+
+function ChevronRightIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  )
+}
 
 /**
  * Device detection utilities for iOS, Android, and desktop
@@ -215,81 +242,136 @@ function useAnime4KRust() {
 }
 
 /**
- * Anime4K Menu Item for Vidstack Settings Menu
- * Uses submenu style: "Anime4K >" → "Deaktiviert", "Mode A", "Mode B", etc.
- * Enhanced with friendly labels and performance indicators
+ * Anime4K Upscale Icon Component
+ * Custom SVG icon representing upscaling/enhancement
  */
-function Anime4KMenuItems({ preset, onPresetChange, enabled, onToggle, presets }) {
+function Anime4KIcon(props) {
+  return (
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+      {...props}
+    >
+      {/* A4K text representation */}
+      <text x="2" y="18" fontSize="10" fontWeight="bold" fill="currentColor" stroke="none">4K</text>
+      {/* Upscale arrow */}
+      <path d="M16 3 L21 3 L21 8" />
+      <path d="M14 10 L21 3" />
+    </svg>
+  )
+}
+
+/**
+ * Anime4K Submenu Component
+ * Standalone submenu outside of settings menu, similar to Audio submenu pattern
+ * Features 2x upscaling display and mode selection
+ */
+function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, videoHeight }) {
   const hasWebGL = checkWebGLSupport()
-  
-  // Create all options including "Deaktiviert" (disabled)
-  const allOptions = [
-    {
-      label: 'Deaktiviert',
-      value: 'none'
-    },
-    ...presets
-      .filter(p => p.id !== 'none')
-      .map(p => {
-        // Add performance emoji indicators
-        let performanceIcon = ''
-        switch (p.performance) {
-          case 'low':
-            performanceIcon = '⚡'
-            break
-          case 'low-medium':
-            performanceIcon = '⚡'
-            break
-          case 'medium':
-            performanceIcon = '⚖️'
-            break
-          case 'medium-high':
-            performanceIcon = '🔥'
-            break
-          case 'high':
-            performanceIcon = '🔥'
-            break
-          case 'very-high':
-            performanceIcon = '💎'
-            break
-          default:
-            performanceIcon = ''
-        }
-        
-        return {
-          label: `${performanceIcon} ${p.name}`,
-          value: p.id
-        }
-      })
-  ]
-  
-  // Handle selection change - toggles enabled state and changes preset
-  const handleChange = (value) => {
-    if (value === 'none') {
-      onToggle(false)
-    } else {
-      if (!enabled) {
-        onToggle(true)
-      }
-      onPresetChange(value)
-    }
-  }
+  const upscaleInfo = getUpscaleDisplayInfo(videoHeight, enabled)
   
   // Get current value for the radio group
   const currentValue = enabled ? (preset?.id || 'mode-b') : 'none'
+  
+  // Get hint text showing current status
+  const getHintText = () => {
+    if (!enabled) return 'Deaktiviert'
+    if (preset) {
+      return preset.name
+    }
+    return 'An'
+  }
   
   if (!hasWebGL) {
     return null
   }
   
   return (
-    <DefaultMenuItem label="Anime4K">
-      <DefaultMenuRadioGroup
-        value={currentValue}
-        options={allOptions}
-        onChange={handleChange}
-      />
-    </DefaultMenuItem>
+    <Menu.Root className="vds-menu anime4k-menu">
+      <Menu.Button className="vds-menu-item" aria-label="Anime4K Upscaling">
+        <ChevronLeftIcon className="vds-menu-close-icon vds-icon" />
+        <Anime4KIcon className="vds-icon" style={{ width: '20px', height: '20px' }} />
+        <span className="vds-menu-item-label">Anime4K</span>
+        <span className="vds-menu-item-hint">{getHintText()}</span>
+        <ChevronRightIcon className="vds-menu-open-icon vds-icon" />
+      </Menu.Button>
+      <Menu.Content className="vds-menu-items anime4k-menu-content">
+        {/* Upscale resolution info section */}
+        {enabled && (
+          <div className="anime4k-upscale-info">
+            <span className="anime4k-upscale-label">Auflösung:</span>
+            <span className="anime4k-upscale-value">{upscaleInfo.label}</span>
+          </div>
+        )}
+        
+        <Menu.RadioGroup 
+          className="vds-radio-group" 
+          value={currentValue}
+        >
+          {/* Disabled option */}
+          <Menu.Radio 
+            className="vds-radio" 
+            value="none" 
+            onSelect={() => onToggle(false)}
+          >
+            <CheckIcon className="vds-icon" />
+            <span className="vds-radio-label">Deaktiviert</span>
+          </Menu.Radio>
+          
+          {/* Preset options */}
+          {presets
+            .filter(p => p.id !== 'none')
+            .map((p) => {
+              // Add performance emoji indicators
+              let performanceIcon = ''
+              switch (p.performance) {
+                case 'low':
+                  performanceIcon = '⚡'
+                  break
+                case 'low-medium':
+                  performanceIcon = '⚡'
+                  break
+                case 'medium':
+                  performanceIcon = '⚖️'
+                  break
+                case 'medium-high':
+                  performanceIcon = '🔥'
+                  break
+                case 'high':
+                  performanceIcon = '🔥'
+                  break
+                case 'very-high':
+                  performanceIcon = '💎'
+                  break
+                default:
+                  performanceIcon = ''
+              }
+              
+              return (
+                <Menu.Radio 
+                  className="vds-radio" 
+                  value={p.id} 
+                  key={p.id}
+                  onSelect={() => {
+                    if (!enabled) {
+                      onToggle(true)
+                    }
+                    onPresetChange(p.id)
+                  }}
+                >
+                  <CheckIcon className="vds-icon" />
+                  <span className="vds-radio-label">{performanceIcon} {p.name}</span>
+                  <span className="vds-radio-hint anime4k-preset-hint">{p.description}</span>
+                </Menu.Radio>
+              )
+            })}
+        </Menu.RadioGroup>
+      </Menu.Content>
+    </Menu.Root>
   )
 }
 
@@ -389,6 +471,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   const [isAnime4KEnabled, setIsAnime4KEnabled] = useState(anime4kEnabled)
   const [currentPreset, setCurrentPreset] = useState(null)
   const [videoStyle, setVideoStyle] = useState({})
+  const [videoHeight, setVideoHeight] = useState(null)
   
   // Initialize preset when presets are loaded
   useEffect(() => {
@@ -498,6 +581,26 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
             duration: e.target.duration
           })
         }}
+        onLoadedMetadata={(e) => {
+          // Get video height - try multiple approaches for compatibility
+          let height = null
+          
+          // Try direct access on e.target (if it's the video element)
+          if (e.target?.videoHeight) {
+            height = e.target.videoHeight
+          }
+          // Try querySelector if available (if e.target is the player)
+          else if (typeof e.target?.querySelector === 'function') {
+            const videoEl = e.target.querySelector('video')
+            if (videoEl?.videoHeight) {
+              height = videoEl.videoHeight
+            }
+          }
+          
+          if (height) {
+            setVideoHeight(height)
+          }
+        }}
         onEnded={onEnded}
         onError={(e) => {
           console.error('Video error:', e)
@@ -522,23 +625,23 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           ))}
         </MediaProvider>
         
-        {/* Default video layout with Anime4K integrated in settings menu */}
+        {/* Anime4K submenu - placed in control bar, separate from settings menu */}
+        {showAnime4KControls && presets.length > 0 && (
+          <Anime4KSubmenu
+            preset={currentPreset}
+            onPresetChange={handlePresetChange}
+            enabled={isAnime4KEnabled}
+            onToggle={handleAnime4KToggle}
+            presets={presets}
+            videoHeight={videoHeight}
+          />
+        )}
+        
+        {/* Default video layout - Anime4K menu is now outside settings */}
         <DefaultVideoLayout
           icons={defaultLayoutIcons}
           thumbnails=""
           smallLayoutWhen={({ width, height }) => width < 768 || height < 480}
-          slots={{
-            // Add Anime4K settings to the settings menu
-            settingsMenuItemsEnd: showAnime4KControls && presets.length > 0 ? (
-              <Anime4KMenuItems
-                preset={currentPreset}
-                onPresetChange={handlePresetChange}
-                enabled={isAnime4KEnabled}
-                onToggle={handleAnime4KToggle}
-                presets={presets}
-              />
-            ) : null
-          }}
         />
       </MediaPlayer>
     </div>
