@@ -38,6 +38,48 @@
   -webkit-app-region: no-drag;
 }
 
+/* ------------------ WINDOW CONTROLS STYLES ----------------- */
+/* Custom window controls for Tauri (decorations: false) */
+.window-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  margin-left: auto;
+}
+
+.window-control-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  min-height: 32px;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.window-control-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.window-control-button:active {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.window-control-button.window-close:hover {
+  background-color: #e81123;
+  color: #ffffff;
+}
+
+.window-control-button.window-close:active {
+  background-color: #bf0f1d;
+}
+/* ------------------------------------------------------ */
+
 /* For blur mask of banner image */
 .mask {
   -webkit-mask: -webkit-gradient(
@@ -303,7 +345,7 @@
   background: rgba(245, 245, 245, 0.1);
 }
 
-/* Anime4K Menu content panel */
+/* Anime4K Menu content panel - styled like audio submenu */
 .anime4k-menu-content {
   /* CSS variables for customization (defaults shown) */
   --color-gray-50: rgb(245 245 245 / 0.1);
@@ -316,16 +358,8 @@
   --divider: 1px solid rgb(255 255 255 / 0.1);
   --checkbox-height: 18px;
   
-  background: var(--color-gray-300);
-  border-radius: 8px;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  box-shadow: 2px 2px 8px rgb(10 10 10 / 0.6);
-  font-size: 14px;
-  font-weight: 500;
-  max-height: 300px;
+  /* No scrollview - match audio submenu style */
   min-width: 260px;
-  padding: 12px;
-  overflow-y: auto;
 }
 
 /* Upscale resolution info section */
@@ -464,7 +498,6 @@
 @media (max-width: 640px) {
   .anime4k-menu-content {
     min-width: 220px;
-    max-height: 250px;
     font-size: 13px;
   }
   
