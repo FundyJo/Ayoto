@@ -257,7 +257,18 @@ export async function getWebGPUInfo() {
       }
     }
 
-    const info = await adapter.requestAdapterInfo?.()
+    // requestAdapterInfo may not exist in older implementations
+    // Use a safe call pattern with fallback
+    let info = null
+    if (typeof adapter.requestAdapterInfo === 'function') {
+      try {
+        info = await adapter.requestAdapterInfo()
+      } catch {
+        // Ignore errors from requestAdapterInfo as it's optional
+        info = null
+      }
+    }
+    
     const limits = adapter.limits
 
     return {

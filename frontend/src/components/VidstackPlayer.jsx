@@ -1167,14 +1167,12 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           })
         }}
         onLoadedMetadata={(e) => {
-          // Get video dimensions - try multiple approaches for compatibility
+          // Get video height - try multiple approaches for compatibility
           let height = null
-          let width = null
           
           // Try direct access on e.target (if it's the video element)
           if (e.target?.videoHeight) {
             height = e.target.videoHeight
-            width = e.target.videoWidth
           }
           // Try querySelector if available (if e.target is the player)
           else if (typeof e.target?.querySelector === 'function') {
@@ -1266,6 +1264,8 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
       {isAnime4KEnabled && webGPUSupported !== null && (
         <div 
           className="anime4k-status-indicator"
+          role="status"
+          aria-label={useWebGPUMode ? 'Anime4K WebGPU processing active' : 'Anime4K CSS filter fallback active'}
           style={{
             position: 'absolute',
             top: '8px',
@@ -1282,7 +1282,8 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
             transition: 'opacity 0.3s ease'
           }}
         >
-          {useWebGPUMode ? '⚡ WebGPU Anime4K' : '🎨 CSS Filter'}
+          <span aria-hidden="true">{useWebGPUMode ? '⚡' : '🎨'}</span>
+          <span>{useWebGPUMode ? ' WebGPU Anime4K' : ' CSS Filter'}</span>
         </div>
       )}
     </div>
