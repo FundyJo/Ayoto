@@ -267,7 +267,7 @@ function Anime4KIcon(props) {
 
 /**
  * Anime4K Submenu Component
- * Standalone submenu outside of settings menu, similar to Audio submenu pattern
+ * Integrated into the settings menu via Vidstack slots
  * Features 2x upscaling display and mode selection
  */
 function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, videoHeight }) {
@@ -291,10 +291,10 @@ function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, vi
   }
   
   return (
-    <Menu.Root className="vds-menu anime4k-menu">
-      <Menu.Button className="vds-menu-item" aria-label="Anime4K Upscaling">
+    <Menu.Root className="vds-menu anime4k-settings-submenu">
+      <Menu.Button className="vds-menu-item anime4k-menu-button">
         <ChevronLeftIcon className="vds-menu-close-icon vds-icon" />
-        <Anime4KIcon className="vds-icon" style={{ width: '20px', height: '20px' }} />
+        <Anime4KIcon className="vds-icon anime4k-icon" />
         <span className="vds-menu-item-label">Anime4K</span>
         <span className="vds-menu-item-hint">{getHintText()}</span>
         <ChevronRightIcon className="vds-menu-open-icon vds-icon" />
@@ -625,23 +625,24 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           ))}
         </MediaProvider>
         
-        {/* Anime4K submenu - placed in control bar, separate from settings menu */}
-        {showAnime4KControls && presets.length > 0 && (
-          <Anime4KSubmenu
-            preset={currentPreset}
-            onPresetChange={handlePresetChange}
-            enabled={isAnime4KEnabled}
-            onToggle={handleAnime4KToggle}
-            presets={presets}
-            videoHeight={videoHeight}
-          />
-        )}
-        
-        {/* Default video layout - Anime4K menu is now outside settings */}
+        {/* Default video layout with Anime4K integrated via settings menu slot */}
         <DefaultVideoLayout
           icons={defaultLayoutIcons}
           thumbnails=""
           smallLayoutWhen={({ width, height }) => width < 768 || height < 480}
+          slots={{
+            // Add Anime4K submenu at the end of settings menu items
+            settingsMenuItemsEnd: showAnime4KControls && presets.length > 0 ? (
+              <Anime4KSubmenu
+                preset={currentPreset}
+                onPresetChange={handlePresetChange}
+                enabled={isAnime4KEnabled}
+                onToggle={handleAnime4KToggle}
+                presets={presets}
+                videoHeight={videoHeight}
+              />
+            ) : null
+          }}
         />
       </MediaPlayer>
     </div>
