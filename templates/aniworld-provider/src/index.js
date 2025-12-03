@@ -295,7 +295,6 @@ const plugin = {
     
     // Return cached response if still valid
     if (cached && (now - cached.timestamp) < this._cacheExpiryMs) {
-      console.log(`Using cached main page for: ${animeId}`);
       return cached.response;
     }
     
@@ -324,11 +323,9 @@ const plugin = {
     const keysToDelete = [];
     
     for (const key in this._mainPageCache) {
-      if (Object.prototype.hasOwnProperty.call(this._mainPageCache, key)) {
-        const entry = this._mainPageCache[key];
-        if ((now - entry.timestamp) >= this._cacheExpiryMs) {
-          keysToDelete.push(key);
-        }
+      const entry = this._mainPageCache[key];
+      if (entry && (now - entry.timestamp) >= this._cacheExpiryMs) {
+        keysToDelete.push(key);
       }
     }
     
