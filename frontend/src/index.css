@@ -259,6 +259,7 @@
 /* ------------------ ANIME4K MENU STYLES ----------------- */
 /* 
  * Custom menu styling for Anime4K upscaling controls
+ * Integrated into Vidstack settings menu via slots
  * Follows Vidstack menu CSS variable conventions
  */
 
@@ -270,32 +271,36 @@
   --media-focus-ring: 0 0 0 3px rgb(78 156 246);
 }
 
-/* Anime4K Menu specific styling */
-.anime4k-menu {
-  /* Menu positioning - place in control bar area */
-  position: absolute;
-  right: 12px;
-  bottom: 64px;
-  z-index: 50;
+/* Anime4K Settings Submenu - integrated into settings menu */
+.anime4k-settings-submenu {
+  /* Reset positioning - it's inside the settings menu */
+  position: relative;
+  width: 100%;
 }
 
-/* Anime4K Menu button styling */
-.anime4k-menu > .vds-menu-item {
+/* Anime4K icon styling */
+.anime4k-settings-submenu .anime4k-icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* Menu button inside settings - follow Vidstack conventions */
+.anime4k-menu-button {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
   border-radius: 4px;
-  background: rgba(10, 10, 10, 0.8);
-  color: #f5f5f5;
+  color: var(--media-controls-color, #f5f5f5);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s ease;
 }
 
-.anime4k-menu > .vds-menu-item:hover {
-  background: rgba(40, 40, 40, 0.9);
+.anime4k-menu-button:hover {
+  background: rgba(245, 245, 245, 0.1);
 }
 
 /* Anime4K Menu content panel */
@@ -395,29 +400,29 @@
 }
 
 /* Menu icons */
-.anime4k-menu .vds-icon {
+.anime4k-settings-submenu .vds-icon {
   width: 18px;
   height: 18px;
 }
 
-.anime4k-menu .vds-menu-close-icon,
-.anime4k-menu .vds-menu-open-icon {
+.anime4k-settings-submenu .vds-menu-close-icon,
+.anime4k-settings-submenu .vds-menu-open-icon {
   width: 16px;
   height: 16px;
   color: #9ca3af;
 }
 
 /* Hide close icon when menu is closed, show when open */
-.anime4k-menu:not([data-open]) .vds-menu-close-icon {
+.anime4k-settings-submenu:not([data-open]) .vds-menu-close-icon {
   display: none;
 }
 
-.anime4k-menu[data-open] .vds-menu-open-icon {
+.anime4k-settings-submenu[data-open] .vds-menu-open-icon {
   display: none;
 }
 
 /* Hint text in button */
-.anime4k-menu .vds-menu-item-hint {
+.anime4k-settings-submenu .vds-menu-item-hint {
   color: #6b6b6b;
   font-size: 13px;
   font-weight: 400;
@@ -457,11 +462,6 @@
 
 /* Responsive adjustments for small screens */
 @media (max-width: 640px) {
-  .anime4k-menu {
-    right: 8px;
-    bottom: 56px;
-  }
-  
   .anime4k-menu-content {
     min-width: 220px;
     max-height: 250px;
@@ -477,12 +477,12 @@
 
 /* Very small screens */
 @media (max-width: 400px) {
-  .anime4k-menu > .vds-menu-item {
+  .anime4k-menu-button {
     padding: 6px 8px;
     font-size: 12px;
   }
   
-  .anime4k-menu .vds-menu-item-label {
+  .anime4k-settings-submenu .vds-menu-item-label {
     display: none;
   }
 }
