@@ -39,8 +39,8 @@
 }
 
 /* ------------------ WINDOW CONTROLS STYLES ----------------- */
-/* Custom window controls for Tauri (decorations: false) */
-.window-controls {
+/* Window controls wrapper for tauri-controls library */
+.window-controls-wrapper {
   position: absolute;
   top: 0;
   right: 0;
@@ -50,36 +50,9 @@
   z-index: 100;
 }
 
-.window-control-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
+/* Override tauri-controls styles for consistent look */
+.window-controls-wrapper .window-controls-tauri {
   height: 100%;
-  min-height: 32px;
-  background: transparent;
-  border: none;
-  color: #9ca3af;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.window-control-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-
-.window-control-button:active {
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-.window-control-button.window-close:hover {
-  background-color: #e81123;
-  color: #ffffff;
-}
-
-.window-control-button.window-close:active {
-  background-color: #bf0f1d;
 }
 /* ------------------------------------------------------ */
 
