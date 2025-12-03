@@ -57,7 +57,7 @@ import {
 import '@vidstack/react/player/styles/default/theme.css'
 import '@vidstack/react/player/styles/default/layouts/video.css'
 
-import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo, getUpscaleDisplayInfo } from '../plugins/Anime4KConfig'
+import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo, getUpscaleDisplayInfo, DEFAULT_ANIME4K_PRESET_ID } from '../plugins/Anime4KConfig'
 import { STREAM_FORMATS } from '../plugins'
 
 /**
@@ -314,9 +314,9 @@ function useAnime4KRust() {
         const gpuInfo = getGPUInfo()
         return await window.api.anime4k.recommendPreset(gpuInfo)
       }
-      return 'mode-b' // Default fallback
+      return DEFAULT_ANIME4K_PRESET_ID // Default fallback
     } catch {
-      return 'mode-b'
+      return DEFAULT_ANIME4K_PRESET_ID
     }
   }, [isRustAvailable])
 
@@ -403,16 +403,17 @@ function useAnime4KOptions(presets, preset, enabled, onPresetChange, onToggle) {
   }, [presets, enabled, onPresetChange, onToggle])
   
   // Get selected value and track
-  const selectedValue = enabled ? (preset?.id || 'mode-b') : 'none'
+  const selectedValue = enabled ? (preset?.id || DEFAULT_ANIME4K_PRESET_ID) : 'none'
   const selectedTrack = preset ? { label: preset.name } : null
   const disabled = !checkWebGLSupport()
+  const hint = selectedTrack?.label ?? 'Deaktiviert'
   
   return {
-    ...options,
+    options,
     selectedValue,
     selectedTrack,
     disabled,
-    map: (callback) => options.map(callback)
+    hint
   }
 }
 
@@ -439,17 +440,16 @@ function SubmenuButton({ label, hint, Icon, disabled }) {
  * Follows the pattern from vidstack.io/docs/player/components/menus/menu
  */
 function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, videoHeight }) {
-  const options = useAnime4KOptions(presets, preset, enabled, onPresetChange, onToggle)
+  const anime4kOptions = useAnime4KOptions(presets, preset, enabled, onPresetChange, onToggle)
   const upscaleInfo = getUpscaleDisplayInfo(videoHeight, enabled)
-  const hint = options.selectedTrack?.label ?? 'Deaktiviert'
   
-  if (options.disabled) {
+  if (anime4kOptions.disabled) {
     return null
   }
   
   return (
     <Menu.Root className="vds-menu anime4k-settings-submenu">
-      <SubmenuButton label="Anime4K" hint={hint} disabled={options.disabled} Icon={Anime4KIcon} />
+      <SubmenuButton label="Anime4K" hint={anime4kOptions.hint} disabled={anime4kOptions.disabled} Icon={Anime4KIcon} />
       <Menu.Content className="vds-menu-items anime4k-menu-content">
         {/* Upscale resolution info section */}
         {enabled && (
@@ -459,8 +459,8 @@ function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, vi
           </div>
         )}
         
-        <Menu.RadioGroup className="vds-radio-group" value={options.selectedValue}>
-          {options.map(({ label, value, description, select }) => (
+        <Menu.RadioGroup className="vds-radio-group" value={anime4kOptions.selectedValue}>
+          {anime4kOptions.options.map(({ label, value, description, select }) => (
             <Menu.Radio className="vds-radio" value={value} onSelect={select} key={value}>
               <CheckIcon className="vds-icon" />
               <span className="vds-radio-label">{label}</span>
@@ -785,7 +785,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
     onError,
     subtitles = [],
     anime4kEnabled = false,
-    anime4kPreset = 'mode-b',
+    anime4kPreset = DEFAULT_ANIME4K_PRESET_ID,
     className = '',
     showAnime4KControls = true,
     showMiracastControls = true,
@@ -830,7 +830,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   // Initialize preset when presets are loaded
   useEffect(() => {
     if (presets.length > 0) {
-      const preset = presets.find(p => p.id === anime4kPreset) || presets.find(p => p.id === 'mode-b') || presets[0]
+      const preset = presets.find(p => p.id === anime4kPreset) || presets.find(p => p.id === DEFAULT_ANIME4K_PRESET_ID) || presets[0]
       setCurrentPreset(preset)
     }
   }, [presets, anime4kPreset])
@@ -892,7 +892,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   // Handle Anime4K toggle
   const handleAnime4KToggle = async (enabled) => {
     setIsAnime4KEnabled(enabled)
-    const presetId = currentPreset?.id || 'mode-b'
+    const presetId = currentPreset?.id || DEFAULT_ANIME4K_PRESET_ID
     const newConfig = await setAnime4KConfig(enabled, presetId)
     if (newConfig?.cssFilter && enabled) {
       setVideoStyle({ filter: newConfig.cssFilter })

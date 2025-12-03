@@ -35,6 +35,9 @@
  * This module provides configuration and preset definitions for integration with video players.
  */
 
+// Default preset ID for Anime4K (balanced mode)
+export const DEFAULT_ANIME4K_PRESET_ID = 'mode-b'
+
 // Anime4K shader presets with quality/performance trade-offs
 export const ANIME4K_PRESETS = {
   // No shaders - best performance
