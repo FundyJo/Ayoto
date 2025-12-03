@@ -39,6 +39,7 @@
     "@tauri-apps/plugin-window-state": "^2.0.0",
     "@vidstack/react": "^1.12.13",
     "@wordpress/autop": "^4.6.0",
+    "anime4k-webgpu": "^1.0.0",
     "axios": "^1.7.4",
     "chalk": "^5.0.0",
     "clsx": "^2.1.1",
