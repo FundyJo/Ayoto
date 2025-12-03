@@ -10,10 +10,8 @@ import { WindowControls as TauriWindowControls } from 'tauri-controls'
 export default function WindowControls() {
   return (
     <div className="window-controls-wrapper nodrag">
-      <TauriWindowControls 
-        platform="windows"
-        className="window-controls-tauri"
-      />
+      {/* Platform is auto-detected if not specified */}
+      <TauriWindowControls className="window-controls-tauri" />
     </div>
   )
 }
