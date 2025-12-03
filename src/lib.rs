@@ -59,6 +59,8 @@ pub fn run() {
       minimize_window,
       maximize_window,
       close_window,
+      set_fullscreen,
+      is_fullscreen,
       open_folder,
       oauth_login,
       open_vlc,

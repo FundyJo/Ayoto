@@ -1009,6 +1009,21 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   const [isMiracastSupported, setIsMiracastSupported] = useState(false)
   const [useWebGPUMode, setUseWebGPUMode] = useState(false)
   
+  // Callback to sync Tauri window fullscreen with player fullscreen
+  // Vidstack's MediaFullscreenChangeEvent provides a boolean in event.detail
+  // true = entering fullscreen, false = exiting fullscreen
+  const handleFullscreenChange = useCallback(async (event) => {
+    const isFullscreen = event?.detail ?? false
+    try {
+      // Sync Tauri window fullscreen state with player fullscreen state
+      if (window.api?.setFullscreen) {
+        await window.api.setFullscreen(isFullscreen)
+      }
+    } catch (error) {
+      console.error('Failed to set window fullscreen:', error)
+    }
+  }, [])
+  
   // Check Miracast support on mount
   useEffect(() => {
     const checkMiracastSupport = async () => {
@@ -1205,6 +1220,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
           }
         }}
         onEnded={onEnded}
+        onFullscreenChange={handleFullscreenChange}
         onError={(e) => {
           console.error('Video error:', e)
           onError?.(e)
