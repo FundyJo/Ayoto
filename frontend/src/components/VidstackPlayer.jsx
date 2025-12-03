@@ -57,7 +57,7 @@ import {
 import '@vidstack/react/player/styles/default/theme.css'
 import '@vidstack/react/player/styles/default/layouts/video.css'
 
-import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo, getUpscaleDisplayInfo } from '../plugins/Anime4KConfig'
+import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo, getUpscaleDisplayInfo, DEFAULT_ANIME4K_PRESET_ID } from '../plugins/Anime4KConfig'
 import { STREAM_FORMATS } from '../plugins'
 
 /**
@@ -314,9 +314,9 @@ function useAnime4KRust() {
         const gpuInfo = getGPUInfo()
         return await window.api.anime4k.recommendPreset(gpuInfo)
       }
-      return 'mode-b' // Default fallback
+      return DEFAULT_ANIME4K_PRESET_ID // Default fallback
     } catch {
-      return 'mode-b'
+      return DEFAULT_ANIME4K_PRESET_ID
     }
   }, [isRustAvailable])
 
@@ -348,39 +348,108 @@ function Anime4KIcon(props) {
 }
 
 /**
+ * Custom hook to manage Anime4K options similar to useAudioOptions from Vidstack
+ * This follows the pattern from vidstack.io documentation
+ */
+function useAnime4KOptions(presets, preset, enabled, onPresetChange, onToggle) {
+  // Build options array from presets
+  const options = useMemo(() => {
+    // Add disabled option first
+    const disabledOption = {
+      label: 'Deaktiviert',
+      value: 'none',
+      select: () => onToggle(false)
+    }
+    
+    // Map presets to options format
+    const presetOptions = presets
+      .filter(p => p.id !== 'none')
+      .map(p => {
+        // Add performance emoji indicators
+        let performanceIcon = ''
+        switch (p.performance) {
+          case 'low':
+          case 'low-medium':
+            performanceIcon = '⚡'
+            break
+          case 'medium':
+            performanceIcon = '⚖️'
+            break
+          case 'medium-high':
+          case 'high':
+            performanceIcon = '🔥'
+            break
+          case 'very-high':
+            performanceIcon = '💎'
+            break
+          default:
+            performanceIcon = ''
+        }
+        
+        return {
+          label: `${performanceIcon} ${p.name}`,
+          value: p.id,
+          description: p.description,
+          select: () => {
+            if (!enabled) {
+              onToggle(true)
+            }
+            onPresetChange(p.id)
+          }
+        }
+      })
+    
+    return [disabledOption, ...presetOptions]
+  }, [presets, enabled, onPresetChange, onToggle])
+  
+  // Get selected value and track
+  const selectedValue = enabled ? (preset?.id || DEFAULT_ANIME4K_PRESET_ID) : 'none'
+  const selectedTrack = preset ? { label: preset.name } : null
+  const disabled = !checkWebGLSupport()
+  const hint = selectedTrack?.label ?? 'Deaktiviert'
+  
+  return {
+    options,
+    selectedValue,
+    selectedTrack,
+    disabled,
+    hint
+  }
+}
+
+/**
+ * Submenu Button Component
+ * Following the pattern from vidstack.io documentation
+ */
+function SubmenuButton({ label, hint, Icon, disabled }) {
+  return (
+    <Menu.Button className="vds-menu-item" disabled={disabled}>
+      <ChevronLeftIcon className="vds-menu-close-icon vds-icon" />
+      <Icon className="vds-icon" />
+      <span className="vds-menu-item-label">{label}</span>
+      <span className="vds-menu-item-hint">{hint}</span>
+      <ChevronRightIcon className="vds-menu-open-icon vds-icon" />
+    </Menu.Button>
+  )
+}
+
+/**
  * Anime4K Submenu Component
  * Integrated into the settings menu via Vidstack slots
  * Features 2x upscaling display and mode selection
+ * Follows the pattern from vidstack.io/docs/player/components/menus/menu
  */
 function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, videoHeight }) {
-  const hasWebGL = checkWebGLSupport()
+  const anime4kOptions = useAnime4KOptions(presets, preset, enabled, onPresetChange, onToggle)
   const upscaleInfo = getUpscaleDisplayInfo(videoHeight, enabled)
   
-  // Get current value for the radio group
-  const currentValue = enabled ? (preset?.id || 'mode-b') : 'none'
-  
-  // Get hint text showing current status
-  const getHintText = () => {
-    if (!enabled) return 'Deaktiviert'
-    if (preset) {
-      return preset.name
-    }
-    return 'An'
-  }
-  
-  if (!hasWebGL) {
+  if (anime4kOptions.disabled) {
     return null
   }
   
   return (
     <Menu.Root className="vds-menu anime4k-settings-submenu">
-      <Menu.Button className="vds-menu-item anime4k-menu-button">
-        <ChevronLeftIcon className="vds-menu-close-icon vds-icon" />
-        <Anime4KIcon className="vds-icon anime4k-icon" />
-        <span className="vds-menu-item-label">Anime4K</span>
-        <span className="vds-menu-item-hint">{getHintText()}</span>
-        <ChevronRightIcon className="vds-menu-open-icon vds-icon" />
-      </Menu.Button>
+      <SubmenuButton label="Anime4K" hint={anime4kOptions.hint} disabled={anime4kOptions.disabled} Icon={Anime4KIcon} />
       <Menu.Content className="vds-menu-items anime4k-menu-content">
         {/* Upscale resolution info section */}
         {enabled && (
@@ -390,67 +459,14 @@ function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, vi
           </div>
         )}
         
-        <Menu.RadioGroup 
-          className="vds-radio-group" 
-          value={currentValue}
-        >
-          {/* Disabled option */}
-          <Menu.Radio 
-            className="vds-radio" 
-            value="none" 
-            onSelect={() => onToggle(false)}
-          >
-            <CheckIcon className="vds-icon" />
-            <span className="vds-radio-label">Deaktiviert</span>
-          </Menu.Radio>
-          
-          {/* Preset options */}
-          {presets
-            .filter(p => p.id !== 'none')
-            .map((p) => {
-              // Add performance emoji indicators
-              let performanceIcon = ''
-              switch (p.performance) {
-                case 'low':
-                  performanceIcon = '⚡'
-                  break
-                case 'low-medium':
-                  performanceIcon = '⚡'
-                  break
-                case 'medium':
-                  performanceIcon = '⚖️'
-                  break
-                case 'medium-high':
-                  performanceIcon = '🔥'
-                  break
-                case 'high':
-                  performanceIcon = '🔥'
-                  break
-                case 'very-high':
-                  performanceIcon = '💎'
-                  break
-                default:
-                  performanceIcon = ''
-              }
-              
-              return (
-                <Menu.Radio 
-                  className="vds-radio" 
-                  value={p.id} 
-                  key={p.id}
-                  onSelect={() => {
-                    if (!enabled) {
-                      onToggle(true)
-                    }
-                    onPresetChange(p.id)
-                  }}
-                >
-                  <CheckIcon className="vds-icon" />
-                  <span className="vds-radio-label">{performanceIcon} {p.name}</span>
-                  <span className="vds-radio-hint anime4k-preset-hint">{p.description}</span>
-                </Menu.Radio>
-              )
-            })}
+        <Menu.RadioGroup className="vds-radio-group" value={anime4kOptions.selectedValue}>
+          {anime4kOptions.options.map(({ label, value, description, select }) => (
+            <Menu.Radio className="vds-radio" value={value} onSelect={select} key={value}>
+              <CheckIcon className="vds-icon" />
+              <span className="vds-radio-label">{label}</span>
+              {description && <span className="vds-radio-hint anime4k-preset-hint">{description}</span>}
+            </Menu.Radio>
+          ))}
         </Menu.RadioGroup>
       </Menu.Content>
     </Menu.Root>
@@ -559,11 +575,9 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
   }
 
   // Get hint text showing current status
-  const getHintText = () => {
-    if (session?.state === 'casting') return 'Casting'
-    if (session?.state === 'connected') return 'Connected'
-    return 'Disconnected'
-  }
+  const hint = session?.state === 'casting' ? 'Aktiv' 
+    : session?.state === 'connected' ? 'Verbunden' 
+    : 'Getrennt'
 
   if (!isSupported) {
     return null
@@ -571,13 +585,7 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
 
   return (
     <Menu.Root className="vds-menu miracast-settings-submenu">
-      <Menu.Button className="vds-menu-item miracast-menu-button">
-        <ChevronLeftIcon className="vds-menu-close-icon vds-icon" />
-        <CastIcon className="vds-icon miracast-icon" />
-        <span className="vds-menu-item-label">Miracast</span>
-        <span className="vds-menu-item-hint">{getHintText()}</span>
-        <ChevronRightIcon className="vds-menu-open-icon vds-icon" />
-      </Menu.Button>
+      <SubmenuButton label="Miracast" hint={hint} disabled={false} Icon={CastIcon} />
       <Menu.Content className="vds-menu-items miracast-menu-content">
         {/* Active session display */}
         {session && (session.state === 'connected' || session.state === 'casting') && (
@@ -777,7 +785,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
     onError,
     subtitles = [],
     anime4kEnabled = false,
-    anime4kPreset = 'mode-b',
+    anime4kPreset = DEFAULT_ANIME4K_PRESET_ID,
     className = '',
     showAnime4KControls = true,
     showMiracastControls = true,
@@ -822,7 +830,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   // Initialize preset when presets are loaded
   useEffect(() => {
     if (presets.length > 0) {
-      const preset = presets.find(p => p.id === anime4kPreset) || presets.find(p => p.id === 'mode-b') || presets[0]
+      const preset = presets.find(p => p.id === anime4kPreset) || presets.find(p => p.id === DEFAULT_ANIME4K_PRESET_ID) || presets[0]
       setCurrentPreset(preset)
     }
   }, [presets, anime4kPreset])
@@ -884,7 +892,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
   // Handle Anime4K toggle
   const handleAnime4KToggle = async (enabled) => {
     setIsAnime4KEnabled(enabled)
-    const presetId = currentPreset?.id || 'mode-b'
+    const presetId = currentPreset?.id || DEFAULT_ANIME4K_PRESET_ID
     const newConfig = await setAnime4KConfig(enabled, presetId)
     if (newConfig?.cssFilter && enabled) {
       setVideoStyle({ filter: newConfig.cssFilter })
