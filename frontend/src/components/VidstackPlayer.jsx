@@ -241,6 +241,27 @@ function detectFormat(url) {
 }
 
 /**
+ * Extract playback info from Vidstack MediaTimeUpdateEvent
+ * 
+ * Vidstack's MediaTimeUpdateEvent structure:
+ * - e.detail.currentTime: Current playback time from the event detail
+ * - e.target.currentTime: Fallback from MediaPlayer
+ * - e.target.duration: Total duration from MediaPlayer
+ * 
+ * @param {Object} event - Vidstack MediaTimeUpdateEvent
+ * @returns {{currentTime: number, duration: number}} Playback info
+ */
+function extractPlaybackInfo(event) {
+  // Primary: Use e.detail.currentTime (Vidstack's event detail)
+  // Fallback: Use e.target.currentTime (MediaPlayer property)
+  const currentTime = event?.detail?.currentTime ?? event?.target?.currentTime ?? 0
+  // Duration is always on the MediaPlayer (e.target)
+  const duration = event?.target?.duration ?? 0
+  
+  return { currentTime, duration }
+}
+
+/**
  * Hook to use Rust Anime4K backend with fallback to JavaScript config
  */
 function useAnime4KRust() {
@@ -1161,14 +1182,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
         crossOrigin="anonymous"
         playsInline
         onTimeUpdate={(e) => {
-          // Vidstack MediaTimeUpdateEvent has detail with currentTime
-          // e.target is the MediaPlayer which has duration property
-          const currentTime = e?.detail?.currentTime ?? e?.target?.currentTime ?? 0
-          const duration = e?.target?.duration ?? 0
-          onTimeUpdate?.({
-            currentTime,
-            duration
-          })
+          onTimeUpdate?.(extractPlaybackInfo(e))
         }}
         onLoadedMetadata={(e) => {
           // Get video height - try multiple approaches for compatibility
@@ -1347,14 +1361,7 @@ export function HLSVidstackPlayer({
       crossOrigin="anonymous"
       playsInline
       onTimeUpdate={(e) => {
-        // Vidstack MediaTimeUpdateEvent has detail with currentTime
-        // e.target is the MediaPlayer which has duration property
-        const currentTime = e?.detail?.currentTime ?? e?.target?.currentTime ?? 0
-        const duration = e?.target?.duration ?? 0
-        onTimeUpdate?.({
-          currentTime,
-          duration
-        })
+        onTimeUpdate?.(extractPlaybackInfo(e))
       }}
       onEnded={onEnded}
       className={`w-full aspect-video bg-black ${className}`}
