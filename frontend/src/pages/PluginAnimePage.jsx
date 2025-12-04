@@ -590,6 +590,7 @@ export default function PluginAnimePage() {
   // Stream loading state
   const [loadingStreamsForEpisode, setLoadingStreamsForEpisode] = useState(null)
   const [loadingHoster, setLoadingHoster] = useState(null) // Track which hoster is being loaded
+  const [loadingLanguage, setLoadingLanguage] = useState(null) // Track which language is being loaded
   const [expandedEpisode, setExpandedEpisode] = useState(null)
   const [episodeStreams, setEpisodeStreams] = useState({})
   
@@ -941,6 +942,97 @@ export default function PluginAnimePage() {
     }
     setLoadingStreamsForEpisode(null)
     setLoadingHoster(null)
+  }
+
+  // Fetch streams for a specific language
+  // This loads all streams and automatically sets the language filter
+  const handleLanguageClick = async (episode, langInfo) => {
+    const langCode = langInfo?.code || langInfo
+    const langLabel = langInfo?.label || langInfo?.code || 'Unknown'
+    
+    // Check if we already have streams for this episode
+    if (episodeStreams[episode.id]) {
+      // If streams are already loaded, just set the language filter
+      // Find the matching stream language filter value
+      const matchingFilter = STREAM_LANGUAGE_FILTERS.find(f => {
+        if (f.value === 'all') return false
+        // Match by langKey or code
+        return f.code === langCode || 
+               (langInfo?.code && f.code === langInfo.code) ||
+               (langInfo?.code && f.code?.includes(langInfo.code.split('-')[0]))
+      })
+      if (matchingFilter) {
+        setStreamLanguageFilter(matchingFilter.value)
+      }
+      return
+    }
+    
+    // Check if plugin supports getStreams
+    if (!pluginCapabilities.getStreams) {
+      toast.error('This plugin does not support stream fetching')
+      return
+    }
+    
+    setLoadingLanguage(langLabel)
+    setLoadingStreamsForEpisode(episode.id)
+    try {
+      const plugin = await zpePluginManager.getPlugin(pluginId)
+      if (plugin && typeof plugin.getStreams === 'function') {
+        const streams = await plugin.getStreams(animeId, episode.id)
+        setEpisodeStreams(prev => ({
+          ...prev,
+          [episode.id]: streams || []
+        }))
+        // Mark episode as watched when streams are fetched
+        markEpisodeWatched(episode.id)
+        
+        // Automatically set the language filter based on what was clicked
+        if (streams && streams.length > 0) {
+          const matchingFilter = STREAM_LANGUAGE_FILTERS.find(f => {
+            if (f.value === 'all') return false
+            // Match by langKey or code
+            return f.code === langCode || 
+                   (langInfo?.code && f.code === langInfo.code) ||
+                   (langInfo?.code && f.code?.includes(langInfo.code.split('-')[0]))
+          })
+          if (matchingFilter) {
+            setStreamLanguageFilter(matchingFilter.value)
+          }
+          
+          // Show toast with how many streams are available for this language
+          const matchingStreams = streams.filter(s => {
+            if (!matchingFilter) return true
+            if (s.langKey && matchingFilter.langKey) {
+              return s.langKey === matchingFilter.langKey
+            }
+            if (s.language?.code) {
+              return s.language.code.includes(matchingFilter.code)
+            }
+            return false
+          })
+          if (matchingStreams.length > 0) {
+            toast.success(`Found ${matchingStreams.length} streams for ${langLabel}`)
+          } else if (streams.length > 0) {
+            toast.info(`No streams for ${langLabel}`, {
+              description: `Found ${streams.length} streams in other languages`
+            })
+            // Reset filter to show all if no matching streams
+            setStreamLanguageFilter('all')
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch streams:', err)
+      toast.error('Failed to load streams', {
+        description: err.message
+      })
+      setEpisodeStreams(prev => ({
+        ...prev,
+        [episode.id]: []
+      }))
+    }
+    setLoadingStreamsForEpisode(null)
+    setLoadingLanguage(null)
   }
 
   // Handle search result selection
@@ -1595,7 +1687,7 @@ export default function PluginAnimePage() {
                                     className="rounded bg-blue-900/30 px-1.5 py-0.5 text-xs text-blue-300"
                                     title={langDisplay.title}
                                   >
-                                    {langDisplay.display}
+                                    {langDisplay.title}
                                   </span>
                                 )
                               })}
@@ -1617,29 +1709,76 @@ export default function PluginAnimePage() {
                     {/* Expanded Streams Section */}
                     {isExpanded && (
                       <div className="border-t border-[#2a2a2d] p-3">
-                        {/* Show available hosters from episode data - lazy loading approach */}
-                        {!streams && (episode.hosters?.length > 0 || episode.providers?.length > 0) && (
+                        {/* Primary: Show languages as clickable buttons if available */}
+                        {!streams && episode.languages && episode.languages.length > 0 && (
                           <div className="grid gap-2">
                             <div className="flex items-center justify-between">
-                              <p className="text-xs font-medium opacity-70">Available Hosters (click to load stream):</p>
-                              {/* Show language info if available */}
-                              {episode.languages && episode.languages.length > 0 && (
+                              <p className="text-xs font-medium opacity-70">Select Language (click to load streams):</p>
+                              {/* Show available hosters info on the right */}
+                              {(episode.hosters?.length > 0 || episode.providers?.length > 0) && (
                                 <div className="flex gap-1">
-                                  {episode.languages.map((lang, langIdx) => {
-                                    const langDisplay = getLanguageDisplay(lang)
-                                    return (
-                                      <span
-                                        key={langIdx}
-                                        className="rounded bg-blue-900/30 px-1.5 py-0.5 text-xs text-blue-300"
-                                        title={langDisplay.title}
-                                      >
-                                        {langDisplay.display}
-                                      </span>
-                                    )
-                                  })}
+                                  {(episode.hosters || episode.providers || []).slice(0, 5).map((hoster, hosterIdx) => (
+                                    <span
+                                      key={hosterIdx}
+                                      className="rounded bg-[#2a2a2d] px-1.5 py-0.5 text-xs text-gray-400"
+                                      title={getDisplayName(hoster)}
+                                    >
+                                      {getDisplayName(hoster)}
+                                    </span>
+                                  ))}
+                                  {(episode.hosters || episode.providers || []).length > 5 && (
+                                    <span className="text-xs text-gray-500">
+                                      +{(episode.hosters || episode.providers || []).length - 5} more
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </div>
+                            {/* Display languages as clickable buttons */}
+                            <div className="flex flex-wrap gap-2">
+                              {episode.languages.map((lang, langIdx) => {
+                                const langDisplay = getLanguageDisplay(lang)
+                                const isLoadingThis = loadingLanguage === langDisplay.title
+                                return (
+                                  <Button
+                                    key={langIdx}
+                                    size="1"
+                                    variant="soft"
+                                    color="blue"
+                                    onClick={() => handleLanguageClick(episode, lang)}
+                                    disabled={isLoadingThisEpisode}
+                                  >
+                                    {isLoadingThis ? (
+                                      <>
+                                        <Spinner size="1" />
+                                        Loading...
+                                      </>
+                                    ) : (
+                                      <>
+                                        🌐 {langDisplay.title}
+                                      </>
+                                    )}
+                                  </Button>
+                                )
+                              })}
+                              {/* Option to load all streams regardless of language */}
+                              <Button
+                                size="1"
+                                variant="ghost"
+                                color="gray"
+                                onClick={() => handleHosterClick(episode, null)}
+                                disabled={isLoadingThisEpisode}
+                              >
+                                Load All
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Fallback: Show hosters if no language info available */}
+                        {!streams && (!episode.languages || episode.languages.length === 0) && (episode.hosters?.length > 0 || episode.providers?.length > 0) && (
+                          <div className="grid gap-2">
+                            <p className="text-xs font-medium opacity-70">Available Hosters (click to load stream):</p>
                             {/* Display hosters as clickable buttons */}
                             <div className="flex flex-wrap gap-2">
                               {(episode.hosters || episode.providers || []).map((hoster, hosterIdx) => {
@@ -1675,7 +1814,7 @@ export default function PluginAnimePage() {
                         {/* Loading indicator when fetching streams */}
                         {isLoadingThisEpisode && (
                           <div className="flex items-center gap-2 text-sm opacity-50">
-                            <Spinner size="1" /> Loading streams for {loadingHoster || 'episode'}...
+                            <Spinner size="1" /> Loading streams for {loadingLanguage || loadingHoster || 'episode'}...
                           </div>
                         )}
                         
@@ -1698,14 +1837,14 @@ export default function PluginAnimePage() {
                         )}
                         
                         {/* Show message when no hosters info and no streams capability */}
-                        {!isLoadingThisEpisode && !streams && !episode.hosters?.length && !episode.providers?.length && !pluginCapabilities.getStreams && (
+                        {!isLoadingThisEpisode && !streams && !episode.hosters?.length && !episode.providers?.length && !episode.languages?.length && !pluginCapabilities.getStreams && (
                           <p className="text-sm opacity-50">This plugin does not support stream fetching.</p>
                         )}
                         
-                        {/* Show fallback load all streams button when no hoster info available */}
-                        {!isLoadingThisEpisode && !streams && !episode.hosters?.length && !episode.providers?.length && pluginCapabilities.getStreams && (
+                        {/* Show fallback load all streams button when no hoster or language info available */}
+                        {!isLoadingThisEpisode && !streams && !episode.hosters?.length && !episode.providers?.length && !episode.languages?.length && pluginCapabilities.getStreams && (
                           <div className="flex flex-col gap-2">
-                            <p className="text-xs opacity-50">No hoster information available. Load all streams:</p>
+                            <p className="text-xs opacity-50">No stream information available. Load all streams:</p>
                             <Button
                               size="1"
                               variant="soft"
