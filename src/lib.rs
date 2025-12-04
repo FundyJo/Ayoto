@@ -20,6 +20,8 @@ pub fn run() {
     discord: DiscordRpcState {
       client: Mutex::new(None),
       enabled: Mutex::new(true),
+      current_party: Mutex::new(None),
+      party_enabled: Mutex::new(false),
     },
   };
 
@@ -72,6 +74,14 @@ pub fn run() {
       change_backend_port,
       set_discord_rpc,
       broadcast_discord_rpc,
+      // Discord party commands
+      discord_create_party,
+      discord_get_party,
+      discord_update_party_size,
+      discord_set_party_open,
+      discord_leave_party,
+      discord_set_party_enabled,
+      discord_get_party_invite,
       // App version command
       get_ayoto_version,
       // Anime4K commands
@@ -109,6 +119,11 @@ pub fn run() {
       miracast::miracast_set_quality,
       miracast::miracast_is_supported,
       miracast::miracast_get_quality_presets,
+      miracast::miracast_heartbeat,
+      miracast::miracast_reconnect,
+      miracast::miracast_report_error,
+      miracast::miracast_set_auto_reconnect,
+      miracast::miracast_get_connection_health,
     ])
     .setup(|app| {
       // Enable logging in both debug and production builds

@@ -1,6 +1,7 @@
 use tauri::{AppHandle, State, Window};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU32, Ordering};
 use discord_rich_presence::{DiscordIpc, DiscordIpcClient, activity};
 
 const DISCORD_CLIENT_ID: &str = "1334161510120816680";
@@ -13,6 +14,17 @@ const DISCORD_LARGE_IMAGE_TEXT: &str = "zanshin";
 /// Current Ayoto version (from Cargo.toml)
 pub const AYOTO_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Maximum party size for watch together feature
+const MAX_PARTY_SIZE: u32 = 10;
+
+/// Modulo value for party ID generation to ensure reasonable length
+const PARTY_ID_MODULO: u128 = 1_000_000_000_000;
+
+/// Modulo values for join secret generation
+const SECRET_PRIMARY_MODULO: u128 = 1_000_000_000;
+const SECRET_SECONDARY_MODULO: u128 = 1_000_000;
+const SECRET_DIVISOR: u128 = 17; // Prime number for better distribution
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
     pub upload_limit: Option<i32>,
@@ -22,9 +34,65 @@ pub struct Settings {
     pub broadcast_discord_rpc: Option<bool>,
 }
 
+/// Watch party information for Discord Rich Presence
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct WatchParty {
+    /// Unique party ID
+    pub party_id: String,
+    /// Current number of members in the party
+    pub current_size: u32,
+    /// Maximum party size
+    pub max_size: u32,
+    /// Join secret for party invites (used by Discord)
+    pub join_secret: Option<String>,
+    /// Whether party is accepting new members
+    pub is_open: bool,
+}
+
+impl Default for WatchParty {
+    fn default() -> Self {
+        WatchParty {
+            party_id: generate_party_id(),
+            current_size: 1,
+            max_size: MAX_PARTY_SIZE,
+            join_secret: Some(generate_join_secret()),
+            is_open: true,
+        }
+    }
+}
+
+/// Generate a unique party ID
+fn generate_party_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    format!("zanshin_party_{}", timestamp % PARTY_ID_MODULO)
+}
+
+/// Generate a join secret for party invites
+/// Note: This uses timestamp-based generation for simplicity.
+/// For production use with security requirements, consider using
+/// a cryptographically secure random number generator.
+fn generate_join_secret() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    // Use prime divisor for better distribution across the ID space
+    format!("zanshin_join_{}_{}", 
+        timestamp % SECRET_PRIMARY_MODULO, 
+        (timestamp / SECRET_DIVISOR) % SECRET_SECONDARY_MODULO)
+}
+
 pub struct DiscordRpcState {
     pub client: Mutex<Option<DiscordIpcClient>>,
     pub enabled: Mutex<bool>,
+    pub current_party: Mutex<Option<WatchParty>>,
+    pub party_enabled: Mutex<bool>,
 }
 
 pub struct AppState {
@@ -62,6 +130,46 @@ fn create_activity<'a>(details: &'a str, state: &'a str) -> activity::Activity<'
         .buttons(vec![
             activity::Button::new("Download app", DISCORD_DOWNLOAD_URL)
         ])
+}
+
+/// Creates a Discord activity with party information for watch-together features
+fn create_activity_with_party<'a>(
+    details: &'a str, 
+    state: &'a str,
+    party: &'a WatchParty,
+) -> activity::Activity<'a> {
+    let mut act = activity::Activity::new()
+        .details(details)
+        .state(state)
+        .assets(
+            activity::Assets::new()
+                .large_image(DISCORD_LARGE_IMAGE)
+                .large_text(DISCORD_LARGE_IMAGE_TEXT)
+        );
+    
+    // Add party information
+    act = act.party(
+        activity::Party::new()
+            .id(&party.party_id)
+            .size([party.current_size as i32, party.max_size as i32])
+    );
+    
+    // Add join secret if party is open
+    if party.is_open {
+        if let Some(ref secret) = party.join_secret {
+            act = act.secrets(
+                activity::Secrets::new()
+                    .join(secret)
+            );
+        }
+    }
+    
+    // Add buttons
+    act = act.buttons(vec![
+        activity::Button::new("Download app", DISCORD_DOWNLOAD_URL)
+    ]);
+    
+    act
 }
 
 #[tauri::command]
@@ -253,7 +361,18 @@ pub async fn set_discord_rpc(activity_details: serde_json::Value, state: State<'
             .and_then(|v| v.as_str())
             .unwrap_or(DISCORD_DEFAULT_STATE);
 
-        let act = create_activity(details, state_text);
+        // Check if party info should be included
+        let party_enabled = *state.discord.party_enabled.lock()
+            .map_err(|e| format!("Failed to lock party_enabled: {}", e))?;
+        
+        let party = state.discord.current_party.lock()
+            .map_err(|e| format!("Failed to lock current_party: {}", e))?;
+
+        let act = if party_enabled && party.is_some() {
+            create_activity_with_party(details, state_text, party.as_ref().unwrap())
+        } else {
+            create_activity(details, state_text)
+        };
 
         if let Err(e) = client.set_activity(act) {
             log::warn!("Failed to set Discord activity: {:?}", e);
@@ -296,4 +415,133 @@ pub async fn broadcast_discord_rpc(value: bool, state: State<'_, AppState>) -> R
 
     log::info!("Discord RPC broadcast changed to: {}", value);
     Ok(())
+}
+
+// =============================================================================
+// Watch Party Commands
+// =============================================================================
+
+/// Create a new watch party for watch-together functionality
+#[tauri::command]
+pub async fn discord_create_party(state: State<'_, AppState>) -> Result<WatchParty, String> {
+    let mut party = state.discord.current_party.lock()
+        .map_err(|e| format!("Failed to lock current_party: {}", e))?;
+    
+    let mut party_enabled = state.discord.party_enabled.lock()
+        .map_err(|e| format!("Failed to lock party_enabled: {}", e))?;
+    
+    let new_party = WatchParty::default();
+    *party = Some(new_party.clone());
+    *party_enabled = true;
+    
+    log::info!("Created new watch party: {}", new_party.party_id);
+    
+    Ok(new_party)
+}
+
+/// Get current watch party information
+#[tauri::command]
+pub fn discord_get_party(state: State<'_, AppState>) -> Result<Option<WatchParty>, String> {
+    let party = state.discord.current_party.lock()
+        .map_err(|e| format!("Failed to lock current_party: {}", e))?;
+    
+    Ok(party.clone())
+}
+
+/// Update party size (when members join or leave)
+#[tauri::command]
+pub fn discord_update_party_size(
+    current_size: u32,
+    state: State<'_, AppState>
+) -> Result<WatchParty, String> {
+    let mut party = state.discord.current_party.lock()
+        .map_err(|e| format!("Failed to lock current_party: {}", e))?;
+    
+    let current = party.as_mut()
+        .ok_or("No active watch party")?;
+    
+    if current_size > current.max_size {
+        return Err(format!("Party size cannot exceed maximum of {}", current.max_size));
+    }
+    
+    current.current_size = current_size;
+    
+    log::info!("Updated party size to {}/{}", current_size, current.max_size);
+    
+    Ok(current.clone())
+}
+
+/// Set whether the party is open for new members
+#[tauri::command]
+pub fn discord_set_party_open(
+    is_open: bool,
+    state: State<'_, AppState>
+) -> Result<WatchParty, String> {
+    let mut party = state.discord.current_party.lock()
+        .map_err(|e| format!("Failed to lock current_party: {}", e))?;
+    
+    let current = party.as_mut()
+        .ok_or("No active watch party")?;
+    
+    current.is_open = is_open;
+    
+    // Regenerate join secret when reopening
+    if is_open {
+        current.join_secret = Some(generate_join_secret());
+    }
+    
+    log::info!("Party open status set to: {}", is_open);
+    
+    Ok(current.clone())
+}
+
+/// Leave/disband the current watch party
+#[tauri::command]
+pub fn discord_leave_party(state: State<'_, AppState>) -> Result<(), String> {
+    let mut party = state.discord.current_party.lock()
+        .map_err(|e| format!("Failed to lock current_party: {}", e))?;
+    
+    let mut party_enabled = state.discord.party_enabled.lock()
+        .map_err(|e| format!("Failed to lock party_enabled: {}", e))?;
+    
+    if party.is_some() {
+        log::info!("Leaving watch party");
+        *party = None;
+        *party_enabled = false;
+    }
+    
+    Ok(())
+}
+
+/// Enable or disable party display in Discord RPC
+#[tauri::command]
+pub fn discord_set_party_enabled(
+    enabled: bool,
+    state: State<'_, AppState>
+) -> Result<(), String> {
+    let mut party_enabled = state.discord.party_enabled.lock()
+        .map_err(|e| format!("Failed to lock party_enabled: {}", e))?;
+    
+    *party_enabled = enabled;
+    
+    log::info!("Party display in Discord RPC set to: {}", enabled);
+    
+    Ok(())
+}
+
+/// Get the invite link/secret for the current party
+#[tauri::command]
+pub fn discord_get_party_invite(state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let party = state.discord.current_party.lock()
+        .map_err(|e| format!("Failed to lock current_party: {}", e))?;
+    
+    if let Some(ref p) = *party {
+        if p.is_open {
+            Ok(p.join_secret.clone())
+        } else {
+            Err("Party is not open for new members".to_string())
+        }
+    } else {
+        Err("No active watch party".to_string())
+    }
 }

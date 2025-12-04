@@ -663,6 +663,7 @@ function Anime4KSubmenu({ preset, onPresetChange, enabled, onToggle, presets, vi
 /**
  * Miracast Submenu Component
  * Integrated into the settings menu for casting to Miracast devices
+ * Features automatic reconnection and connection health monitoring
  */
 function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
   const [isScanning, setIsScanning] = useState(false)
@@ -671,6 +672,12 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
   const [qualityPresets, setQualityPresets] = useState([])
   const [selectedQuality, setSelectedQuality] = useState(null)
   const [connectingDeviceId, setConnectingDeviceId] = useState(null)
+  const [connectionHealth, setConnectionHealth] = useState(null)
+  const [isReconnecting, setIsReconnecting] = useState(false)
+  const [autoReconnect, setAutoReconnect] = useState(true)
+  
+  // Use ref to track reconnection state synchronously to prevent race conditions
+  const isReconnectingRef = useRef(false)
 
   // Load quality presets and session on mount
   useEffect(() => {
@@ -694,6 +701,41 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
     init()
   }, [])
 
+  // Connection health monitoring with heartbeat
+  useEffect(() => {
+    if (!session || (session.state !== 'connected' && session.state !== 'casting')) {
+      return
+    }
+
+    const heartbeatInterval = setInterval(async () => {
+      try {
+        if (window.api?.miracast) {
+          const health = await window.api.miracast.heartbeat()
+          setConnectionHealth(health)
+          
+          // Auto-reconnect if connection is unhealthy
+          // Use ref to synchronously check reconnection state to prevent race conditions
+          if (!health.isHealthy && autoReconnect && !isReconnectingRef.current) {
+            console.log('Connection unhealthy, attempting reconnection...')
+            handleReconnect()
+          }
+        }
+      } catch (error) {
+        console.error('Heartbeat failed:', error)
+        // Report error and potentially trigger reconnect
+        // Use ref to synchronously check reconnection state
+        if (window.api?.miracast) {
+          await window.api.miracast.reportError(error.message || 'Heartbeat failed')
+          if (autoReconnect && !isReconnectingRef.current) {
+            handleReconnect()
+          }
+        }
+      }
+    }, 10000) // Send heartbeat every 10 seconds
+
+    return () => clearInterval(heartbeatInterval)
+  }, [session, autoReconnect])
+
   // Scan for devices
   const handleScan = useCallback(async () => {
     setIsScanning(true)
@@ -716,11 +758,51 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
       if (window.api?.miracast) {
         const newSession = await window.api.miracast.connect(device.id, selectedQuality)
         setSession(newSession)
+        setConnectionHealth({ isHealthy: true, retryCount: 0, maxRetries: 3 })
       }
     } catch (error) {
       console.error('Failed to connect:', error)
+      setConnectionHealth({
+        isHealthy: false,
+        suggestedAction: error.message || 'Connection failed. Please try again.',
+        retryCount: 0,
+        maxRetries: 3
+      })
     }
     setConnectingDeviceId(null)
+  }
+
+  // Reconnect to device
+  // Uses ref to prevent race conditions with multiple heartbeat failures
+  const handleReconnect = async () => {
+    // Check ref synchronously to prevent concurrent calls
+    if (isReconnectingRef.current) return
+    
+    // Set ref immediately before async operation
+    isReconnectingRef.current = true
+    setIsReconnecting(true)
+    try {
+      if (window.api?.miracast) {
+        console.log('Attempting to reconnect...')
+        const newSession = await window.api.miracast.reconnect()
+        setSession(newSession)
+        setConnectionHealth({ isHealthy: true, retryCount: 0, maxRetries: 3 })
+      }
+    } catch (error) {
+      console.error('Failed to reconnect:', error)
+      // Update session to show error state
+      setSession(prev => prev ? { ...prev, state: 'error', lastError: error.message } : null)
+      setConnectionHealth({
+        isHealthy: false,
+        suggestedAction: error.message || 'Reconnection failed. Please try connecting again.',
+        retryCount: 3,
+        maxRetries: 3
+      })
+    } finally {
+      // Always reset the ref in finally block
+      isReconnectingRef.current = false
+      setIsReconnecting(false)
+    }
   }
 
   // Disconnect
@@ -729,6 +811,7 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
       if (window.api?.miracast) {
         await window.api.miracast.disconnect()
         setSession(null)
+        setConnectionHealth(null)
       }
     } catch (error) {
       console.error('Failed to disconnect:', error)
@@ -761,10 +844,27 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
     }
   }
 
+  // Toggle auto-reconnect
+  const handleToggleAutoReconnect = async () => {
+    const newValue = !autoReconnect
+    setAutoReconnect(newValue)
+    try {
+      if (window.api?.miracast) {
+        await window.api.miracast.setAutoReconnect(newValue)
+      }
+    } catch (error) {
+      console.error('Failed to set auto-reconnect:', error)
+    }
+  }
+
   // Get hint text showing current status
-  const hint = session?.state === 'casting' ? 'Aktiv' 
-    : session?.state === 'connected' ? 'Verbunden' 
-    : 'Getrennt'
+  const getHintText = () => {
+    if (isReconnecting) return 'Reconnecting...'
+    if (session?.state === 'error') return 'Error'
+    if (session?.state === 'casting') return 'Active'
+    if (session?.state === 'connected') return 'Connected'
+    return 'Disconnected'
+  }
 
   if (!isSupported) {
     return null
@@ -772,14 +872,61 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
 
   return (
     <Menu.Root className="vds-menu miracast-settings-submenu">
-      <SubmenuButton label="Miracast" hint={hint} disabled={false} Icon={CastIcon} />
+      <SubmenuButton label="Miracast" hint={getHintText()} disabled={false} Icon={CastIcon} />
       <Menu.Content className="vds-menu-items miracast-menu-content">
+        {/* Connection health warning */}
+        {connectionHealth && !connectionHealth.isHealthy && session && (
+          <div className="miracast-health-warning">
+            <span className="miracast-warning-icon">⚠️</span>
+            <span className="miracast-warning-text">
+              {connectionHealth.suggestedAction || 'Connection unstable'}
+            </span>
+            {isReconnecting && (
+              <RefreshIcon className="vds-icon miracast-action-icon miracast-spinning" />
+            )}
+          </div>
+        )}
+
+        {/* Error state with reconnect option */}
+        {session?.state === 'error' && (
+          <div className="miracast-error-info">
+            <div className="miracast-error-message">
+              <span className="miracast-error-icon">❌</span>
+              <span>{session.lastError || 'Connection lost'}</span>
+            </div>
+            <Menu.Item 
+              className="vds-menu-item miracast-action-item"
+              onSelect={handleReconnect}
+              disabled={isReconnecting}
+            >
+              {isReconnecting ? (
+                <RefreshIcon className="vds-icon miracast-action-icon miracast-spinning" />
+              ) : (
+                <RefreshIcon className="vds-icon miracast-action-icon" />
+              )}
+              <span className="vds-menu-item-label">
+                {isReconnecting ? 'Reconnecting...' : 'Reconnect'}
+              </span>
+            </Menu.Item>
+            <Menu.Item 
+              className="vds-menu-item miracast-action-item"
+              onSelect={handleDisconnect}
+            >
+              <XIcon className="vds-icon miracast-action-icon" />
+              <span className="vds-menu-item-label">Disconnect</span>
+            </Menu.Item>
+          </div>
+        )}
+
         {/* Active session display */}
         {session && (session.state === 'connected' || session.state === 'casting') && (
           <div className="miracast-session-info">
             <div className="miracast-device-name">
               <CastIcon className="vds-icon miracast-device-icon" />
               <span>{session.device?.name || 'Connected Device'}</span>
+              {connectionHealth?.isHealthy && (
+                <span className="miracast-health-indicator miracast-healthy">●</span>
+              )}
             </div>
             {session.state === 'casting' && (
               <Menu.Item 
@@ -810,7 +957,7 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
         )}
 
         {/* Device discovery - only show when not connected */}
-        {(!session || (session.state !== 'connected' && session.state !== 'casting')) && (
+        {(!session || (session.state !== 'connected' && session.state !== 'casting' && session.state !== 'error')) && (
           <>
             <Menu.Item 
               className="vds-menu-item miracast-scan-item"
@@ -894,6 +1041,15 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
             )}
           </>
         )}
+
+        {/* Auto-reconnect toggle - always show when there's a session or was a session */}
+        <Menu.Item 
+          className="vds-menu-item miracast-autoreconnect-item"
+          onSelect={handleToggleAutoReconnect}
+        >
+          <span className="vds-menu-item-label">Auto-Reconnect</span>
+          <span className="vds-menu-item-hint">{autoReconnect ? 'On' : 'Off'}</span>
+        </Menu.Item>
       </Menu.Content>
     </Menu.Root>
   )
