@@ -6,6 +6,10 @@ pub mod miracast;
 use commands::*;
 use std::sync::Mutex;
 use tauri::Manager;
+use tauri_plugin_store::StoreExt;
+
+/// Store file name for settings persistence
+const SETTINGS_STORE_FILE: &str = "settings.json";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -146,6 +150,39 @@ pub fn run() {
           .level(log_level)
           .build(),
       )?;
+      
+      // Load persisted settings from store
+      if let Ok(store) = app.handle().store(SETTINGS_STORE_FILE) {
+        if let Some(settings_value) = store.get("settings") {
+          if let Ok(persisted_settings) = serde_json::from_value::<Settings>(settings_value.clone()) {
+            // Update the managed state with persisted settings
+            let state: tauri::State<AppState> = app.state();
+            if let Ok(mut settings) = state.settings.lock() {
+              if let Some(v) = persisted_settings.upload_limit {
+                settings.upload_limit = Some(v);
+              }
+              if let Some(v) = persisted_settings.download_limit {
+                settings.download_limit = Some(v);
+              }
+              if let Some(v) = persisted_settings.downloads_folder {
+                settings.downloads_folder = Some(v);
+              }
+              if let Some(v) = persisted_settings.backend_port {
+                settings.backend_port = Some(v);
+              }
+              if let Some(v) = persisted_settings.broadcast_discord_rpc {
+                settings.broadcast_discord_rpc = Some(v);
+                // Also update Discord RPC enabled state
+                if let Ok(mut enabled) = state.discord.enabled.lock() {
+                  *enabled = v;
+                }
+              }
+              log::info!("Loaded persisted settings from store");
+            }
+          }
+        }
+      }
+      
       Ok(())
     })
     .run(tauri::generate_context!())

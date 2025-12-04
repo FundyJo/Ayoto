@@ -74,8 +74,13 @@ export default function ZenshinProvider({ children }) {
         if (settings.backendPort) {
           setBackendPort(settings.backendPort)
         }
-        if (settings.broadcastDiscordRpc) {
+        // Handle broadcastDiscordRpc - it could be true, false, or undefined
+        if (settings.broadcastDiscordRpc !== undefined && settings.broadcastDiscordRpc !== null) {
           setBroadcastDiscordRpc(settings.broadcastDiscordRpc)
+          // Also update the Discord RPC state in the backend to match the saved setting
+          if (window.api.broadcastDiscordRpc) {
+            window.api.broadcastDiscordRpc(settings.broadcastDiscordRpc)
+          }
         }
         if (isTruthyWithZero(settings.uploadLimit) && settings.uploadLimit !== -1) {
           setUploadLimit(parseInt(settings.uploadLimit) / 1024)
