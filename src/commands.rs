@@ -170,7 +170,7 @@ fn create_activity_with_party<'a>(
             );
         }
     } else {
-        // Only add download button when party is not open (no invite needed)
+        // Add download button when party is closed (no invites available)
         act = act.buttons(vec![
             activity::Button::new("Download app", DISCORD_DOWNLOAD_URL)
         ]);
