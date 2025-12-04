@@ -39,7 +39,8 @@ import {
   MediaProvider,
   Poster,
   Track,
-  Menu
+  Menu,
+  isHLSProvider
 } from '@vidstack/react'
 import {
   DefaultVideoLayout,
@@ -49,6 +50,10 @@ import {
 // Import Vidstack styles
 import '@vidstack/react/player/styles/default/theme.css'
 import '@vidstack/react/player/styles/default/layouts/video.css'
+
+// Import HLS.js locally to avoid CDN loading issues with tracking prevention
+// Vidstack defaults to loading HLS.js from jsdelivr CDN which can be blocked
+import Hls from 'hls.js'
 
 import { anime4kConfig, getAllPresets as getLegacyPresets, checkWebGLSupport, getGPUInfo, getUpscaleDisplayInfo, DEFAULT_ANIME4K_PRESET_ID } from '../plugins/Anime4KConfig'
 import { STREAM_FORMATS } from '../plugins'
@@ -1180,6 +1185,16 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
     }
   }, [])
   
+  // Callback to configure HLS provider to use local hls.js instead of CDN
+  // This fixes "Tracking Prevention blocked access to storage for https://cdn.jsdelivr.net/..."
+  const handleProviderChange = useCallback((provider) => {
+    if (isHLSProvider(provider)) {
+      // Use locally installed hls.js instead of loading from CDN
+      // This avoids tracking prevention blocking access to jsdelivr CDN
+      provider.library = Hls
+    }
+  }, [])
+  
   // Check Miracast support on mount
   useEffect(() => {
     const checkMiracastSupport = async () => {
@@ -1377,6 +1392,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
         }}
         onEnded={onEnded}
         onFullscreenChange={handleFullscreenChange}
+        onProviderChange={handleProviderChange}
         onError={(e) => {
           console.error('Video error:', e)
           onError?.(e)
@@ -1474,6 +1490,13 @@ export function SimpleVidstackPlayer({
   const detectedFormat = format || detectFormat(src)
   const sourceType = getSourceType(detectedFormat)
   
+  // Configure HLS provider to use local hls.js instead of CDN
+  const handleProviderChange = useCallback((provider) => {
+    if (isHLSProvider(provider)) {
+      provider.library = Hls
+    }
+  }, [])
+  
   return (
     <MediaPlayer
       title={title}
@@ -1481,6 +1504,7 @@ export function SimpleVidstackPlayer({
       autoPlay={autoPlay}
       crossOrigin="anonymous"
       playsInline
+      onProviderChange={handleProviderChange}
       className={`w-full aspect-video bg-black ${className}`}
     >
       <MediaProvider>
@@ -1493,7 +1517,7 @@ export function SimpleVidstackPlayer({
 
 /**
  * HLS Player specifically for m3u8 streams
- * Uses Vidstack's built-in HLS support
+ * Uses Vidstack's built-in HLS support with local hls.js
  */
 export function HLSVidstackPlayer({
   src,
@@ -1504,6 +1528,13 @@ export function HLSVidstackPlayer({
   onEnded,
   className = ''
 }) {
+  // Configure HLS provider to use local hls.js instead of CDN
+  const handleProviderChange = useCallback((provider) => {
+    if (isHLSProvider(provider)) {
+      provider.library = Hls
+    }
+  }, [])
+  
   return (
     <MediaPlayer
       title={title}
@@ -1511,6 +1542,7 @@ export function HLSVidstackPlayer({
       autoPlay={autoPlay}
       crossOrigin="anonymous"
       playsInline
+      onProviderChange={handleProviderChange}
       onTimeUpdate={(e) => {
         onTimeUpdate?.(extractPlaybackInfo(e))
       }}
