@@ -477,11 +477,10 @@ export default function PluginAnimePage() {
     }
   }, [watchedEpisodes, pluginId, animeId])
 
-  // Discord RPC - Update when browsing anime page
-  useEffect(() => {
-    if (!animeData) return
-    
-    const activityDetails = {
+  // Helper function to create Discord RPC activity for browsing state
+  const createBrowsingActivity = useCallback(() => {
+    if (!animeData) return null
+    return {
       details: `${animeData.title || 'Browsing Anime'}`,
       state: `via ${pluginInfo?.name || pluginId}`,
       assets: {
@@ -490,8 +489,14 @@ export default function PluginAnimePage() {
         small_text: 'Zenshin'
       }
     }
+  }, [animeData, pluginInfo, pluginId])
+
+  // Discord RPC - Update when browsing anime page
+  useEffect(() => {
+    if (!animeData) return
     
-    if (window.api?.setDiscordRpc) {
+    const activityDetails = createBrowsingActivity()
+    if (activityDetails && window.api?.setDiscordRpc) {
       window.api.setDiscordRpc(activityDetails)
     }
     
@@ -501,7 +506,7 @@ export default function PluginAnimePage() {
         window.api.setDiscordRpc({ details: 'Browsing Anime' })
       }
     }
-  }, [animeData, pluginInfo, pluginId])
+  }, [animeData, pluginInfo, pluginId, createBrowsingActivity])
 
   // Discord RPC - Update when playing a stream and setup watch party
   useEffect(() => {
@@ -530,15 +535,13 @@ export default function PluginAnimePage() {
       // Cleanup watch party when stream closes
       cleanupDiscordWatchParty()
       
-      // Reset Discord RPC back to browsing state
-      if (window.api?.setDiscordRpc && animeData) {
-        window.api.setDiscordRpc({
-          details: `${animeData.title || 'Browsing Anime'}`,
-          state: `via ${pluginInfo?.name || pluginId}`
-        })
+      // Reset Discord RPC back to browsing state (with full activity details for consistency)
+      const browsingActivity = createBrowsingActivity()
+      if (window.api?.setDiscordRpc && browsingActivity) {
+        window.api.setDiscordRpc(browsingActivity)
       }
     }
-  }, [activeStream, animeData, pluginInfo, pluginId])
+  }, [activeStream, animeData, pluginInfo, pluginId, createBrowsingActivity])
 
   // Mark episode as watched
   const markEpisodeWatched = useCallback((episodeId) => {
