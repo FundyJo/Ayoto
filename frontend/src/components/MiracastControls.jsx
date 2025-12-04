@@ -237,6 +237,7 @@ function SessionDisplay({ session, onDisconnect, onStopCast }) {
 
 /**
  * Main MiracastControls Component
+ * Features connection health monitoring and automatic reconnection
  */
 export default function MiracastControls({ 
   onCastStart, 
@@ -252,6 +253,9 @@ export default function MiracastControls({
   const [qualityPresets, setQualityPresets] = useState([])
   const [selectedQuality, setSelectedQuality] = useState(null)
   const [connectingDeviceId, setConnectingDeviceId] = useState(null)
+  const [connectionHealth, setConnectionHealth] = useState(null)
+  const [isReconnecting, setIsReconnecting] = useState(false)
+  const [autoReconnect, setAutoReconnect] = useState(true)
 
   // Check if Miracast is supported
   useEffect(() => {
@@ -294,6 +298,39 @@ export default function MiracastControls({
     loadSession()
   }, [])
 
+  // Connection health monitoring with heartbeat
+  useEffect(() => {
+    if (!session || (session.state !== 'connected' && session.state !== 'casting')) {
+      return
+    }
+
+    const heartbeatInterval = setInterval(async () => {
+      try {
+        if (window.api?.miracast) {
+          const health = await window.api.miracast.heartbeat()
+          setConnectionHealth(health)
+          
+          // Auto-reconnect if connection is unhealthy
+          if (!health.isHealthy && autoReconnect && !isReconnecting) {
+            console.log('Connection unhealthy, attempting reconnection...')
+            handleReconnect()
+          }
+        }
+      } catch (error) {
+        console.error('Heartbeat failed:', error)
+        // Report error and potentially trigger reconnect
+        if (window.api?.miracast) {
+          await window.api.miracast.reportError(error.message || 'Heartbeat failed')
+          if (autoReconnect && !isReconnecting) {
+            handleReconnect()
+          }
+        }
+      }
+    }, 10000) // Send heartbeat every 10 seconds
+
+    return () => clearInterval(heartbeatInterval)
+  }, [session, autoReconnect, isReconnecting])
+
   // Scan for devices
   const handleScan = useCallback(async () => {
     setIsScanning(true)
@@ -326,13 +363,42 @@ export default function MiracastControls({
           selectedQuality
         )
         setSession(newSession)
+        setConnectionHealth({ isHealthy: true, retryCount: 0, maxRetries: 3 })
         toast.success(`Connected to ${device.name}`)
       }
     } catch (error) {
       console.error('Failed to connect:', error)
-      toast.error('Failed to connect to device')
+      toast.error(error.message || 'Failed to connect to device')
     }
     setConnectingDeviceId(null)
+  }
+
+  // Reconnect to device
+  const handleReconnect = async () => {
+    if (isReconnecting) return
+    
+    setIsReconnecting(true)
+    toast.info('Attempting to reconnect...')
+    
+    try {
+      if (window.api?.miracast) {
+        const newSession = await window.api.miracast.reconnect()
+        setSession(newSession)
+        setConnectionHealth({ isHealthy: true, retryCount: 0, maxRetries: 3 })
+        toast.success('Reconnected successfully')
+      }
+    } catch (error) {
+      console.error('Failed to reconnect:', error)
+      setSession(prev => prev ? { ...prev, state: 'error', lastError: error.message } : null)
+      setConnectionHealth({
+        isHealthy: false,
+        suggestedAction: error.message || 'Reconnection failed',
+        retryCount: 3,
+        maxRetries: 3
+      })
+      toast.error(error.message || 'Reconnection failed')
+    }
+    setIsReconnecting(false)
   }
 
   // Disconnect
@@ -341,6 +407,7 @@ export default function MiracastControls({
       if (window.api?.miracast) {
         await window.api.miracast.disconnect()
         setSession(null)
+        setConnectionHealth(null)
         toast.info('Disconnected')
       }
     } catch (error) {
@@ -386,6 +453,20 @@ export default function MiracastControls({
     }
   }
 
+  // Toggle auto-reconnect
+  const handleToggleAutoReconnect = async () => {
+    const newValue = !autoReconnect
+    setAutoReconnect(newValue)
+    try {
+      if (window.api?.miracast) {
+        await window.api.miracast.setAutoReconnect(newValue)
+        toast.info(`Auto-reconnect ${newValue ? 'enabled' : 'disabled'}`)
+      }
+    } catch (error) {
+      console.error('Failed to set auto-reconnect:', error)
+    }
+  }
+
   // Don't render if not supported
   if (isSupported === false) {
     return null
@@ -406,6 +487,15 @@ export default function MiracastControls({
     )
   }
 
+  // Get status indicator color
+  const getStatusColor = () => {
+    if (isReconnecting) return 'yellow'
+    if (session?.state === 'error') return 'red'
+    if (session?.state === 'casting') return 'green'
+    if (session?.state === 'connected') return 'blue'
+    return 'gray'
+  }
+
   return (
     <div className={`relative ${className}`}>
       {/* Cast button */}
@@ -417,7 +507,11 @@ export default function MiracastControls({
         onClick={() => setIsOpen(!isOpen)}
       >
         <CastIcon className="w-4 h-4" />
-        {session && <span className="ml-1 text-xs">Casting</span>}
+        {session && <span className="ml-1 text-xs">
+          {session.state === 'casting' ? 'Casting' : 
+           session.state === 'error' ? 'Error' :
+           isReconnecting ? 'Reconnecting...' : 'Connected'}
+        </span>}
       </Button>
 
       {/* Dropdown panel */}
@@ -435,16 +529,71 @@ export default function MiracastControls({
             </div>
 
             {/* Active session */}
-            {session && (
-              <SessionDisplay
-                session={session}
-                onDisconnect={handleDisconnect}
-                onStopCast={handleStopCast}
-              />
+            {session && (session.state === 'connected' || session.state === 'casting') && (
+              <>
+                {/* Connection health warning */}
+                {connectionHealth && !connectionHealth.isHealthy && (
+                  <div className="mb-3 p-2 bg-yellow-900/30 border border-yellow-600/50 rounded-md">
+                    <div className="flex items-center gap-2 text-yellow-400 text-sm">
+                      <span>⚠️</span>
+                      <span>{connectionHealth.suggestedAction || 'Connection unstable'}</span>
+                    </div>
+                  </div>
+                )}
+                <SessionDisplay
+                  session={session}
+                  onDisconnect={handleDisconnect}
+                  onStopCast={handleStopCast}
+                />
+              </>
+            )}
+
+            {/* Error state with reconnect option */}
+            {session?.state === 'error' && (
+              <div className="space-y-3">
+                <div className="p-3 bg-red-900/30 border border-red-600/50 rounded-md">
+                  <div className="flex items-center gap-2 text-red-400 text-sm mb-2">
+                    <span>❌</span>
+                    <span>{session.lastError || 'Connection lost'}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="1"
+                      color="blue"
+                      variant="soft"
+                      className="cursor-pointer flex-1"
+                      onClick={handleReconnect}
+                      disabled={isReconnecting}
+                    >
+                      {isReconnecting ? (
+                        <>
+                          <ReloadIcon className="animate-spin" />
+                          Reconnecting...
+                        </>
+                      ) : (
+                        <>
+                          <ReloadIcon />
+                          Reconnect
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="1"
+                      color="red"
+                      variant="soft"
+                      className="cursor-pointer"
+                      onClick={handleDisconnect}
+                    >
+                      <Cross2Icon />
+                      Disconnect
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Device discovery */}
-            {!session && (
+            {(!session || (session.state !== 'connected' && session.state !== 'casting' && session.state !== 'error')) && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-400">
@@ -513,6 +662,27 @@ export default function MiracastControls({
                 <PlayIcon />
                 Cast Current Video
               </Button>
+            )}
+
+            {/* Auto-reconnect toggle - show when there's an active session or error */}
+            {session && (
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Auto-Reconnect</span>
+                  <Button
+                    size="1"
+                    color={autoReconnect ? 'green' : 'gray'}
+                    variant="soft"
+                    className="cursor-pointer"
+                    onClick={handleToggleAutoReconnect}
+                  >
+                    {autoReconnect ? 'On' : 'Off'}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Automatically try to reconnect when connection is lost
+                </p>
+              </div>
             )}
           </div>
         </div>

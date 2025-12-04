@@ -22,6 +22,17 @@ export const api = {
   setDiscordRpc: (activityDetails) => invoke('set_discord_rpc', { activityDetails }),
   broadcastDiscordRpc: (value) => invoke('broadcast_discord_rpc', { value }),
   
+  // Discord Watch Party
+  discord: {
+    createParty: () => invoke('discord_create_party'),
+    getParty: () => invoke('discord_get_party'),
+    updatePartySize: (currentSize) => invoke('discord_update_party_size', { currentSize }),
+    setPartyOpen: (isOpen) => invoke('discord_set_party_open', { isOpen }),
+    leaveParty: () => invoke('discord_leave_party'),
+    setPartyEnabled: (enabled) => invoke('discord_set_party_enabled', { enabled }),
+    getPartyInvite: () => invoke('discord_get_party_invite'),
+  },
+  
   // Anime4K (Rust backend)
   anime4k: {
     getPresets: () => invoke('anime4k_get_presets'),
@@ -64,6 +75,12 @@ export const api = {
     setQuality: (quality) => invoke('miracast_set_quality', { quality }),
     isSupported: () => invoke('miracast_is_supported'),
     getQualityPresets: () => invoke('miracast_get_quality_presets'),
+    // New connection stability commands
+    heartbeat: () => invoke('miracast_heartbeat'),
+    reconnect: () => invoke('miracast_reconnect'),
+    reportError: (errorMessage) => invoke('miracast_report_error', { errorMessage }),
+    setAutoReconnect: (enabled) => invoke('miracast_set_auto_reconnect', { enabled }),
+    getConnectionHealth: () => invoke('miracast_get_connection_health'),
   },
 };
 
