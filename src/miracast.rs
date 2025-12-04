@@ -630,7 +630,7 @@ pub fn miracast_heartbeat(state: State<'_, MiracastState>) -> Result<ConnectionH
 #[tauri::command]
 pub async fn miracast_reconnect(state: State<'_, MiracastState>) -> Result<MiracastSession, String> {
     // Get current session info (release lock immediately)
-    let (device, quality) = {
+    let (device, _quality) = {
         let session = state
             .session
             .lock()

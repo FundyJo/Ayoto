@@ -48,6 +48,12 @@
         "displayLanguageSelector": false,
         "languages": ["en-US"]
       }
+    },
+    "iOS": {
+      "developmentTeam": ""
+    },
+    "android": {
+      "minSdkVersion": 24
     }
   }
 }
