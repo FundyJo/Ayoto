@@ -36,10 +36,37 @@ export default function Player(query) {
     })
   }
 
+  // Create a Discord watch party when watching to enable "invite to activity" feature
+  async function setupDiscordWatchParty() {
+    try {
+      // Create a watch party for Discord "invite to activity" feature
+      if (window.api?.discord?.createParty) {
+        await window.api.discord.createParty()
+        console.log('Discord watch party created')
+      }
+    } catch (error) {
+      console.error('Failed to create Discord watch party:', error)
+    }
+  }
+
+  // Clean up Discord watch party when leaving
+  async function cleanupDiscordWatchParty() {
+    try {
+      if (window.api?.discord?.leaveParty) {
+        await window.api.discord.leaveParty()
+        console.log('Discord watch party left')
+      }
+    } catch (error) {
+      console.error('Failed to leave Discord watch party:', error)
+    }
+  }
+
   useEffect(() => {
     setDiscordRPC()
+    setupDiscordWatchParty()
     return () => {
       window.api.setDiscordRpc({ details: 'Browsing Anime' })
+      cleanupDiscordWatchParty()
     }
   }, [discordRpcActivity])
 
