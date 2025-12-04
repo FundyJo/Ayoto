@@ -158,6 +158,10 @@ fn create_activity_with_party<'a>(
     );
     
     // Add join secret if party is open
+    // NOTE: When secrets are set, buttons should NOT be added because
+    // Discord will hide the "Ask to Join" button if custom buttons are present.
+    // The "Ask to Join" and "Join" buttons are automatically shown by Discord
+    // when secrets.join is set and no custom buttons are added.
     if party.is_open {
         if let Some(ref secret) = party.join_secret {
             act = act.secrets(
@@ -165,12 +169,12 @@ fn create_activity_with_party<'a>(
                     .join(secret)
             );
         }
+    } else {
+        // Only add download button when party is not open (no invite needed)
+        act = act.buttons(vec![
+            activity::Button::new("Download app", DISCORD_DOWNLOAD_URL)
+        ]);
     }
-    
-    // Add buttons
-    act = act.buttons(vec![
-        activity::Button::new("Download app", DISCORD_DOWNLOAD_URL)
-    ]);
     
     act
 }
