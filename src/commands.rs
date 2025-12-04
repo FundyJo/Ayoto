@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
 use discord_rich_presence::{DiscordIpc, DiscordIpcClient, activity};
+use tauri_plugin_store::StoreExt;
 
 const DISCORD_CLIENT_ID: &str = "1334161510120816680";
 const DISCORD_DEFAULT_DETAILS: &str = "Browsing Anime";
@@ -10,6 +11,9 @@ const DISCORD_DEFAULT_STATE: &str = "Looking for anime to watch";
 const DISCORD_DOWNLOAD_URL: &str = "https://github.com/hitarth-gg/zenshin/releases/latest";
 const DISCORD_LARGE_IMAGE: &str = "icon";
 const DISCORD_LARGE_IMAGE_TEXT: &str = "zanshin";
+
+/// Store file name for settings persistence
+const SETTINGS_STORE_FILE: &str = "settings.json";
 
 /// Current Ayoto version (from Cargo.toml)
 pub const AYOTO_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -274,6 +278,7 @@ pub fn window_reload(window: Window) -> Result<(), String> {
 pub async fn save_to_settings(
     key: String,
     value: serde_json::Value,
+    app: AppHandle,
     state: State<'_, AppState>
 ) -> Result<(), String> {
     let mut settings = state.settings.lock()
@@ -307,6 +312,17 @@ pub async fn save_to_settings(
         }
         _ => {}
     }
+    
+    // Persist settings to disk
+    let store = app.store(SETTINGS_STORE_FILE)
+        .map_err(|e| format!("Failed to open settings store: {}", e))?;
+    
+    let settings_value = serde_json::to_value(&*settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    
+    store.set("settings", settings_value);
+    store.save()
+        .map_err(|e| format!("Failed to save settings: {}", e))?;
     
     Ok(())
 }
