@@ -792,80 +792,122 @@ const plugin = {
 
   /**
    * Parse stream sources from episode page
+   * 
+   * HTML structure for stream links on aniworld.to episode pages:
+   * <ul class="row">
+   *   <li class="... episodeLink{id}" data-lang-key="1" data-link-id="{id}" data-link-target="/redirect/{id}" ...>
+   *     <a class="watchEpisode" ...>
+   *       <i class="icon VOE" title="Hoster VOE"></i>
+   *       <h4>VOE</h4>
+   *     </a>
+   *   </li>
+   * </ul>
+   * 
+   * data-lang-key values:
+   * - "1" = German dubbed (Deutsch)
+   * - "2" = Japanese with English subtitles
+   * - "3" = Japanese with German subtitles
+   * 
    * @param {string} html - HTML content
-   * @returns {Promise<Array>} Stream sources
+   * @returns {Promise<Array>} Stream sources with language info
    * @private
    */
   async _parseStreamSources(html) {
     const sources = [];
-    const addedUrls = new Set();
+    const addedKeys = new Set();
     
-    // Look for hoster links in the page
-    // Aniworld typically embeds video players from various hosters
-    const hosterPatterns = [
-      { name: 'VOE', pattern: /data-link-target="([^"]*voe[^"]*)"/gi },
-      { name: 'Vidoza', pattern: /data-link-target="([^"]*vidoza[^"]*)"/gi },
-      { name: 'Vidmoly', pattern: /data-link-target="([^"]*vidmoly[^"]*)"/gi },
-      { name: 'Streamtape', pattern: /data-link-target="([^"]*streamtape[^"]*)"/gi },
-      { name: 'Doodstream', pattern: /data-link-target="([^"]*dood[^"]*)"/gi },
-      { name: 'Filemoon', pattern: /data-link-target="([^"]*filemoon[^"]*)"/gi },
-      { name: 'SpeedFiles', pattern: /data-link-target="([^"]*speedfiles[^"]*)"/gi },
-      { name: 'Luluvdo', pattern: /data-link-target="([^"]*luluvdo[^"]*)"/gi }
-    ];
+    // Language key mapping for aniworld.to
+    const languageMap = {
+      '1': { code: 'de', label: 'German Dubbed' },
+      '2': { code: 'en-sub', label: 'Japanese (English Subtitles)' },
+      '3': { code: 'de-sub', label: 'Japanese (German Subtitles)' }
+    };
     
-    for (const hoster of hosterPatterns) {
-      // Use matchAll to capture all sources from the same hoster
-      const matches = html.matchAll(hoster.pattern);
-      for (const match of matches) {
-        if (match[1] && !addedUrls.has(match[1])) {
-          addedUrls.add(match[1]);
-          sources.push({
-            url: match[1],
-            format: 'embed',
-            quality: 'HD',
-            server: hoster.name,
-            isDefault: sources.length === 0
-          });
+    // Parse each <li> element with data-lang-key and data-link-target
+    // Pattern matches: <li ... data-lang-key="X" ... data-link-id="ID" data-link-target="/redirect/ID" ...>
+    const liPattern = /<li[^>]*class="[^"]*episodeLink(\d+)[^"]*"[^>]*data-lang-key="(\d+)"[^>]*data-link-id="(\d+)"[^>]*data-link-target="([^"]+)"[^>]*>([\s\S]*?)<\/li>/gi;
+    
+    let match;
+    while ((match = liPattern.exec(html)) !== null) {
+      const langKey = match[2];
+      const linkId = match[3];
+      const linkTarget = match[4];
+      const liContent = match[5];
+      
+      // Create unique key to avoid duplicates
+      const uniqueKey = `${linkId}-${langKey}`;
+      if (addedKeys.has(uniqueKey)) continue;
+      addedKeys.add(uniqueKey);
+      
+      // Extract hoster name from <h4> or <i class="icon ...">
+      let hosterName = 'Unknown';
+      const h4Match = liContent.match(/<h4>([^<]+)<\/h4>/i);
+      if (h4Match) {
+        hosterName = h4Match[1].trim();
+      } else {
+        // Fallback: try to extract from icon class
+        const iconMatch = liContent.match(/<i[^>]*class="icon\s+([^"]+)"[^>]*>/i);
+        if (iconMatch) {
+          hosterName = iconMatch[1].trim();
         }
       }
+      
+      // Get language info
+      const langInfo = languageMap[langKey] || { code: 'unknown', label: `Language ${langKey}` };
+      
+      // Build the full URL
+      const url = linkTarget.startsWith('http') ? linkTarget : `${this.baseUrl}${linkTarget}`;
+      
+      sources.push({
+        url: url,
+        format: 'redirect',
+        quality: 'HD',
+        server: hosterName,
+        language: langInfo,
+        langKey: langKey,
+        isDefault: sources.length === 0
+      });
     }
     
-    // Also look for generic redirect links and resolve them
-    const redirectRegex = /redirect\/(\d+)/gi;
-    const redirectMatches = [...html.matchAll(redirectRegex)];
-    
-    // Resolve redirects to get actual streaming URLs
-    for (const redirectMatch of redirectMatches) {
-      const redirectUrl = `${this.baseUrl}/redirect/${redirectMatch[1]}`;
-      if (!addedUrls.has(redirectUrl)) {
-        addedUrls.add(redirectUrl);
-        
-        // Try to resolve the redirect
-        try {
-          const resolvedUrl = await this._resolveRedirect(redirectUrl);
-          if (resolvedUrl && resolvedUrl !== redirectUrl) {
-            // Detect the server from the resolved URL
-            const server = this._detectServerFromUrl(resolvedUrl);
+    // If the new pattern didn't find anything, fall back to old parsing logic
+    if (sources.length === 0) {
+      // Look for hoster links in the page using data-link-target patterns
+      const hosterPatterns = [
+        { name: 'VOE', pattern: /data-link-target="([^"]*voe[^"]*)"/gi },
+        { name: 'Vidoza', pattern: /data-link-target="([^"]*vidoza[^"]*)"/gi },
+        { name: 'Vidmoly', pattern: /data-link-target="([^"]*vidmoly[^"]*)"/gi },
+        { name: 'Streamtape', pattern: /data-link-target="([^"]*streamtape[^"]*)"/gi },
+        { name: 'Doodstream', pattern: /data-link-target="([^"]*dood[^"]*)"/gi },
+        { name: 'Filemoon', pattern: /data-link-target="([^"]*filemoon[^"]*)"/gi },
+        { name: 'SpeedFiles', pattern: /data-link-target="([^"]*speedfiles[^"]*)"/gi },
+        { name: 'Luluvdo', pattern: /data-link-target="([^"]*luluvdo[^"]*)"/gi }
+      ];
+      
+      const addedUrls = new Set();
+      for (const hoster of hosterPatterns) {
+        const matches = html.matchAll(hoster.pattern);
+        for (const m of matches) {
+          if (m[1] && !addedUrls.has(m[1])) {
+            addedUrls.add(m[1]);
             sources.push({
-              url: resolvedUrl,
+              url: m[1],
               format: 'embed',
               quality: 'HD',
-              server: server,
-              isDefault: sources.length === 0
-            });
-          } else {
-            // If redirect couldn't be resolved, add the redirect URL anyway
-            sources.push({
-              url: redirectUrl,
-              format: 'redirect',
-              quality: 'Unknown',
-              server: 'Redirect',
+              server: hoster.name,
               isDefault: sources.length === 0
             });
           }
-        } catch (error) {
-          console.error('Failed to resolve redirect:', error);
-          // Add the unresolved redirect URL
+        }
+      }
+      
+      // Also look for generic redirect links
+      const redirectRegex = /redirect\/(\d+)/gi;
+      const redirectMatches = [...html.matchAll(redirectRegex)];
+      
+      for (const redirectMatch of redirectMatches) {
+        const redirectUrl = `${this.baseUrl}/redirect/${redirectMatch[1]}`;
+        if (!addedUrls.has(redirectUrl)) {
+          addedUrls.add(redirectUrl);
           sources.push({
             url: redirectUrl,
             format: 'redirect',

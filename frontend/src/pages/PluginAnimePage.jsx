@@ -31,6 +31,14 @@ const LANGUAGE_FILTERS = [
   { value: 'ja', label: 'Japanese', code: 'ja' }
 ]
 
+// Stream language filter options (based on aniworld data-lang-key values)
+const STREAM_LANGUAGE_FILTERS = [
+  { value: 'all', label: 'All Languages', langKey: null },
+  { value: 'de', label: 'German Dubbed', langKey: '1', code: 'de' },
+  { value: 'en-sub', label: 'Japanese (English Sub)', langKey: '2', code: 'en-sub' },
+  { value: 'de-sub', label: 'Japanese (German Sub)', langKey: '3', code: 'de-sub' }
+]
+
 // Supported formats for Vidstack player - these can be played directly
 const DIRECTLY_PLAYABLE_FORMATS = ['m3u8', 'mp4', 'hls', 'webm', null, undefined]
 
@@ -115,6 +123,79 @@ function episodeMatchesLanguageFilter(episode, filterValue) {
     const langCode = typeof lang === 'string' ? lang.toLowerCase() : (lang.code || lang.name || '').toLowerCase()
     return langCode.includes(filterConfig.code.toLowerCase())
   })
+}
+
+/**
+ * Filter streams by language and hoster
+ * @param {Array} streams - Array of stream objects
+ * @param {string} langFilter - Language filter value ('all', 'de', 'en-sub', 'de-sub')
+ * @param {string} hosterFilter - Hoster filter value ('all' or specific hoster name)
+ * @returns {Array} Filtered streams
+ */
+function filterStreams(streams, langFilter, hosterFilter) {
+  if (!streams || streams.length === 0) return streams
+  
+  return streams.filter(stream => {
+    // Filter by language
+    if (langFilter !== 'all') {
+      const filterConfig = STREAM_LANGUAGE_FILTERS.find(f => f.value === langFilter)
+      if (filterConfig && filterConfig.langKey) {
+        // Check stream's langKey property
+        if (stream.langKey && stream.langKey !== filterConfig.langKey) {
+          return false
+        }
+        // Also check stream's language.code property
+        if (stream.language && stream.language.code && !stream.language.code.includes(filterConfig.code)) {
+          return false
+        }
+      }
+    }
+    
+    // Filter by hoster
+    if (hosterFilter !== 'all') {
+      const serverName = (stream.server || '').toLowerCase()
+      if (serverName !== hosterFilter.toLowerCase()) {
+        return false
+      }
+    }
+    
+    return true
+  })
+}
+
+/**
+ * Get unique hosters from streams
+ * @param {Array} streams - Array of stream objects
+ * @returns {Array} Unique hoster names
+ */
+function getUniqueHosters(streams) {
+  if (!streams || streams.length === 0) return []
+  const hosters = new Set()
+  streams.forEach(stream => {
+    if (stream.server) {
+      hosters.add(stream.server)
+    }
+  })
+  return [...hosters].sort()
+}
+
+/**
+ * Get unique language options from streams
+ * @param {Array} streams - Array of stream objects
+ * @returns {Array} Unique language filter options that have streams
+ */
+function getAvailableStreamLanguages(streams) {
+  if (!streams || streams.length === 0) return []
+  const langKeys = new Set()
+  streams.forEach(stream => {
+    if (stream.langKey) {
+      langKeys.add(stream.langKey)
+    }
+  })
+  // Return only filter options that have matching streams
+  return STREAM_LANGUAGE_FILTERS.filter(f => 
+    f.value === 'all' || langKeys.has(f.langKey)
+  )
 }
 
 /**
@@ -311,8 +392,12 @@ export default function PluginAnimePage() {
   // Season selection state
   const [selectedSeason, setSelectedSeason] = useState(null)
   
-  // Language filter state
+  // Language filter state (for episodes)
   const [languageFilter, setLanguageFilter] = useState('all')
+  
+  // Stream filter state (for filtering streams by language and hoster)
+  const [streamLanguageFilter, setStreamLanguageFilter] = useState('all')
+  const [streamHosterFilter, setStreamHosterFilter] = useState('all')
   
   // Vidstack player state
   const [activeStream, setActiveStream] = useState(null) // {url, format, quality, server, episodeId, episodeTitle}
@@ -1391,98 +1476,189 @@ export default function PluginAnimePage() {
                         )}
                         
                         {/* Show loaded streams with language info */}
-                        {!isLoadingThisEpisode && streams && streams.length > 0 && (
-                          <div className="grid gap-2">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs font-medium opacity-70">Available Streams:</p>
-                              {/* Show language info from episode if available */}
-                              {episode.languages && episode.languages.length > 0 && (
-                                <div className="flex gap-1">
-                                  {episode.languages.map((lang, langIdx) => {
-                                    const langDisplay = getLanguageDisplay(lang)
-                                    return (
-                                      <span
-                                        key={langIdx}
-                                        className="rounded bg-blue-900/30 px-1.5 py-0.5 text-xs text-blue-300"
-                                        title={langDisplay.title}
-                                      >
-                                        {langDisplay.display}
-                                      </span>
-                                    )
-                                  })}
-                                </div>
-                              )}
-                              {/* Show stream provider availability hint for embed/redirect streams */}
-                              {streams.some(s => needsExtraction(s.format)) && (
-                                <Tooltip content="Streams with 'embed' or 'redirect' format need a stream provider plugin (like hosters-provider) to extract the playable URL">
-                                  <span className="text-xs text-orange-400 flex items-center gap-1 cursor-help">
-                                    <InfoCircledIcon className="h-3 w-3" />
-                                    Some streams need extraction
-                                  </span>
-                                </Tooltip>
-                              )}
-                            </div>
-                            {streams.map((stream, streamIdx) => (
-                              <div
-                                key={streamIdx}
-                                className="flex items-center justify-between rounded bg-[#232326] px-3 py-2 transition-colors hover:bg-[#2a2a2d]"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm">{stream.server || DEFAULT_SERVER_NAME}</span>
-                                  {stream.quality && (
-                                    <span className="rounded bg-purple-900/30 px-1.5 py-0.5 text-xs text-purple-300">
-                                      {stream.quality}
-                                    </span>
+                        {!isLoadingThisEpisode && streams && streams.length > 0 && (() => {
+                          // Get available languages and hosters for filter dropdowns
+                          const availableStreamLangs = getAvailableStreamLanguages(streams)
+                          const availableHosters = getUniqueHosters(streams)
+                          const hasFilters = availableStreamLangs.length > 1 || availableHosters.length > 1
+                          
+                          // Apply filters
+                          const filteredStreams = filterStreams(streams, streamLanguageFilter, streamHosterFilter)
+                          
+                          return (
+                            <div className="grid gap-2">
+                              {/* Filter Controls */}
+                              {hasFilters && (
+                                <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-[#2a2a2d]">
+                                  <span className="text-xs opacity-50">Filter:</span>
+                                  
+                                  {/* Language Filter */}
+                                  {availableStreamLangs.length > 1 && (
+                                    <DropdownMenu.Root modal={false}>
+                                      <DropdownMenu.Trigger>
+                                        <Button variant="soft" color={streamLanguageFilter !== 'all' ? 'blue' : 'gray'} size="1">
+                                          <div className="flex items-center gap-x-1">
+                                            🌐 {STREAM_LANGUAGE_FILTERS.find(f => f.value === streamLanguageFilter)?.label || 'Language'}
+                                          </div>
+                                          <DropdownMenu.TriggerIcon />
+                                        </Button>
+                                      </DropdownMenu.Trigger>
+                                      <DropdownMenu.Content>
+                                        {availableStreamLangs.map((filter) => (
+                                          <DropdownMenu.Item
+                                            key={filter.value}
+                                            color={streamLanguageFilter === filter.value ? 'indigo' : 'gray'}
+                                            onClick={() => setStreamLanguageFilter(filter.value)}
+                                          >
+                                            {filter.label}
+                                          </DropdownMenu.Item>
+                                        ))}
+                                      </DropdownMenu.Content>
+                                    </DropdownMenu.Root>
                                   )}
-                                  {stream.format && (() => {
-                                    const badgeInfo = getFormatBadgeInfo(stream.format)
-                                    return (
-                                      <span className={`rounded px-1.5 py-0.5 text-xs ${
-                                        badgeInfo.needsExtraction
-                                          ? 'bg-orange-900/30 text-orange-300'
-                                          : 'bg-gray-700 opacity-60'
-                                      }`}>
-                                        {badgeInfo.text}
-                                      </span>
-                                    )
-                                  })()}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {/* Play button - handles both direct and extractable formats */}
-                                  {isPlayableInVidstack(stream.format) && (
+                                  
+                                  {/* Hoster Filter */}
+                                  {availableHosters.length > 1 && (
+                                    <DropdownMenu.Root modal={false}>
+                                      <DropdownMenu.Trigger>
+                                        <Button variant="soft" color={streamHosterFilter !== 'all' ? 'purple' : 'gray'} size="1">
+                                          <div className="flex items-center gap-x-1">
+                                            📺 {streamHosterFilter === 'all' ? 'All Hosters' : streamHosterFilter}
+                                          </div>
+                                          <DropdownMenu.TriggerIcon />
+                                        </Button>
+                                      </DropdownMenu.Trigger>
+                                      <DropdownMenu.Content>
+                                        <DropdownMenu.Item
+                                          color={streamHosterFilter === 'all' ? 'indigo' : 'gray'}
+                                          onClick={() => setStreamHosterFilter('all')}
+                                        >
+                                          All Hosters
+                                        </DropdownMenu.Item>
+                                        {availableHosters.map((hoster) => (
+                                          <DropdownMenu.Item
+                                            key={hoster}
+                                            color={streamHosterFilter === hoster ? 'indigo' : 'gray'}
+                                            onClick={() => setStreamHosterFilter(hoster)}
+                                          >
+                                            {hoster}
+                                          </DropdownMenu.Item>
+                                        ))}
+                                      </DropdownMenu.Content>
+                                    </DropdownMenu.Root>
+                                  )}
+                                  
+                                  {/* Reset Filters */}
+                                  {(streamLanguageFilter !== 'all' || streamHosterFilter !== 'all') && (
                                     <Button
+                                      variant="ghost"
+                                      color="gray"
                                       size="1"
-                                      variant="soft"
-                                      color={needsExtraction(stream.format) ? 'orange' : 'violet'}
-                                      onClick={() => handlePlayStream(stream, episode)}
-                                      disabled={isExtractingStream}
+                                      onClick={() => {
+                                        setStreamLanguageFilter('all')
+                                        setStreamHosterFilter('all')
+                                      }}
                                     >
-                                      {isExtractingStream ? (
-                                        <>
-                                          <Spinner size="1" />
-                                          Extracting...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <PlayIcon className="h-3 w-3" />
-                                          {needsExtraction(stream.format) ? 'Extract & Play' : 'Play'}
-                                        </>
-                                      )}
+                                      <Cross2Icon className="h-3 w-3" />
+                                      Clear
                                     </Button>
                                   )}
-                                  <a
-                                    href={stream.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-gray-400 hover:text-white transition-colors"
-                                  >
-                                    Open →
-                                  </a>
                                 </div>
+                              )}
+                              
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs font-medium opacity-70">
+                                  Available Streams: {filteredStreams.length}
+                                  {filteredStreams.length !== streams.length && (
+                                    <span className="opacity-50"> of {streams.length}</span>
+                                  )}
+                                </p>
+                                {/* Show stream provider availability hint for embed/redirect streams */}
+                                {filteredStreams.some(s => needsExtraction(s.format)) && (
+                                  <Tooltip content="Streams with 'embed' or 'redirect' format need a stream provider plugin (like hosters-provider) to extract the playable URL">
+                                    <span className="text-xs text-orange-400 flex items-center gap-1 cursor-help">
+                                      <InfoCircledIcon className="h-3 w-3" />
+                                      Some streams need extraction
+                                    </span>
+                                  </Tooltip>
+                                )}
                               </div>
-                            ))}
-                          </div>
-                        )}
+                              
+                              {filteredStreams.length === 0 ? (
+                                <p className="text-sm opacity-50">No streams match the current filters.</p>
+                              ) : (
+                                filteredStreams.map((stream, streamIdx) => (
+                                  <div
+                                    key={streamIdx}
+                                    className="flex items-center justify-between rounded bg-[#232326] px-3 py-2 transition-colors hover:bg-[#2a2a2d]"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-sm">{stream.server || DEFAULT_SERVER_NAME}</span>
+                                      {/* Show stream language info */}
+                                      {stream.language && (
+                                        <span
+                                          className="rounded bg-blue-900/30 px-1.5 py-0.5 text-xs text-blue-300"
+                                          title={stream.language.label}
+                                        >
+                                          {stream.language.code}
+                                        </span>
+                                      )}
+                                      {stream.quality && (
+                                        <span className="rounded bg-purple-900/30 px-1.5 py-0.5 text-xs text-purple-300">
+                                          {stream.quality}
+                                        </span>
+                                      )}
+                                      {stream.format && (() => {
+                                        const badgeInfo = getFormatBadgeInfo(stream.format)
+                                        return (
+                                          <span className={`rounded px-1.5 py-0.5 text-xs ${
+                                            badgeInfo.needsExtraction
+                                              ? 'bg-orange-900/30 text-orange-300'
+                                              : 'bg-gray-700 opacity-60'
+                                          }`}>
+                                            {badgeInfo.text}
+                                          </span>
+                                        )
+                                      })()}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {/* Play button - handles both direct and extractable formats */}
+                                      {isPlayableInVidstack(stream.format) && (
+                                        <Button
+                                          size="1"
+                                          variant="soft"
+                                          color={needsExtraction(stream.format) ? 'orange' : 'violet'}
+                                          onClick={() => handlePlayStream(stream, episode)}
+                                          disabled={isExtractingStream}
+                                        >
+                                          {isExtractingStream ? (
+                                            <>
+                                              <Spinner size="1" />
+                                              Extracting...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <PlayIcon className="h-3 w-3" />
+                                              {needsExtraction(stream.format) ? 'Extract & Play' : 'Play'}
+                                            </>
+                                          )}
+                                        </Button>
+                                      )}
+                                      <a
+                                        href={stream.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-gray-400 hover:text-white transition-colors"
+                                      >
+                                        Open →
+                                      </a>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )
+                        })()}
                         
                         {!isLoadingThisEpisode && streams && streams.length === 0 && (
                           <p className="text-sm opacity-50">No streams found for this episode.</p>
