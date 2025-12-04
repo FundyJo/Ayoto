@@ -8,6 +8,7 @@ import SlidingPane from 'react-sliding-pane'
 import '../../../sliding-pane.css'
 import AnimePahePlayerEmbedded from '../pages/AnimePahePlayerEmbedded'
 import { useZenshinContext } from '../../../utils/ContextProvider'
+import { setupDiscordWatchParty, cleanupDiscordWatchParty } from '../../../utils/discord'
 
 export default function AnimePaheEpisode({ data }) {
   const {
@@ -72,41 +73,17 @@ export default function AnimePaheEpisode({ data }) {
 
   const [videoSrc, setVideoSrc] = useState(null)
 
-  // Create a Discord watch party when starting to watch
-  async function setupDiscordWatchParty() {
-    try {
-      if (window.api?.discord?.createParty) {
-        await window.api.discord.createParty()
-        console.log('Discord watch party created for AnimePahe')
-      }
-    } catch (error) {
-      console.error('Failed to create Discord watch party:', error)
-    }
-  }
-
-  // Clean up Discord watch party when done watching
-  async function cleanupDiscordWatchParty() {
-    try {
-      if (window.api?.discord?.leaveParty) {
-        await window.api.discord.leaveParty()
-        console.log('Discord watch party left')
-      }
-    } catch (error) {
-      console.error('Failed to leave Discord watch party:', error)
-    }
-  }
-
   useEffect(() => {
     if (discordRpcActivity && videoSrc) {
       window.api.setDiscordRpc({ ...discordRpcActivity, state: `Watching Episode ${episode}` })
       setupDiscordWatchParty()
     }
     return () => {
-      if (videoSrc) {
+      if (discordRpcActivity && videoSrc) {
         cleanupDiscordWatchParty()
       }
     }
-  }, [videoSrc])
+  }, [videoSrc, discordRpcActivity, episode])
 
   if (parseInt(episode) <= parseInt(progress) && hideWatchedEpisodes) return null
   const knownPlayers = ['mpv', 'vlc']
