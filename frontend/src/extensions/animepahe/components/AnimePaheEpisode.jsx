@@ -8,6 +8,7 @@ import SlidingPane from 'react-sliding-pane'
 import '../../../sliding-pane.css'
 import AnimePahePlayerEmbedded from '../pages/AnimePahePlayerEmbedded'
 import { useZenshinContext } from '../../../utils/ContextProvider'
+import { setupDiscordWatchParty, cleanupDiscordWatchParty } from '../../../utils/discord'
 
 export default function AnimePaheEpisode({ data }) {
   const {
@@ -75,11 +76,14 @@ export default function AnimePaheEpisode({ data }) {
   useEffect(() => {
     if (discordRpcActivity && videoSrc) {
       window.api.setDiscordRpc({ ...discordRpcActivity, state: `Watching Episode ${episode}` })
+      setupDiscordWatchParty()
     }
-    // return () => {
-    // window.api.setDiscordRpc({ ...discordRpcActivity })
-    // }
-  }, [videoSrc])
+    return () => {
+      if (discordRpcActivity && videoSrc) {
+        cleanupDiscordWatchParty()
+      }
+    }
+  }, [videoSrc, discordRpcActivity, episode])
 
   if (parseInt(episode) <= parseInt(progress) && hideWatchedEpisodes) return null
   const knownPlayers = ['mpv', 'vlc']

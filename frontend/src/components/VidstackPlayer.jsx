@@ -1401,11 +1401,16 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
         </MediaProvider>
         
         {/* Default video layout with Anime4K and Miracast integrated via settings menu slot */}
+        {/* Google Cast is disabled as it requires Chrome browser, HTTPS, and Google Cast SDK */}
+        {/* Use Miracast for screen casting on Windows/Linux, AirPlay for iOS/macOS */}
         <DefaultVideoLayout
           icons={defaultLayoutIcons}
           thumbnails=""
           smallLayoutWhen={({ width, height }) => width < 768 || height < 480}
+          noGoogleCast
           slots={{
+            // Hide the Google Cast button as it's not supported in Tauri desktop apps
+            googleCastButton: null,
             // Add Anime4K and Miracast submenus at the end of settings menu items
             settingsMenuItemsEnd: (
               <>

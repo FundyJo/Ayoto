@@ -37,4 +37,36 @@ class DiscordRPC {
   }
 }
 
+/**
+ * Create a Discord watch party to enable "invite to activity" feature
+ * Call this when the user starts watching content
+ * @returns {Promise<void>}
+ */
+export async function setupDiscordWatchParty() {
+  try {
+    if (typeof window !== 'undefined' && window.api?.discord?.createParty) {
+      await window.api.discord.createParty()
+      console.log('Discord watch party created')
+    }
+  } catch (error) {
+    console.error('Failed to create Discord watch party:', error)
+  }
+}
+
+/**
+ * Clean up Discord watch party when the user stops watching
+ * Call this when exiting the player or component
+ * @returns {Promise<void>}
+ */
+export async function cleanupDiscordWatchParty() {
+  try {
+    if (typeof window !== 'undefined' && window.api?.discord?.leaveParty) {
+      await window.api.discord.leaveParty()
+      console.log('Discord watch party left')
+    }
+  } catch (error) {
+    console.error('Failed to leave Discord watch party:', error)
+  }
+}
+
 export default DiscordRPC

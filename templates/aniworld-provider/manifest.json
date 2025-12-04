@@ -35,7 +35,8 @@
     "cspEnabled": true,
     "allowedDomains": [
       "aniworld.to",
-      "*.aniworld.to"
+      "*.aniworld.to",
+      "graphql.anilist.co"
     ]
   },
   "minAppVersion": "2.5.0",

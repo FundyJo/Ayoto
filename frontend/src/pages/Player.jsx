@@ -13,6 +13,7 @@ import 'plyr-react/plyr.css'
 import Plyr from 'plyr-react'
 import { useZenshinContext } from '../utils/ContextProvider'
 import VidstackPlayer from '../components/VidstackPlayer'
+import { setupDiscordWatchParty, cleanupDiscordWatchParty } from '../utils/discord'
 
 export default function Player(query) {
   const magnetURI = useParams().magnetId
@@ -38,8 +39,10 @@ export default function Player(query) {
 
   useEffect(() => {
     setDiscordRPC()
+    setupDiscordWatchParty()
     return () => {
       window.api.setDiscordRpc({ details: 'Browsing Anime' })
+      cleanupDiscordWatchParty()
     }
   }, [discordRpcActivity])
 
