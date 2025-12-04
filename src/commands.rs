@@ -87,6 +87,16 @@ pub fn close_window(window: Window) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn set_fullscreen(window: Window, fullscreen: bool) -> Result<(), String> {
+    window.set_fullscreen(fullscreen).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn is_fullscreen(window: Window) -> Result<bool, String> {
+    window.is_fullscreen().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn open_folder(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
