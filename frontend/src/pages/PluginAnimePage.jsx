@@ -13,6 +13,7 @@ import Pagination from '../components/Pagination'
 import VidstackPlayer from '../components/VidstackPlayer'
 import { useProxiedImage } from '../hooks/useProxiedImage'
 import ProxiedImage from '../components/ProxiedImage'
+import { setupDiscordWatchParty, cleanupDiscordWatchParty } from '../utils/discord'
 
 // Constants
 const SEARCH_BLUR_DELAY_MS = 200 // Delay before hiding search results on blur
@@ -475,6 +476,69 @@ export default function PluginAnimePage() {
       localStorage.removeItem(storageKey)
     }
   }, [watchedEpisodes, pluginId, animeId])
+
+  // Discord RPC - Update when browsing anime page
+  useEffect(() => {
+    if (!animeData) return
+    
+    const activityDetails = {
+      details: `${animeData.title || 'Browsing Anime'}`,
+      state: `via ${pluginInfo?.name || pluginId}`,
+      assets: {
+        large_image: animeData.cover || 'icon',
+        small_image: 'logo',
+        small_text: 'Zenshin'
+      }
+    }
+    
+    if (window.api?.setDiscordRpc) {
+      window.api.setDiscordRpc(activityDetails)
+    }
+    
+    return () => {
+      // Reset Discord RPC when leaving the page
+      if (window.api?.setDiscordRpc) {
+        window.api.setDiscordRpc({ details: 'Browsing Anime' })
+      }
+    }
+  }, [animeData, pluginInfo, pluginId])
+
+  // Discord RPC - Update when playing a stream and setup watch party
+  useEffect(() => {
+    if (!activeStream || !animeData) return
+    
+    // Create Discord activity for watching
+    const watchingActivity = {
+      details: `Watching: ${animeData.title || 'Anime'}`,
+      state: `${activeStream.episodeTitle || 'Playing'} • ${activeStream.server || 'Stream'}`,
+      assets: {
+        large_image: animeData.cover || 'icon',
+        small_image: 'logo',
+        small_text: 'Zenshin'
+      }
+    }
+    
+    // Update Discord RPC with watching activity
+    if (window.api?.setDiscordRpc) {
+      window.api.setDiscordRpc(watchingActivity)
+    }
+    
+    // Setup Discord watch party for "invite to activity" feature
+    setupDiscordWatchParty()
+    
+    return () => {
+      // Cleanup watch party when stream closes
+      cleanupDiscordWatchParty()
+      
+      // Reset Discord RPC back to browsing state
+      if (window.api?.setDiscordRpc && animeData) {
+        window.api.setDiscordRpc({
+          details: `${animeData.title || 'Browsing Anime'}`,
+          state: `via ${pluginInfo?.name || pluginId}`
+        })
+      }
+    }
+  }, [activeStream, animeData, pluginInfo, pluginId])
 
   // Mark episode as watched
   const markEpisodeWatched = useCallback((episodeId) => {
