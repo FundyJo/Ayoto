@@ -2,7 +2,7 @@
 
 ## Overview
 
-Watch Together (Synchronisiertes Gemeinsam Schauen) allows multiple users to watch anime together in sync. This document explains different implementation approaches and their trade-offs.
+Watch Together allows multiple users to watch anime together in sync. This document explains different implementation approaches and their trade-offs.
 
 ## Implementation Approaches
 
@@ -199,9 +199,11 @@ sendSync({ currentTime: player.currentTime, playing: !player.paused })
 
 ```javascript
 // Account for network delay
+// Note: This assumes symmetric network delay (same latency in both directions).
+// For more accuracy, consider implementing proper RTT measurement with ping/pong messages.
 function calculateAdjustedTime(remoteTime, messageTimestamp) {
   const roundTripTime = Date.now() - messageTimestamp
-  const oneWayLatency = roundTripTime / 2
+  const oneWayLatency = roundTripTime / 2 // Approximation assuming symmetric delay
   return remoteTime + (oneWayLatency / 1000)
 }
 ```
