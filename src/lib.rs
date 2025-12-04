@@ -178,7 +178,7 @@ pub fn run() {
                 }
               }
               log::info!("Loaded persisted settings from store");
-            }
+            };
           }
         }
       }

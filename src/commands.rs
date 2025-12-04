@@ -1,7 +1,6 @@
 use tauri::{AppHandle, State, Window};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, Ordering};
 use discord_rich_presence::{DiscordIpc, DiscordIpcClient, activity};
 use tauri_plugin_store::StoreExt;
 
@@ -231,6 +230,16 @@ pub async fn open_folder(path: String) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
     }
+    #[cfg(target_os = "android")]
+    {
+        log::warn!("open_folder not supported on Android: {}", path);
+        return Err("Opening folders is not supported on Android".to_string());
+    }
+    #[cfg(target_os = "ios")]
+    {
+        log::warn!("open_folder not supported on iOS: {}", path);
+        return Err("Opening folders is not supported on iOS".to_string());
+    }
     Ok(())
 }
 
@@ -250,12 +259,22 @@ pub async fn open_vlc(command: String) -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("Failed to launch VLC: {}", e))?;
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
         std::process::Command::new("sh")
             .args(&["-c", &command])
             .spawn()
             .map_err(|e| format!("Failed to launch VLC: {}", e))?;
+    }
+    #[cfg(target_os = "android")]
+    {
+        log::warn!("open_vlc not supported on Android: {}", command);
+        return Err("VLC command execution is not supported on Android".to_string());
+    }
+    #[cfg(target_os = "ios")]
+    {
+        log::warn!("open_vlc not supported on iOS: {}", command);
+        return Err("VLC command execution is not supported on iOS".to_string());
     }
     Ok(())
 }
