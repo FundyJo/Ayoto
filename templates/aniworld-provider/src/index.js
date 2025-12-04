@@ -846,9 +846,11 @@ const plugin = {
         hosterName = h4Match[1].trim();
       } else {
         // Fallback: try to extract from icon class
-        const iconMatch = liContent.match(/<i[^>]*class="icon\s+([^"]+)"[^>]*>/i);
+        // Pattern: <i class="icon VOE" title="..."> - extract the class name after 'icon '
+        const iconMatch = liContent.match(/<i[^>]*class="icon\s+([^\s"]+)[^"]*"[^>]*>/i);
         if (iconMatch) {
-          hosterName = iconMatch[1].trim();
+          // Take only the first class name after 'icon' (split by space if multiple)
+          hosterName = iconMatch[1].split(/\s+/)[0].trim();
         }
       }
       
