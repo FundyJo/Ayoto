@@ -394,8 +394,10 @@ export default function Settings() {
             checked={broadcastDiscordRpc}
             style={{ marginLeft: '1.5rem', cursor: 'pointer' }}
             onCheckedChange={() => {
-              setBroadcastDiscordRpc(!broadcastDiscordRpc)
-              window.api.broadcastDiscordRpc(!broadcastDiscordRpc)
+              const newValue = !broadcastDiscordRpc
+              setBroadcastDiscordRpc(newValue)
+              window.api.broadcastDiscordRpc(newValue)
+              window.api.saveToSettings('broadcastDiscordRpc', newValue)
             }}
           />
         </div>

@@ -300,6 +300,11 @@ pub async fn save_to_settings(
                 settings.backend_port = Some(v as u16);
             }
         }
+        "broadcastDiscordRpc" => {
+            if let Some(v) = value.as_bool() {
+                settings.broadcast_discord_rpc = Some(v);
+            }
+        }
         _ => {}
     }
     
