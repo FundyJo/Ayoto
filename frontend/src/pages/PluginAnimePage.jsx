@@ -203,6 +203,29 @@ function getAvailableStreamLanguages(streams) {
 }
 
 /**
+ * Find a matching stream language filter for a given language info
+ * @param {string|{code?: string, label?: string}} langInfo - Language info object or code string
+ * @returns {Object|null} The matching filter or null
+ */
+function findMatchingLanguageFilter(langInfo) {
+  const langCode = typeof langInfo === 'string' ? langInfo : langInfo?.code
+  
+  return STREAM_LANGUAGE_FILTERS.find(f => {
+    if (f.value === 'all') return false
+    // Direct code match
+    if (f.code === langCode) return true
+    // Match with language info object code
+    if (langInfo?.code && f.code === langInfo.code) return true
+    // Partial match (e.g., 'de' in 'de-sub') - with type safety
+    if (langInfo?.code && typeof langInfo.code === 'string' && f.code) {
+      const baseCode = langInfo.code.split('-')[0]
+      return f.code.includes(baseCode)
+    }
+    return false
+  }) || null
+}
+
+/**
  * Get watch progress from localStorage
  * @param {string} pluginId - Plugin ID
  * @param {string} animeId - Anime ID  
@@ -947,20 +970,12 @@ export default function PluginAnimePage() {
   // Fetch streams for a specific language
   // This loads all streams and automatically sets the language filter
   const handleLanguageClick = async (episode, langInfo) => {
-    const langCode = langInfo?.code || langInfo
     const langLabel = langInfo?.label || langInfo?.code || 'Unknown'
     
     // Check if we already have streams for this episode
     if (episodeStreams[episode.id]) {
       // If streams are already loaded, just set the language filter
-      // Find the matching stream language filter value
-      const matchingFilter = STREAM_LANGUAGE_FILTERS.find(f => {
-        if (f.value === 'all') return false
-        // Match by langKey or code
-        return f.code === langCode || 
-               (langInfo?.code && f.code === langInfo.code) ||
-               (langInfo?.code && f.code?.includes(langInfo.code.split('-')[0]))
-      })
+      const matchingFilter = findMatchingLanguageFilter(langInfo)
       if (matchingFilter) {
         setStreamLanguageFilter(matchingFilter.value)
       }
@@ -988,13 +1003,7 @@ export default function PluginAnimePage() {
         
         // Automatically set the language filter based on what was clicked
         if (streams && streams.length > 0) {
-          const matchingFilter = STREAM_LANGUAGE_FILTERS.find(f => {
-            if (f.value === 'all') return false
-            // Match by langKey or code
-            return f.code === langCode || 
-                   (langInfo?.code && f.code === langInfo.code) ||
-                   (langInfo?.code && f.code?.includes(langInfo.code.split('-')[0]))
-          })
+          const matchingFilter = findMatchingLanguageFilter(langInfo)
           if (matchingFilter) {
             setStreamLanguageFilter(matchingFilter.value)
           }
@@ -1002,10 +1011,12 @@ export default function PluginAnimePage() {
           // Show toast with how many streams are available for this language
           const matchingStreams = streams.filter(s => {
             if (!matchingFilter) return true
-            if (s.langKey && matchingFilter.langKey) {
+            // Check langKey first (with null safety)
+            if (s.langKey != null && matchingFilter.langKey != null) {
               return s.langKey === matchingFilter.langKey
             }
-            if (s.language?.code) {
+            // Fallback to language.code
+            if (s.language?.code && matchingFilter.code) {
               return s.language.code.includes(matchingFilter.code)
             }
             return false
