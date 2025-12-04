@@ -17,6 +17,14 @@ pub const AYOTO_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Maximum party size for watch together feature
 const MAX_PARTY_SIZE: u32 = 10;
 
+/// Modulo value for party ID generation to ensure reasonable length
+const PARTY_ID_MODULO: u128 = 1_000_000_000_000;
+
+/// Modulo values for join secret generation
+const SECRET_PRIMARY_MODULO: u128 = 1_000_000_000;
+const SECRET_SECONDARY_MODULO: u128 = 1_000_000;
+const SECRET_DIVISOR: u128 = 17; // Prime number for better distribution
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
     pub upload_limit: Option<i32>,
@@ -61,18 +69,23 @@ fn generate_party_id() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    format!("zanshin_party_{}", timestamp % 1_000_000_000_000)
+    format!("zanshin_party_{}", timestamp % PARTY_ID_MODULO)
 }
 
 /// Generate a join secret for party invites
+/// Note: This uses timestamp-based generation for simplicity.
+/// For production use with security requirements, consider using
+/// a cryptographically secure random number generator.
 fn generate_join_secret() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    // Create a pseudo-random secret using timestamp
-    format!("zanshin_join_{}_{}", timestamp % 1_000_000_000, (timestamp / 7) % 1_000_000)
+    // Use prime divisor for better distribution across the ID space
+    format!("zanshin_join_{}_{}", 
+        timestamp % SECRET_PRIMARY_MODULO, 
+        (timestamp / SECRET_DIVISOR) % SECRET_SECONDARY_MODULO)
 }
 
 pub struct DiscordRpcState {

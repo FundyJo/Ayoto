@@ -675,6 +675,9 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
   const [connectionHealth, setConnectionHealth] = useState(null)
   const [isReconnecting, setIsReconnecting] = useState(false)
   const [autoReconnect, setAutoReconnect] = useState(true)
+  
+  // Use ref to track reconnection state synchronously to prevent race conditions
+  const isReconnectingRef = useRef(false)
 
   // Load quality presets and session on mount
   useEffect(() => {
@@ -711,7 +714,8 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
           setConnectionHealth(health)
           
           // Auto-reconnect if connection is unhealthy
-          if (!health.isHealthy && autoReconnect && !isReconnecting) {
+          // Use ref to synchronously check reconnection state to prevent race conditions
+          if (!health.isHealthy && autoReconnect && !isReconnectingRef.current) {
             console.log('Connection unhealthy, attempting reconnection...')
             handleReconnect()
           }
@@ -719,9 +723,10 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
       } catch (error) {
         console.error('Heartbeat failed:', error)
         // Report error and potentially trigger reconnect
+        // Use ref to synchronously check reconnection state
         if (window.api?.miracast) {
           await window.api.miracast.reportError(error.message || 'Heartbeat failed')
-          if (autoReconnect && !isReconnecting) {
+          if (autoReconnect && !isReconnectingRef.current) {
             handleReconnect()
           }
         }
@@ -729,7 +734,7 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
     }, 10000) // Send heartbeat every 10 seconds
 
     return () => clearInterval(heartbeatInterval)
-  }, [session, autoReconnect, isReconnecting])
+  }, [session, autoReconnect])
 
   // Scan for devices
   const handleScan = useCallback(async () => {
@@ -768,9 +773,13 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
   }
 
   // Reconnect to device
+  // Uses ref to prevent race conditions with multiple heartbeat failures
   const handleReconnect = async () => {
-    if (isReconnecting) return
+    // Check ref synchronously to prevent concurrent calls
+    if (isReconnectingRef.current) return
     
+    // Set ref immediately before async operation
+    isReconnectingRef.current = true
     setIsReconnecting(true)
     try {
       if (window.api?.miracast) {
@@ -789,8 +798,11 @@ function MiracastSubmenu({ videoUrl, videoTitle, isSupported, onCastStart }) {
         retryCount: 3,
         maxRetries: 3
       })
+    } finally {
+      // Always reset the ref in finally block
+      isReconnectingRef.current = false
+      setIsReconnecting(false)
     }
-    setIsReconnecting(false)
   }
 
   // Disconnect

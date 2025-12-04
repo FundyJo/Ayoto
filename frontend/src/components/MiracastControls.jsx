@@ -3,7 +3,7 @@
  * UI for Miracast screen casting functionality
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button, Select } from '@radix-ui/themes'
 import {
   Cross2Icon,
@@ -256,6 +256,9 @@ export default function MiracastControls({
   const [connectionHealth, setConnectionHealth] = useState(null)
   const [isReconnecting, setIsReconnecting] = useState(false)
   const [autoReconnect, setAutoReconnect] = useState(true)
+  
+  // Use ref to track reconnection state synchronously to prevent race conditions
+  const isReconnectingRef = useRef(false)
 
   // Check if Miracast is supported
   useEffect(() => {
@@ -311,7 +314,8 @@ export default function MiracastControls({
           setConnectionHealth(health)
           
           // Auto-reconnect if connection is unhealthy
-          if (!health.isHealthy && autoReconnect && !isReconnecting) {
+          // Use ref to synchronously check reconnection state to prevent race conditions
+          if (!health.isHealthy && autoReconnect && !isReconnectingRef.current) {
             console.log('Connection unhealthy, attempting reconnection...')
             handleReconnect()
           }
@@ -319,9 +323,10 @@ export default function MiracastControls({
       } catch (error) {
         console.error('Heartbeat failed:', error)
         // Report error and potentially trigger reconnect
+        // Use ref to synchronously check reconnection state
         if (window.api?.miracast) {
           await window.api.miracast.reportError(error.message || 'Heartbeat failed')
-          if (autoReconnect && !isReconnecting) {
+          if (autoReconnect && !isReconnectingRef.current) {
             handleReconnect()
           }
         }
@@ -329,7 +334,7 @@ export default function MiracastControls({
     }, 10000) // Send heartbeat every 10 seconds
 
     return () => clearInterval(heartbeatInterval)
-  }, [session, autoReconnect, isReconnecting])
+  }, [session, autoReconnect])
 
   // Scan for devices
   const handleScan = useCallback(async () => {
@@ -374,9 +379,13 @@ export default function MiracastControls({
   }
 
   // Reconnect to device
+  // Uses ref to prevent race conditions with multiple heartbeat failures
   const handleReconnect = async () => {
-    if (isReconnecting) return
+    // Check ref synchronously to prevent concurrent calls
+    if (isReconnectingRef.current) return
     
+    // Set ref immediately before async operation
+    isReconnectingRef.current = true
     setIsReconnecting(true)
     toast.info('Attempting to reconnect...')
     
@@ -397,8 +406,11 @@ export default function MiracastControls({
         maxRetries: 3
       })
       toast.error(error.message || 'Reconnection failed')
+    } finally {
+      // Always reset the ref in finally block
+      isReconnectingRef.current = false
+      setIsReconnecting(false)
     }
-    setIsReconnecting(false)
   }
 
   // Disconnect

@@ -169,6 +169,12 @@ const MAX_RETRY_COUNT: u32 = 3;
 /// Heartbeat timeout in milliseconds (30 seconds)
 const HEARTBEAT_TIMEOUT_MS: i64 = 30_000;
 
+/// Base delay for reconnection attempts in milliseconds
+const BASE_RETRY_DELAY_MS: u64 = 1000;
+
+/// Exponential backoff multiplier for retry delays
+const RETRY_BACKOFF_MULTIPLIER: u32 = 2;
+
 /// Miracast manager state
 pub struct MiracastState {
     /// Discovered devices
@@ -623,7 +629,7 @@ pub fn miracast_heartbeat(state: State<'_, MiracastState>) -> Result<ConnectionH
 /// Uses exponential backoff for retry attempts
 #[tauri::command]
 pub async fn miracast_reconnect(state: State<'_, MiracastState>) -> Result<MiracastSession, String> {
-    // Get current session info
+    // Get current session info (release lock immediately)
     let (device, quality) = {
         let session = state
             .session
@@ -637,10 +643,9 @@ pub async fn miracast_reconnect(state: State<'_, MiracastState>) -> Result<Mirac
         (current.device.clone(), current.quality.clone())
     };
     
-    // Increment retry counter
-    let retry_count = state.connection_attempts.fetch_add(1, Ordering::SeqCst);
-    
-    if retry_count >= MAX_RETRY_COUNT {
+    // Check retry count BEFORE incrementing to fix off-by-one issue
+    let current_count = state.connection_attempts.load(Ordering::SeqCst);
+    if current_count >= MAX_RETRY_COUNT {
         state.connection_attempts.store(0, Ordering::SeqCst);
         return Err(format!(
             "Maximum reconnection attempts ({}) reached. Please scan for devices and try connecting again.",
@@ -648,10 +653,13 @@ pub async fn miracast_reconnect(state: State<'_, MiracastState>) -> Result<Mirac
         ));
     }
     
+    // Now increment the counter
+    let retry_count = state.connection_attempts.fetch_add(1, Ordering::SeqCst);
+    
     log::info!("Attempting reconnection to {} (attempt {}/{})", 
         device.name, retry_count + 1, MAX_RETRY_COUNT);
     
-    // Update session state to connecting
+    // Update session state to connecting (brief lock)
     {
         let mut session = state
             .session
@@ -665,13 +673,17 @@ pub async fn miracast_reconnect(state: State<'_, MiracastState>) -> Result<Mirac
         }
     }
     
-    // Simulate reconnection delay (exponential backoff)
-    let delay_ms = 1000 * (2_u64.pow(retry_count));
+    // Calculate exponential backoff delay using named constants
+    let delay_ms = BASE_RETRY_DELAY_MS * (RETRY_BACKOFF_MULTIPLIER as u64).pow(retry_count);
     log::info!("Waiting {}ms before reconnection attempt", delay_ms);
     
-    // In a real implementation, this would actually attempt to reconnect
+    // In a real implementation, this would:
+    // 1. Release all locks
+    // 2. Perform actual network reconnection operations
+    // 3. Re-acquire lock only to update state
     // For now, simulate successful reconnection
     
+    // Update session with successful reconnection
     let mut session = state
         .session
         .lock()
