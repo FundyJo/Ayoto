@@ -164,8 +164,8 @@ pub fn run() {
               if let Some(v) = persisted_settings.download_limit {
                 settings.download_limit = Some(v);
               }
-              if persisted_settings.downloads_folder.is_some() {
-                settings.downloads_folder = persisted_settings.downloads_folder;
+              if let Some(v) = persisted_settings.downloads_folder {
+                settings.downloads_folder = Some(v);
               }
               if let Some(v) = persisted_settings.backend_port {
                 settings.backend_port = Some(v);

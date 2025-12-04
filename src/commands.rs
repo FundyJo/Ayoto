@@ -278,8 +278,8 @@ pub fn window_reload(window: Window) -> Result<(), String> {
 pub async fn save_to_settings(
     key: String,
     value: serde_json::Value,
-    app: AppHandle,
-    state: State<'_, AppState>
+    state: State<'_, AppState>,
+    app: AppHandle
 ) -> Result<(), String> {
     let mut settings = state.settings.lock()
         .map_err(|e| format!("Failed to lock settings: {}", e))?;

@@ -393,11 +393,16 @@ export default function Settings() {
           <Switch
             checked={broadcastDiscordRpc}
             style={{ marginLeft: '1.5rem', cursor: 'pointer' }}
-            onCheckedChange={() => {
+            onCheckedChange={async () => {
               const newValue = !broadcastDiscordRpc
               setBroadcastDiscordRpc(newValue)
               window.api.broadcastDiscordRpc(newValue)
-              window.api.saveToSettings('broadcastDiscordRpc', newValue)
+              try {
+                await window.api.saveToSettings('broadcastDiscordRpc', newValue)
+              } catch (error) {
+                console.error('Failed to save Discord RPC setting:', error)
+                toast.error('Failed to save setting')
+              }
             }}
           />
         </div>
