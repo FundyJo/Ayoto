@@ -805,8 +805,12 @@ const plugin = {
     const hosterPatterns = [
       { name: 'VOE', pattern: /data-link-target="([^"]*voe[^"]*)"/gi },
       { name: 'Vidoza', pattern: /data-link-target="([^"]*vidoza[^"]*)"/gi },
+      { name: 'Vidmoly', pattern: /data-link-target="([^"]*vidmoly[^"]*)"/gi },
       { name: 'Streamtape', pattern: /data-link-target="([^"]*streamtape[^"]*)"/gi },
-      { name: 'Doodstream', pattern: /data-link-target="([^"]*dood[^"]*)"/gi }
+      { name: 'Doodstream', pattern: /data-link-target="([^"]*dood[^"]*)"/gi },
+      { name: 'Filemoon', pattern: /data-link-target="([^"]*filemoon[^"]*)"/gi },
+      { name: 'SpeedFiles', pattern: /data-link-target="([^"]*speedfiles[^"]*)"/gi },
+      { name: 'Luluvdo', pattern: /data-link-target="([^"]*luluvdo[^"]*)"/gi }
     ];
     
     for (const hoster of hosterPatterns) {
@@ -928,10 +932,13 @@ const plugin = {
     const urlLower = url.toLowerCase();
     if (urlLower.includes('voe')) return 'VOE';
     if (urlLower.includes('vidoza')) return 'Vidoza';
+    if (urlLower.includes('vidmoly')) return 'Vidmoly';
     if (urlLower.includes('streamtape')) return 'Streamtape';
     if (urlLower.includes('dood')) return 'Doodstream';
     if (urlLower.includes('filemoon')) return 'Filemoon';
     if (urlLower.includes('mp4upload')) return 'Mp4upload';
+    if (urlLower.includes('speedfiles')) return 'SpeedFiles';
+    if (urlLower.includes('luluvdo')) return 'Luluvdo';
     return 'Unknown';
   },
 
