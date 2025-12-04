@@ -477,15 +477,17 @@ export default function Settings() {
               <p className="font-bold">Casting Support</p>
               <p className="text-xs">
                 Cast video content to external displays and TVs. 
-                The appropriate casting method is automatically selected based on your device:
+                The following casting methods are available:
               </p>
               <ul className="text-xs mt-2 ml-4 list-disc text-gray-400">
-                <li><span className="text-white">AirPlay</span> - iOS and macOS devices</li>
-                <li><span className="text-white">Chromecast</span> - Android, Windows, and Linux devices</li>
-                <li><span className="text-white">Miracast</span> - Windows and Linux devices (secondary option)</li>
+                <li><span className="text-white">AirPlay</span> - iOS and macOS devices (native browser support)</li>
+                <li><span className="text-white">Miracast</span> - Windows and Linux devices</li>
               </ul>
               <p className="text-xs mt-2 text-gray-500">
                 Use the cast button in the video player to connect to nearby devices.
+              </p>
+              <p className="text-xs mt-2 text-gray-600">
+                Note: Google Cast/Chromecast is not available in desktop apps as it requires Chrome browser and the Google Cast SDK.
               </p>
             </div>
           </div>
