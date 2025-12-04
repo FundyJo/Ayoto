@@ -1294,32 +1294,7 @@ const VidstackPlayer = forwardRef(function VidstackPlayer(
         />
       )}
 
-      {/* WebGPU status indicator (only shown when Anime4K is enabled) */}
-      {isAnime4KEnabled && webGPUSupported !== null && (
-        <div 
-          className="anime4k-status-indicator"
-          role="status"
-          aria-label={useWebGPUMode ? 'Anime4K WebGPU processing active' : 'Anime4K CSS filter fallback active'}
-          style={{
-            position: 'absolute',
-            top: '8px',
-            left: '8px',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '10px',
-            fontWeight: 'bold',
-            backgroundColor: useWebGPUMode ? 'rgba(0, 200, 83, 0.8)' : 'rgba(255, 152, 0, 0.8)',
-            color: 'white',
-            zIndex: 10,
-            pointerEvents: 'none',
-            opacity: 0.9,
-            transition: 'opacity 0.3s ease'
-          }}
-        >
-          <span aria-hidden="true">{useWebGPUMode ? '⚡' : '🎨'}</span>
-          <span>{useWebGPUMode ? ' WebGPU Anime4K' : ' CSS Filter'}</span>
-        </div>
-      )}
+
     </div>
   )
 })
