@@ -597,12 +597,14 @@ export default function PluginAnimePage() {
   const handleHosterClick = async (episode, hosterName) => {
     // Check if we already have streams for this episode
     if (episodeStreams[episode.id]) {
-      // If streams are already loaded, filter and play the selected hoster
-      const matchingStream = episodeStreams[episode.id].find(
-        s => s.server?.toLowerCase() === hosterName?.toLowerCase()
-      )
-      if (matchingStream) {
-        handlePlayStream(matchingStream, episode)
+      // If streams are already loaded and we have a specific hoster, play its stream
+      if (hosterName) {
+        const matchingStream = episodeStreams[episode.id].find(
+          s => s.server?.toLowerCase() === hosterName.toLowerCase()
+        )
+        if (matchingStream) {
+          handlePlayStream(matchingStream, episode)
+        }
       }
       return
     }
@@ -626,14 +628,12 @@ export default function PluginAnimePage() {
         // Mark episode as watched when streams are fetched
         markEpisodeWatched(episode.id)
         
-        // Find and play the matching stream for the clicked hoster
-        if (streams && streams.length > 0) {
+        // Show toast if no streams were found for the requested hoster
+        if (streams && streams.length > 0 && hosterName) {
           const matchingStream = streams.find(
-            s => s.server?.toLowerCase() === hosterName?.toLowerCase()
+            s => s.server?.toLowerCase() === hosterName.toLowerCase()
           )
-          if (matchingStream) {
-            // Don't auto-play, just show the streams
-          } else {
+          if (!matchingStream) {
             toast.info(`No stream found for ${hosterName}`, {
               description: `Found ${streams.length} streams from other hosters`
             })
