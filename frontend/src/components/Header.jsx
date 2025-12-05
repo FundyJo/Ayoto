@@ -129,13 +129,13 @@ export default function Header() {
   const animepahe = pathname.includes('/animepahe')
 
   return (
-    <div className="draggable sticky top-0 z-50 flex h-11 items-center border-[#5a5e6750] bg-[#111113] bg-opacity-60 px-4 pr-[150px] py-3 backdrop-blur-md relative">
-      <div className="nodrag flex items-center justify-center gap-x-2 flex-shrink-0">
+    <div className="draggable sticky top-0 z-50 flex h-auto min-h-[2.75rem] sm:h-11 flex-wrap sm:flex-nowrap items-center border-[#5a5e6750] bg-[#111113] bg-opacity-60 px-2 sm:px-4 pr-[100px] sm:pr-[150px] py-2 sm:py-3 backdrop-blur-md relative gap-y-2">
+      <div className="nodrag flex items-center justify-center gap-x-1 sm:gap-x-2 flex-shrink-0 flex-wrap">
         <Link
-          className="nodrag hover: font-spaceMono flex w-fit cursor-pointer select-none gap-x-2 rounded-sm p-1 text-sm transition-all duration-200 hover:bg-[#70707030]"
+          className="nodrag hover: font-spaceMono flex w-fit cursor-pointer select-none gap-x-2 rounded-sm p-1 text-sm transition-all duration-200 hover:bg-[#70707030] focus:outline-none focus:ring-2 focus:ring-blue-500"
           to={'/'}
         >
-          <img src={zenshinLogo} alt="" className="w-16" />
+          <img src={zenshinLogo} alt="" className="w-12 sm:w-16" />
         </Link>
         {/* <DividerVerticalIcon width={20} height={20} color="#ffffff40" /> */}
         {/* <a className="nodrag" href="https://github.com/hitarth-gg" target="_blank" rel="noreferrer">
@@ -144,25 +144,25 @@ export default function Header() {
           </Button>
         </a> */}
 
-        <DividerVerticalIcon width={20} height={20} color="#ffffff40" />
-        <div className="flex gap-4">
-          <Button color="gray" variant="ghost" size={'1'} onClick={() => navigate(-1)}>
+        <DividerVerticalIcon width={20} height={20} color="#ffffff40" className="hidden sm:block" />
+        <div className="flex gap-2 sm:gap-4">
+          <Button color="gray" variant="ghost" size={'1'} onClick={() => navigate(-1)} className="focus:outline-none focus:ring-2 focus:ring-blue-500">
             <ArrowLeftIcon className="my-1" width={16} height={16} />
           </Button>
-          <Button color="gray" variant="ghost" size={'1'} onClick={() => navigate(1)}>
+          <Button color="gray" variant="ghost" size={'1'} onClick={() => navigate(1)} className="focus:outline-none focus:ring-2 focus:ring-blue-500">
             <ArrowRightIcon className="my-1" width={16} height={16} />
           </Button>
         </div>
-        <DividerVerticalIcon width={20} height={20} color="#ffffff40" />
-        <Link to="/newreleases">
-          <Button className="nodrag" color="gray" variant="soft" size={'1'}>
+        <DividerVerticalIcon width={20} height={20} color="#ffffff40" className="hidden sm:block" />
+        <Link to="/newreleases" className="hidden xs:block">
+          <Button className="nodrag focus:outline-none focus:ring-2 focus:ring-blue-500" color="gray" variant="soft" size={'1'}>
             {/* <div className="p-1 font-space-mono text-[.8rem]">New Releases</div> */}
-            <div className="font-space-mono text-[.8rem]">New</div>
+            <div className="font-space-mono text-[.7rem] sm:text-[.8rem]">New</div>
           </Button>
         </Link>
         {/* <DividerVerticalIcon width={20} height={20} color="#ffffff40" /> */}
         <Button
-          className="nodrag"
+          className="nodrag hidden xs:flex focus:outline-none focus:ring-2 focus:ring-blue-500"
           size="1"
           color="gray"
           variant="soft"
@@ -175,7 +175,7 @@ export default function Header() {
         {/* <DividerVerticalIcon width={20} height={20} color="#ffffff40" /> */}
 
         <Button
-          className="nodrag"
+          className="nodrag hidden xs:flex focus:outline-none focus:ring-2 focus:ring-blue-500"
           size="1"
           color="gray"
           variant="soft"
@@ -191,30 +191,32 @@ export default function Header() {
         {/* Watchlist Button - visible when logged in */}
         {userProfile && (
           <Button
-            className="nodrag"
+            className="nodrag hidden sm:flex focus:outline-none focus:ring-2 focus:ring-blue-500"
             size="1"
             color="blue"
             variant="soft"
             onClick={() => navigate('/bookmarks')}
           >
             <BookmarkIcon />
-            <span className="font-space-mono text-[.8rem]">Watchlist</span>
+            <span className="font-space-mono text-[.8rem] hidden md:inline">Watchlist</span>
           </Button>
         )}
       </div>
 
-      <div className="nodrag absolute left-1/2 transform -translate-x-1/2 w-2/6 max-w-md z-10">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
-      <div className="nodrag ml-auto flex items-center justify-center gap-x-4">
-        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/downloads')}>
+      <div className="nodrag absolute left-1/2 transform -translate-x-1/2 w-1/3 sm:w-2/6 max-w-md z-10 hidden xs:block">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
+      <div className="nodrag ml-auto flex items-center justify-center gap-x-2 sm:gap-x-4">
+        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/downloads')} className="focus:outline-none focus:ring-2 focus:ring-blue-500">
           <DownloadIcon />
         </Button>
-        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/offline')} title="Offline Library">
+        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/offline')} title="Offline Library" className="hidden sm:flex focus:outline-none focus:ring-2 focus:ring-blue-500">
           <ArchiveIcon />
         </Button>
-        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/plugins')}>
+        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/plugins')} className="hidden sm:flex focus:outline-none focus:ring-2 focus:ring-blue-500">
           <MixIcon />
         </Button>
-        <DownloadMeter />
+        <div className="hidden md:block">
+          <DownloadMeter />
+        </div>
 
         {true && (
           <DropdownMenu.Root className="nodrag" modal={false}>

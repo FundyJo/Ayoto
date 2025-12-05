@@ -166,17 +166,15 @@ export default function Home() {
     <div className="select-none font-space-mono tracking-tight">
       {!hideHero && (
         <div
-          className="relative flex min-h-[96svh] animate-fade flex-col items-center justify-center gap-x-24 gap-y-11 lg:flex-row"
-          style={
-            {
-              // backgroundImage: `url(${gradient1})`,
-              // backgroundSize: 'cover',
-              // background: `linear-gradient(rgba(17,17,19,${1 - bgOpacity}), rgba(17,17,19,${1 - bgOpacity})), url(${gradient1})`
-            }
-          }
+          className="relative flex min-h-[60svh] sm:min-h-[80svh] lg:min-h-[96svh] animate-fade flex-col items-center justify-center gap-x-24 gap-y-6 sm:gap-y-11 lg:flex-row px-2 sm:px-4"
+          style={{
+            // backgroundImage: `url(${gradient1})`,
+            // backgroundSize: 'cover',
+            // background: `linear-gradient(rgba(17,17,19,${1 - bgOpacity}), rgba(17,17,19,${1 - bgOpacity})), url(${gradient1})`
+          }}
         >
           <div
-            className="stroke-text absolute top-[-200px] w-full overflow-hidden text-nowrap text-[22rem] text-[#ffffff20]"
+            className="stroke-text absolute top-[-200px] w-full overflow-hidden text-nowrap text-[8rem] sm:text-[14rem] lg:text-[22rem] text-[#ffffff20] hidden sm:block"
             style={{
               opacity: bgOpacity
               // if scrollOpacity is false, then do not change opacity on scroll
@@ -186,7 +184,7 @@ export default function Home() {
             全身全身全身
           </div>
           <div
-            className="stroke-text absolute w-full overflow-hidden text-nowrap text-[22rem] text-[#ffffff20]"
+            className="stroke-text absolute w-full overflow-hidden text-nowrap text-[8rem] sm:text-[14rem] lg:text-[22rem] text-[#ffffff20] hidden sm:block"
             style={{
               // opacity: scrollOpacity ? bgOpacity : 1
               opacity: bgOpacity
@@ -195,7 +193,7 @@ export default function Home() {
             ZENSHIN ZENSHIN ZENSHIN
           </div>
           <div
-            className="stroke-text absolute bottom-[-200px] w-full overflow-hidden text-nowrap text-[22rem] text-[#ffffff20]"
+            className="stroke-text absolute bottom-[-200px] w-full overflow-hidden text-nowrap text-[8rem] sm:text-[14rem] lg:text-[22rem] text-[#ffffff20] hidden sm:block"
             style={{
               // opacity: scrollOpacity ? bgOpacity : 1
               opacity: bgOpacity
@@ -204,9 +202,9 @@ export default function Home() {
             七転び八起き
           </div>
 
-          <div className="my-12 flex h-full w-8/12 flex-col items-center justify-start gap-y-1 p-3 lg:w-2/5">
-            <img src={zenshinLogo} alt="" className="drop-shadow-xl h-[6rem] object-scale-down" />
-            <p className="text-center font-space-mono">
+          <div className="my-6 sm:my-12 flex h-full w-full sm:w-10/12 lg:w-2/5 flex-col items-center justify-start gap-y-1 p-2 sm:p-3">
+            <img src={zenshinLogo} alt="" className="drop-shadow-xl h-12 sm:h-[6rem] object-scale-down" />
+            <p className="text-center font-space-mono text-sm sm:text-base">
               {/* Stream your favourite anime instantly with our service, no waiting for downloads,
               reliable and seamless streaming directly to the app / External Media Player. */}
               A desktop anime list manager with media streaming capabilities.
@@ -254,37 +252,37 @@ export default function Home() {
                   // gradient from left to right black to transparent
                   <div
                     key={anime.id + 'bannerAnime'}
-                    className="relative h-72 cursor-pointer 2xl:h-96"
+                    className="relative h-48 sm:h-64 md:h-72 cursor-pointer 2xl:h-96 tv:h-[28rem]"
                     onClick={() => navigate(`/anime/${anime.id}`, { state: { data: anime } })}
                   >
-                    <div className="mask absolute h-full w-8/12 bg-gradient-to-r from-[#141414] backdrop-blur-md"></div>
-                    <div className="absolute ml-5 flex h-full flex-col items-start justify-center gap-y-2 px-2 2xl:gap-y-6">
-                      <div className="line-clamp-1 max-w-xl bg-gradient-to-r from-[#14141480] py-1 text-start text-2xl font-semibold tracking-wider text-white drop-shadow-3xl">
+                    <div className="mask absolute h-full w-full sm:w-8/12 bg-gradient-to-r from-[#141414] backdrop-blur-md"></div>
+                    <div className="absolute ml-2 sm:ml-5 flex h-full flex-col items-start justify-center gap-y-1 sm:gap-y-2 px-1 sm:px-2 2xl:gap-y-6">
+                      <div className="line-clamp-1 max-w-[90%] sm:max-w-xl bg-gradient-to-r from-[#14141480] py-1 text-start text-base sm:text-xl md:text-2xl font-semibold tracking-wider text-white drop-shadow-3xl">
                         {anime.title.romaji}
                       </div>
-                      <div className="mb-4 line-clamp-1 max-w-2xl text-start text-xs tracking-wider text-white drop-shadow-3xl">
+                      <div className="mb-2 sm:mb-4 line-clamp-1 max-w-[90%] sm:max-w-2xl text-start text-[10px] sm:text-xs tracking-wider text-white drop-shadow-3xl">
                         {anime.title.english}
                       </div>
 
                       {anime.description && (
-                        <div className="line-clamp-[9] w-80 text-left text-xs tracking-wide">
+                        <div className="hidden sm:block line-clamp-3 md:line-clamp-[9] w-48 sm:w-64 md:w-80 text-left text-[10px] sm:text-xs tracking-wide">
                           {HTMLReactParser(anime.description)}
                         </div>
                       )}
 
-                      <div className="flex gap-x-8 border border-[#ffffff70] bg-[#00000050] px-1 py-1 text-xs backdrop-blur-[2px]">
-                        <div>{anime.episodes || 0} episodes</div>
+                      <div className="flex flex-wrap gap-x-2 sm:gap-x-8 gap-y-1 border border-[#ffffff70] bg-[#00000050] px-1 py-1 text-[10px] sm:text-xs backdrop-blur-[2px]">
+                        <div>{anime.episodes || 0} eps</div>
                         {anime.averageScore && (
                           <div className="flex items-center gap-x-1 tracking-wide">
-                            <StarIcon /> {anime.averageScore} / 100
+                            <StarIcon className="h-3 w-3 sm:h-4 sm:w-4" /> {anime.averageScore}
                           </div>
                         )}
-                        <div className="flex items-center gap-x-1 tracking-wide">
-                          <PersonIcon />
-                          {anime.popularity.toLocaleString()}
+                        <div className="hidden xs:flex items-center gap-x-1 tracking-wide">
+                          <PersonIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                          {anime.popularity > 999 ? `${(anime.popularity / 1000).toFixed(0)}k` : anime.popularity}
                         </div>
                         <div className="flex items-center gap-x-1 tracking-wide">
-                          <VideoIcon className="h-4 w-4 text-white" />
+                          <VideoIcon className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                           {anime.format.slice(0, 3)}
                         </div>
                       </div>
@@ -292,7 +290,7 @@ export default function Home() {
                     <img
                       src={anime.bannerImage}
                       alt=""
-                      className="h-72 w-full object-cover 2xl:h-96"
+                      className="h-48 sm:h-64 md:h-72 w-full object-cover 2xl:h-96 tv:h-[28rem]"
                     />
                   </div>
                 ))}
@@ -300,18 +298,20 @@ export default function Home() {
           </div>
 
           {animepaheReleases?.data && (
-            <div className="mx-3 mt-4">
-              <div className="mb-2 ml-5 border-b border-gray-700 pb-1 font-space-mono text-lg font-bold tracking-wider">
+            <div className="mx-2 sm:mx-3 mt-4">
+              <div className="mb-2 ml-2 sm:ml-5 border-b border-gray-700 pb-1 font-space-mono text-sm sm:text-lg font-bold tracking-wider">
                 <Tooltip content="View all releases">
                   <p
-                    className="w-fit cursor-pointer transition-all duration-200 ease-in-out"
+                    className="w-fit cursor-pointer transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500"
                     onClick={() => navigate('/animepahe')}
+                    tabIndex={0}
+                    role="button"
                   >
                     New AnimePahe Releases
                   </p>
                 </Tooltip>
               </div>
-              <div className="grid animate-fade grid-cols-4">
+              <div className="grid animate-fade grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
                 {animepaheReleases?.data?.slice(0, 8)?.map((ep) => (
                   <AnimepaheEpisodeCard key={ep.id + 'animepaheReleases'} data={ep} />
                 ))}
@@ -322,15 +322,15 @@ export default function Home() {
       )}
 
       {error && (
-        <div className="text-red-500">Failed to fetch Top Airing Anime : {error.message}</div>
+        <div className="text-red-500 px-2 sm:px-4">Failed to fetch Top Airing Anime : {error.message}</div>
       )}
 
       {userId && currentlyWatching?.length > 0 && (
-        <div className="mx-3 mt-4">
-          <div className="mb-2 ml-5 border-b border-gray-700 pb-1 font-space-mono text-lg font-bold tracking-wider">
+        <div className="mx-2 sm:mx-3 mt-4">
+          <div className="mb-2 ml-2 sm:ml-5 border-b border-gray-700 pb-1 font-space-mono text-sm sm:text-lg font-bold tracking-wider">
             Continue Watching
           </div>
-          <div className="grid animate-fade grid-cols-3">
+          <div className="grid animate-fade grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {currentlyWatching?.slice(0, 3)?.map((anime) => (
               <CurrentlyWatchingCard key={anime.id + 'currentlyWatching'} data={anime} />
             ))}
@@ -340,11 +340,11 @@ export default function Home() {
 
       {/* {status === 'success' && !error && ( */}
       {!error && (
-        <div className="mx-5 mt-8">
-          <div className="mb-2 border-b border-gray-700 pb-1 font-space-mono text-lg font-bold tracking-wider">
+        <div className="mx-2 sm:mx-5 mt-4 sm:mt-8">
+          <div className="mb-2 border-b border-gray-700 pb-1 font-space-mono text-sm sm:text-lg font-bold tracking-wider">
             Top Airing Anime
           </div>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-x-4 overflow-x-visible pl-4">
+          <div className="grid grid-cols-2 xs:grid-cols-[repeat(auto-fit,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))] lg:grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-2 sm:gap-x-4 overflow-x-visible px-1 sm:pl-4">
             {!isLoading &&
               !error &&
               topAiringAnime?.map((anime) => (
@@ -366,12 +366,12 @@ export default function Home() {
       )}
 
       {infiniteQueryError && (
-        <div className="text-red-500">Failed to fetch Top Anime : {infiniteQueryError.message}</div>
+        <div className="text-red-500 px-2 sm:px-4">Failed to fetch Top Anime : {infiniteQueryError.message}</div>
       )}
 
       {!infiniteQueryError && topAnime?.length > 0 && (
-        <div className="mx-5 mt-12">
-          <div className="mb-2 border-b border-gray-700 pb-1 font-space-mono text-lg font-bold tracking-wider">
+        <div className="mx-2 sm:mx-5 mt-8 sm:mt-12">
+          <div className="mb-2 border-b border-gray-700 pb-1 font-space-mono text-sm sm:text-lg font-bold tracking-wider">
             Top Anime
           </div>
 
@@ -391,37 +391,37 @@ export default function Home() {
                   // gradient from left to right black to transparent
                   <div
                     key={anime.id + 'bannerAnime'}
-                    className="relative h-72 cursor-pointer 2xl:h-96"
+                    className="relative h-48 sm:h-64 md:h-72 cursor-pointer 2xl:h-96 tv:h-[28rem]"
                     onClick={() => navigate(`/anime/${anime.id}`, { state: { data: anime } })}
                   >
-                    <div className="mask absolute h-full w-8/12 bg-gradient-to-r from-[#141414] backdrop-blur-md"></div>
-                    <div className="absolute ml-5 flex h-full flex-col items-start justify-center gap-y-2 px-2 2xl:gap-y-6">
-                      <div className="line-clamp-1 max-w-xl bg-gradient-to-r from-[#14141480] py-1 text-start text-2xl font-semibold tracking-wider text-white drop-shadow-3xl">
+                    <div className="mask absolute h-full w-full sm:w-8/12 bg-gradient-to-r from-[#141414] backdrop-blur-md"></div>
+                    <div className="absolute ml-2 sm:ml-5 flex h-full flex-col items-start justify-center gap-y-1 sm:gap-y-2 px-1 sm:px-2 2xl:gap-y-6">
+                      <div className="line-clamp-1 max-w-[90%] sm:max-w-xl bg-gradient-to-r from-[#14141480] py-1 text-start text-base sm:text-xl md:text-2xl font-semibold tracking-wider text-white drop-shadow-3xl">
                         {anime.title.romaji}
                       </div>
-                      <div className="mb-4 line-clamp-1 max-w-2xl text-start text-xs tracking-wider text-white drop-shadow-3xl">
+                      <div className="mb-2 sm:mb-4 line-clamp-1 max-w-[90%] sm:max-w-2xl text-start text-[10px] sm:text-xs tracking-wider text-white drop-shadow-3xl">
                         {anime.title.english}
                       </div>
 
                       {anime.description && (
-                        <div className="line-clamp-[9] w-80 text-left text-xs tracking-wide">
+                        <div className="hidden sm:block line-clamp-3 md:line-clamp-[9] w-48 sm:w-64 md:w-80 text-left text-[10px] sm:text-xs tracking-wide">
                           {HTMLReactParser(anime.description)}
                         </div>
                       )}
 
-                      <div className="flex gap-x-8 border border-[#ffffff70] bg-[#00000050] px-1 py-1 text-xs backdrop-blur-[2px]">
-                        <div>{anime.episodes || 0} episodes</div>
+                      <div className="flex flex-wrap gap-x-2 sm:gap-x-8 gap-y-1 border border-[#ffffff70] bg-[#00000050] px-1 py-1 text-[10px] sm:text-xs backdrop-blur-[2px]">
+                        <div>{anime.episodes || 0} eps</div>
                         {anime.averageScore && (
                           <div className="flex items-center gap-x-1 tracking-wide">
-                            <StarIcon /> {anime.averageScore} / 100
+                            <StarIcon className="h-3 w-3 sm:h-4 sm:w-4" /> {anime.averageScore}
                           </div>
                         )}
-                        <div className="flex items-center gap-x-1 tracking-wide">
-                          <PersonIcon />
-                          {anime.popularity.toLocaleString()}
+                        <div className="hidden xs:flex items-center gap-x-1 tracking-wide">
+                          <PersonIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                          {anime.popularity > 999 ? `${(anime.popularity / 1000).toFixed(0)}k` : anime.popularity}
                         </div>
                         <div className="flex items-center gap-x-1 tracking-wide">
-                          <VideoIcon className="h-4 w-4 text-white" />
+                          <VideoIcon className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                           {anime.format.slice(0, 3)}
                         </div>
                       </div>
@@ -429,7 +429,7 @@ export default function Home() {
                     <img
                       src={anime.bannerImage}
                       alt=""
-                      className="h-72 w-full object-cover 2xl:h-96"
+                      className="h-48 sm:h-64 md:h-72 w-full object-cover 2xl:h-96 tv:h-[28rem]"
                     />
                   </div>
                 ))}
@@ -449,7 +449,7 @@ export default function Home() {
               </div>
             }
           >
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-x-4 overflow-x-visible pl-4">
+            <div className="grid grid-cols-2 xs:grid-cols-[repeat(auto-fit,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))] lg:grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-2 sm:gap-x-4 overflow-x-visible px-1 sm:pl-4">
               {topAnime?.map((anime) => {
                 return <AnimeCard key={anime.id + 'topAnime'} data={anime} />
               })}

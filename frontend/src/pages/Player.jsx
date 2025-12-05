@@ -357,16 +357,17 @@ export default function Player(query) {
   }
 
   return (
-    <div className="mb-32 flex items-center justify-center px-8 font-space-mono">
+    <div className="mb-16 sm:mb-32 flex items-center justify-center px-2 sm:px-4 md:px-8 font-space-mono">
       <div className="w-full">
         {/* Player Type Selection - simplified, Anime4K settings now only in player menu */}
-        <div className="mb-4 flex items-center justify-center gap-4">
-          <span className="text-sm opacity-70">Player:</span>
+        <div className="mb-2 sm:mb-4 flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+          <span className="text-xs sm:text-sm opacity-70">Player:</span>
           <Button 
             size="1" 
             variant={playerType === 'vidstack' ? 'solid' : 'soft'}
             color={playerType === 'vidstack' ? 'blue' : 'gray'}
             onClick={() => handlePlayerTypeChange('vidstack')}
+            className="focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             Vidstack
           </Button>
@@ -375,15 +376,16 @@ export default function Player(query) {
             variant={playerType === 'plyr' ? 'solid' : 'soft'}
             color={playerType === 'plyr' ? 'blue' : 'gray'}
             onClick={() => handlePlayerTypeChange('plyr')}
+            className="focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             Plyr
           </Button>
         </div>
         
-        {/* Video Player */}
+        {/* Video Player - responsive sizing for mobile/tablet/desktop/TV */}
         {videoSrc && (
           <div className="flex w-full justify-center">
-            <div className="mx-0 aspect-video w-4/6 lg2:mx-32">
+            <div className="mx-0 aspect-video w-full sm:w-5/6 md:w-4/6 lg2:mx-32 tv:w-[85vw] tv:mx-auto">
               {playerType === 'vidstack' ? (
                 <VidstackPlayer
                   ref={vidstackRef}
@@ -415,23 +417,24 @@ export default function Player(query) {
           />
         )}
 
-        <div className="fixed-width border border-gray-700 bg-[#1d1d20] p-4">
+        <div className="fixed-width border border-gray-700 bg-[#1d1d20] p-2 sm:p-4">
           <StreamStats magnetURI={magnetURI} />
 
-          <div className="mt-5 flex gap-x-3">
-            <Button onClick={getFiles} size="1" color="blue" variant="soft" type="submit">
+          <div className="mt-3 sm:mt-5 flex flex-wrap gap-2 sm:gap-x-3">
+            <Button onClick={getFiles} size="1" color="blue" variant="soft" type="submit" className="focus:outline-none focus:ring-2 focus:ring-blue-500">
               Get Files
             </Button>
-            <Button size="1" color="red" variant="soft" onClick={handleRemoveTorrent}>
-              Stop and Remove Anime
+            <Button size="1" color="red" variant="soft" onClick={handleRemoveTorrent} className="focus:outline-none focus:ring-2 focus:ring-red-500">
+              <span className="hidden sm:inline">Stop and Remove Anime</span>
+              <span className="sm:hidden">Stop</span>
             </Button>
-            <Button size="1" color="green" variant="soft" onClick={checkBackendRunning}>
+            <Button size="1" color="green" variant="soft" onClick={checkBackendRunning} className="hidden sm:flex focus:outline-none focus:ring-2 focus:ring-green-500">
               Ping Backend
             </Button>
           </div>
         </div>
         {files && (
-          <div className="mt-8">
+          <div className="mt-4 sm:mt-8">
             {files.map((file, index) => (
               <EpisodesPlayer
                 key={file.name}
