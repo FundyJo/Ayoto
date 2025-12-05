@@ -532,14 +532,11 @@ function StreamsList({
                     disabled={isExtractingStream}
                   >
                     {isExtractingStream ? (
-                      <>
-                        <Spinner size="1" />
-                        Extracting...
-                      </>
+                      <Spinner size="1" />
                     ) : (
                       <>
                         <PlayIcon className="h-3 w-3" />
-                        {needsExtraction(stream.format) ? 'Extract & Play' : 'Play'}
+                        Play
                       </>
                     )}
                   </Button>
