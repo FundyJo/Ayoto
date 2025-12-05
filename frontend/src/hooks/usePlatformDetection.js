@@ -24,7 +24,7 @@ export function usePlatformDetection() {
         const ua = navigator.userAgent.toLowerCase()
         if (ua.includes('android')) {
           setPlatform('android')
-        } else if (ua.includes('iphone') || ua.includes('ipad') || ua.includes('ios')) {
+        } else if (ua.includes('iphone') || ua.includes('ipad')) {
           setPlatform('ios')
         } else if (ua.includes('mac')) {
           setPlatform('macos')
