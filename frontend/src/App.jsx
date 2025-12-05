@@ -25,6 +25,9 @@ import { useEffect, useState } from 'react'
 // Import Tauri API to make it available globally
 import './utils/tauri-api'
 
+// Platform detection hook for applying platform-specific styles
+import usePlatformDetection from './hooks/usePlatformDetection'
+
 // import { lazy } from "react";
 
 // const AnimePage = lazy(() => import("./pages/AnimePage"));
@@ -159,6 +162,9 @@ const router = createHashRouter([
 ])
 
 function App() {
+  // Initialize platform detection to apply platform-specific styles to body
+  usePlatformDetection()
+
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
