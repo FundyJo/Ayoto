@@ -54,6 +54,34 @@
 .window-controls-wrapper .window-controls-tauri {
   height: 100%;
 }
+
+/* Platform-specific window controls styling */
+
+/* Windows platform styling - right aligned, Windows 11 style */
+.window-controls-windows {
+  right: 0;
+}
+
+/* macOS platform styling - left aligned, traffic lights */
+.window-controls-macos {
+  right: auto;
+  left: 0;
+  padding-left: 8px;
+}
+
+/* Linux/GNOME platform styling - right aligned, rounded buttons */
+.window-controls-linux {
+  right: 0;
+  padding-right: 10px;
+}
+
+/* Hide window controls on mobile platforms */
+@media (max-width: 640px), (pointer: coarse) {
+  /* On touch devices and small screens, reduce window controls visibility */
+  .window-controls-wrapper {
+    opacity: 0.8;
+  }
+}
 /* ------------------------------------------------------ */
 
 /* For blur mask of banner image */
@@ -959,5 +987,133 @@
   .h-72.2xl\:h-96 {
     height: 36rem;
   }
+}
+/* -------------------------------------------------------------- */
+
+/* ============================================================== */
+/* ANDROID PLATFORM SPECIFIC STYLES                               */
+/* ============================================================== */
+
+/* Android body class - added by platform detection */
+body.platform-android {
+  /* Safe area insets for notched devices */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  
+  /* Prevent text size adjustment on orientation change */
+  -webkit-text-size-adjust: 100%;
+  
+  /* Improve touch responsiveness */
+  touch-action: manipulation;
+}
+
+/* Android header - no window controls needed, more compact */
+body.platform-android .draggable {
+  /* Remove extra padding for window controls - not needed on Android */
+  padding-right: 0.5rem !important;
+  min-height: 3rem;
+  
+  /* Status bar safe area */
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+/* Android - Hide window controls completely */
+body.platform-android .window-controls-wrapper {
+  display: none !important;
+}
+
+/* Android - Larger touch targets for all interactive elements */
+body.platform-android button,
+body.platform-android .btn,
+body.platform-android [role="button"],
+body.platform-android a {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* Android navigation buttons - bigger for touch */
+body.platform-android .draggable button {
+  padding: 0.75rem;
+}
+
+/* Android - More compact search bar */
+body.platform-android .draggable .absolute.left-1\/2 {
+  width: 50%;
+  max-width: none;
+}
+
+/* Android cards - optimized grid for touch */
+body.platform-android .grid {
+  gap: 0.75rem;
+}
+
+/* Android - Larger carousel indicators for touch */
+body.platform-android .carousel-indicators button,
+body.platform-android .carousel-indicators [role="button"] {
+  min-width: 32px;
+  min-height: 32px;
+}
+
+/* Android - Improved scrolling */
+body.platform-android * {
+  -webkit-overflow-scrolling: touch;
+}
+
+body.platform-android ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+/* Android player controls - larger for touch */
+body.platform-android .vidstack-player-wrapper button,
+body.platform-android .vidstack-player-wrapper [role="button"] {
+  min-width: 52px;
+  min-height: 52px;
+}
+
+/* Android - Settings menu optimization */
+body.platform-android .vds-settings-menu {
+  min-width: 280px;
+  max-height: 70vh;
+}
+
+/* Android dropdown menus - touch optimized */
+body.platform-android [data-radix-menu-content] {
+  min-width: 200px;
+}
+
+body.platform-android [data-radix-menu-content] [role="menuitem"] {
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+}
+
+/* Android - Episode cards touch friendly */
+body.platform-android .episode-card,
+body.platform-android .anime-card {
+  min-height: 60px;
+}
+
+/* Android landscape mode optimizations */
+@media (orientation: landscape) and (max-height: 500px) {
+  body.platform-android .draggable {
+    min-height: 2.5rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+  
+  body.platform-android .h-72 {
+    height: 50vh;
+  }
+  
+  body.platform-android .vidstack-player-wrapper {
+    max-height: 100vh;
+  }
+}
+
+/* Android - Bottom navigation safe area */
+body.platform-android main {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 /* -------------------------------------------------------------- */
