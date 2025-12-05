@@ -850,30 +850,14 @@
 /* ============================================================== */
 
 /* Mobile header - compact mode */
-@media (max-width: 768px) {
-  /* Stack header items vertically if needed */
+@media (max-width: 640px) {
+  /* Keep header compact on mobile - don't wrap */
   .draggable {
-    flex-wrap: wrap;
-    height: auto;
+    flex-wrap: nowrap;
+    height: 2.75rem;
     min-height: 2.75rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-  }
-  
-  /* Centered search on mobile */
-  .draggable .absolute.left-1\/2 {
-    position: relative;
-    left: auto;
-    transform: none;
-    width: 100%;
-    max-width: 100%;
-    margin-top: 0.5rem;
-    order: 10;
-  }
-  
-  /* Hide some navigation items on small screens */
-  .draggable .flex-shrink-0 .font-space-mono {
-    display: none;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
   }
 }
 
