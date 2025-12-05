@@ -12,7 +12,8 @@ import {
   MagnifyingGlassIcon,
   GlobeIcon,
   StarFilledIcon,
-  ArchiveIcon
+  ArchiveIcon,
+  Link2Icon
 } from '@radix-ui/react-icons'
 import { jsPluginManager, PLUGIN_TYPE } from '../plugins'
 import { ZPEBuilder, zpePluginManager, ZPE_PLUGIN_TYPE } from '../zpe'
@@ -639,6 +640,22 @@ export default function Plugins() {
                               </span>
                             ))
                           }
+                        </div>
+                      )}
+                      
+                      {/* Required Domains */}
+                      {plugin.requiredDomains && plugin.requiredDomains.length > 0 && (
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          <Link2Icon className="h-3 w-3 text-gray-500" />
+                          <span className="text-xs text-gray-500">Domains:</span>
+                          {plugin.requiredDomains.map((domain) => (
+                            <span
+                              key={domain}
+                              className="rounded bg-purple-900/30 px-1.5 py-0.5 text-xs text-purple-300"
+                            >
+                              {domain}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>

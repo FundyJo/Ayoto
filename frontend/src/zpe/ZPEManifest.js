@@ -143,7 +143,7 @@ export const ZPE_PLUGIN_STATE = {
  * Security settings
  * @typedef {Object} ZPEManifestSecurity
  * @property {boolean} [sandboxed] - Run in sandboxed environment (default: true)
- * @property {string[]} [allowedDomains] - Allowed domains for network requests
+ * @property {string[]} [allowedDomains] - Required domains for network requests. Plugins MUST declare all domains they need to access (e.g., ["aniworld.to", "*.voe.sx"]). These domains will be displayed to users and enforced at runtime. Supports wildcard subdomains (*.domain.com).
  * @property {boolean} [cspEnabled] - Enable Content Security Policy (default: true)
  * @property {string} [integrityHash] - SHA-256 hash of plugin code
  */
