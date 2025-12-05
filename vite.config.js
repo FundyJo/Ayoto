@@ -27,6 +27,7 @@ export default defineConfig({
   
   // For development
   server: {
+    host: true, // Listen on all network interfaces for Tauri Android/iOS dev
     port: 5173,
     strictPort: true,
     watch: {
