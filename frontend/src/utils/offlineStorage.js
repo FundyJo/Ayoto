@@ -68,10 +68,12 @@ export function addOfflineEpisode(episodeData) {
   }
   
   if (existingIndex >= 0) {
-    // Update existing episode
+    // Update existing episode, preserving the original ID
+    const existingId = episodes[existingIndex].id
     episodes[existingIndex] = {
       ...episodes[existingIndex],
       ...newEpisode,
+      id: existingId, // Preserve original ID
       downloadedAt: episodes[existingIndex].downloadedAt // Keep original download date
     }
   } else {

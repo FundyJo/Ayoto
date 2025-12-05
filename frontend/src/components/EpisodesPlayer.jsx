@@ -1,8 +1,9 @@
 import { Button } from '@radix-ui/themes'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { DownloadIcon } from '@radix-ui/react-icons'
 import { addToDownloading, addOfflineEpisode, removeFromDownloading } from '../utils/offlineStorage'
 import { toast } from 'sonner'
+import { useZenshinContext } from '../utils/ContextProvider'
 
 export default function EpisodesPlayer({
   file,
@@ -19,6 +20,21 @@ export default function EpisodesPlayer({
 }) {
   const [isActive, setIsActive] = useState(false)
   const [isDownloadingOffline, setIsDownloadingOffline] = useState(false)
+  const { backendPort } = useZenshinContext()
+  const pollIntervalRef = useRef(null)
+  const timeoutRef = useRef(null)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleDownloadForOffline = async (e) => {
     e.stopPropagation()
@@ -41,18 +57,29 @@ export default function EpisodesPlayer({
     // Start the download by selecting the file
     setCurrentEpisode(file.name)
     
+    // Clear any existing intervals
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+    
     // Poll for completion
-    const checkCompletion = setInterval(async () => {
+    pollIntervalRef.current = setInterval(async () => {
       try {
         const response = await fetch(
-          `http://localhost:64621/detailsepisode/${encodeURIComponent(magnetUri)}/${encodeURIComponent(file.name)}`
+          `http://localhost:${backendPort}/detailsepisode/${encodeURIComponent(magnetUri)}/${encodeURIComponent(file.name)}`
         )
         if (response.ok) {
           const details = await response.json()
           
           // When download is complete (progress >= 1)
           if (details.progress >= 1) {
-            clearInterval(checkCompletion)
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current)
+              pollIntervalRef.current = null
+            }
             
             // Add to offline library
             addOfflineEpisode({
@@ -83,8 +110,11 @@ export default function EpisodesPlayer({
     }, 3000)
     
     // Cleanup after 2 hours max
-    setTimeout(() => {
-      clearInterval(checkCompletion)
+    timeoutRef.current = setTimeout(() => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
       setIsDownloadingOffline(false)
     }, 2 * 60 * 60 * 1000)
   }

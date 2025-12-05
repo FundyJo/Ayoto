@@ -2,12 +2,14 @@ import { ArrowDownIcon, BarChartIcon } from '@radix-ui/react-icons'
 import { useEffect, useState, useRef } from 'react'
 import formatBytes from '../utils/formatBytes'
 import { Button, Tooltip } from '@radix-ui/themes'
+import { useZenshinContext } from '../utils/ContextProvider'
 
 function DownloadMeter() {
   const [message, setMessage] = useState([])
   const socketRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
   const reconnectDelayRef = useRef(5000) // Start with 5 seconds
+  const { backendPort } = useZenshinContext()
 
   useEffect(() => {
     let isUnmounted = false
@@ -16,7 +18,7 @@ function DownloadMeter() {
       if (isUnmounted) return
       
       try {
-        const socket = new WebSocket('ws://localhost:64621/ws')
+        const socket = new WebSocket(`ws://localhost:${backendPort}/ws`)
         socketRef.current = socket
 
         socket.onopen = () => {
@@ -70,7 +72,7 @@ function DownloadMeter() {
         socketRef.current.close()
       }
     }
-  }, [])
+  }, [backendPort])
 
   let clientDownloadSpeed = message[0]?.clientDownloadSpeed || 0
   const [showFullSpeed, setShowFullSpeed] = useState(false)

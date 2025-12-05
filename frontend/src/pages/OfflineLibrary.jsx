@@ -15,6 +15,7 @@ import {
   getTotalStorageUsed,
   getDownloadingEpisodes
 } from '../utils/offlineStorage'
+import { useZenshinContext } from '../utils/ContextProvider'
 
 function OfflineLibrary() {
   const [animeLibrary, setAnimeLibrary] = useState({})
@@ -22,11 +23,12 @@ function OfflineLibrary() {
   const [downloadSpeed, setDownloadSpeed] = useState(0)
   const [totalStorage, setTotalStorage] = useState(0)
   const navigate = useNavigate()
+  const { backendPort } = useZenshinContext()
 
   // Load offline library and connect to WebSocket for download speed
   useEffect(() => {
     loadLibrary()
-    const socket = new WebSocket('ws://localhost:64621/ws')
+    const socket = new WebSocket(`ws://localhost:${backendPort}/ws`)
     
     socket.onmessage = (event) => {
       try {
@@ -46,7 +48,7 @@ function OfflineLibrary() {
       socket.close()
       clearInterval(interval)
     }
-  }, [])
+  }, [backendPort])
 
   const loadLibrary = () => {
     const library = getOfflineEpisodesByAnime()
