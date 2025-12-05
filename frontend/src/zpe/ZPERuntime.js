@@ -1043,6 +1043,7 @@ export class ZPEPluginManager {
       icon: p.manifest.icon,
       iconUrl: p.manifest.iconUrl,
       supportedLanguages: p.manifest.supportedLanguages,
+      requiredDomains: p.manifest.security?.allowedDomains || [],
       enabled: p.enabled,
       state: p.instance?.state || ZPE_PLUGIN_STATE.UNLOADED
     }))

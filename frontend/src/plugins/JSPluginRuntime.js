@@ -917,6 +917,7 @@ export class JSPluginManager {
       icon: p.manifest.icon,
       iconUrl: p.manifest.iconUrl,
       supportedLanguages: p.manifest.supportedLanguages,
+      requiredDomains: p.manifest.security?.allowedDomains || p.manifest.requiredDomains || [],
       enabled: p.enabled
     }))
   }

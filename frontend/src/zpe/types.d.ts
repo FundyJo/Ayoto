@@ -133,7 +133,7 @@ export interface ZPEConfig {
 export interface ZPESecurity {
   /** Run in sandboxed environment (default: true) */
   sandboxed?: boolean;
-  /** Allowed domains for network requests */
+  /** Required domains for network requests. Plugins MUST declare all domains they need to access (e.g., ["aniworld.to", "*.voe.sx"]). These domains will be displayed to users and enforced at runtime. Supports wildcard subdomains (*.domain.com). */
   allowedDomains?: string[];
   /** Enable Content Security Policy (default: true) */
   cspEnabled?: boolean;
@@ -658,6 +658,10 @@ export interface ZPEPluginInfo {
   capabilities?: ZPECapabilities;
   /** Permissions */
   permissions?: ZPEPermission[];
+  /** Required domains for network requests (from security.allowedDomains) */
+  requiredDomains?: string[];
+  /** Supported languages (ISO 639-1 codes) */
+  supportedLanguages?: string[];
   /** Is enabled */
   enabled: boolean;
   /** Current state */
