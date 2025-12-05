@@ -28,6 +28,8 @@
     "sandboxed": true,
     "cspEnabled": true,
     "allowedDomains": [
+      "aniworld.to",
+      "*.aniworld.to",
       "*.vidoza.net",
       "*.vidmoly.to",
       "*.vidmoly.me",
