@@ -181,29 +181,61 @@ fn create_activity_with_party<'a>(
 
 #[tauri::command]
 pub fn minimize_window(window: Window) -> Result<(), String> {
-    window.minimize().map_err(|e| e.to_string())
+    #[cfg(desktop)]
+    {
+        return window.minimize().map_err(|e| e.to_string());
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = window;
+        Err("Window minimize is not supported on this platform".to_string())
+    }
 }
 
 #[tauri::command]
 pub fn maximize_window(window: Window) -> Result<(), String> {
-    let is_maximized = window.is_maximized()
-        .map_err(|e| format!("Failed to query window state: {}", e))?;
-    
-    if is_maximized {
-        window.unmaximize().map_err(|e| e.to_string())
-    } else {
-        window.maximize().map_err(|e| e.to_string())
+    #[cfg(desktop)]
+    {
+        let is_maximized = window.is_maximized()
+            .map_err(|e| format!("Failed to query window state: {}", e))?;
+        
+        if is_maximized {
+            return window.unmaximize().map_err(|e| e.to_string());
+        } else {
+            return window.maximize().map_err(|e| e.to_string());
+        }
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = window;
+        Err("Window maximize is not supported on this platform".to_string())
     }
 }
 
 #[tauri::command]
 pub fn close_window(window: Window) -> Result<(), String> {
-    window.close().map_err(|e| e.to_string())
+    #[cfg(desktop)]
+    {
+        return window.close().map_err(|e| e.to_string());
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = window;
+        Err("Window close is not supported on this platform".to_string())
+    }
 }
 
 #[tauri::command]
 pub fn set_fullscreen(window: Window, fullscreen: bool) -> Result<(), String> {
-    window.set_fullscreen(fullscreen).map_err(|e| e.to_string())
+    #[cfg(desktop)]
+    {
+        return window.set_fullscreen(fullscreen).map_err(|e| e.to_string());
+    }
+    #[cfg(not(desktop))]
+    {
+        let _ = (window, fullscreen);
+        Err("Window fullscreen is not supported on this platform".to_string())
+    }
 }
 
 #[tauri::command]
@@ -219,6 +251,7 @@ pub async fn open_folder(path: String) -> Result<(), String> {
             .arg(&path)
             .spawn()
             .map_err(|e| e.to_string())?;
+        return Ok(());
     }
     #[cfg(target_os = "macos")]
     {
@@ -226,6 +259,7 @@ pub async fn open_folder(path: String) -> Result<(), String> {
             .arg(&path)
             .spawn()
             .map_err(|e| e.to_string())?;
+        return Ok(());
     }
     #[cfg(target_os = "linux")]
     {
@@ -233,6 +267,7 @@ pub async fn open_folder(path: String) -> Result<(), String> {
             .arg(&path)
             .spawn()
             .map_err(|e| e.to_string())?;
+        return Ok(());
     }
     #[cfg(target_os = "android")]
     {
@@ -244,7 +279,11 @@ pub async fn open_folder(path: String) -> Result<(), String> {
         log::warn!("open_folder not supported on iOS: {}", path);
         return Err("Opening folders is not supported on iOS".to_string());
     }
-    Ok(())
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux", target_os = "android", target_os = "ios")))]
+    {
+        let _ = path;
+        Err("Opening folders is not supported on this platform".to_string())
+    }
 }
 
 #[tauri::command]
@@ -262,6 +301,7 @@ pub async fn open_vlc(command: String) -> Result<(), String> {
             .args(&["/C", &command])
             .spawn()
             .map_err(|e| format!("Failed to launch VLC: {}", e))?;
+        return Ok(());
     }
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
@@ -269,6 +309,7 @@ pub async fn open_vlc(command: String) -> Result<(), String> {
             .args(&["-c", &command])
             .spawn()
             .map_err(|e| format!("Failed to launch VLC: {}", e))?;
+        return Ok(());
     }
     #[cfg(target_os = "android")]
     {
@@ -280,7 +321,11 @@ pub async fn open_vlc(command: String) -> Result<(), String> {
         log::warn!("open_vlc not supported on iOS: {}", command);
         return Err("VLC command execution is not supported on iOS".to_string());
     }
-    Ok(())
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux", target_os = "android", target_os = "ios")))]
+    {
+        let _ = command;
+        Err("VLC command execution is not supported on this platform".to_string())
+    }
 }
 
 #[tauri::command]

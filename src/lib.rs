@@ -38,7 +38,7 @@ pub fn run() {
   // Initialize Miracast state
   let miracast_state = miracast::MiracastState::default();
 
-  tauri::Builder::default()
+  let mut builder = tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
@@ -47,15 +47,23 @@ pub fn run() {
     .plugin(tauri_plugin_websocket::init())
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_store::Builder::default().build())
-    .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-      let windows = app.webview_windows();
-      if let Some((_, window)) = windows.iter().next() {
-        let _ = window.set_focus();
-        let _ = window.unminimize();
-      }
-    }))
-    .plugin(tauri_plugin_deep_link::init())
-    .plugin(tauri_plugin_window_state::Builder::default().build())
+    .plugin(tauri_plugin_deep_link::init());
+
+  // Desktop-only plugins
+  #[cfg(desktop)]
+  {
+    builder = builder
+      .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        let windows = app.webview_windows();
+        if let Some((_, window)) = windows.iter().next() {
+          let _ = window.set_focus();
+          let _ = window.unminimize();
+        }
+      }))
+      .plugin(tauri_plugin_window_state::Builder::default().build());
+  }
+
+  builder
     .manage(app_state)
     .manage(anime4k_state)
     .manage(profile_state)
