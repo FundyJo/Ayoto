@@ -613,3 +613,351 @@
   }
 }
 /* -------------------------------------------------------------- */
+
+/* ============================================================== */
+/* MOBILE AND TV RESPONSIVE STYLES                                */
+/* ============================================================== */
+
+/* Mobile Base Styles - Touch Optimizations */
+@media (max-width: 640px) {
+  /* Increase touch targets for mobile */
+  button, .btn, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Larger font sizes for mobile readability */
+  body {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* Mobile header adjustments */
+  .draggable {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  /* Mobile card grid - single column on very small screens */
+  .grid {
+    gap: 0.5rem;
+  }
+  
+  /* Mobile-friendly scrolling */
+  .overflow-x-visible {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  .overflow-x-visible::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Small phones (320px - 480px) */
+@media (max-width: 480px) {
+  /* Extra compact layout for small phones */
+  .layout {
+    padding: 0;
+  }
+  
+  /* Reduce padding/margins for small screens */
+  .px-8 {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  .mx-5 {
+    margin-left: 0.25rem;
+    margin-right: 0.25rem;
+  }
+  
+  /* Simplify hero section for small screens */
+  .min-h-\[96svh\] {
+    min-height: 60svh;
+  }
+  
+  /* Hide decorative text on small screens */
+  .stroke-text {
+    display: none;
+  }
+}
+
+/* Tablet optimizations (641px - 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Better grid layouts for tablets */
+  .grid-cols-4 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ============================================================== */
+/* TV / Large Screen Optimizations                                */
+/* ============================================================== */
+
+/* TV base styles - Full HD (1920px+) */
+@media (min-width: 1920px) {
+  /* Larger base font for TV viewing distance */
+  body {
+    font-size: 18px;
+  }
+  
+  /* Larger touch/focus targets for remote control navigation */
+  button, .btn, [role="button"], a {
+    min-height: 48px;
+  }
+  
+  /* Enhanced focus visibility for TV remote navigation */
+  *:focus {
+    outline: 3px solid #4e9cf6 !important;
+    outline-offset: 4px !important;
+  }
+  
+  *:focus-visible {
+    outline: 3px solid #4e9cf6 !important;
+    outline-offset: 4px !important;
+  }
+  
+  /* Larger carousel height for TV */
+  .h-72 {
+    height: 20rem;
+  }
+  
+  /* More spacing for TV layouts */
+  .gap-x-4 {
+    column-gap: 1.5rem;
+  }
+  
+  .gap-y-2 {
+    row-gap: 0.75rem;
+  }
+}
+
+/* 4K TV optimizations (3840px+) */
+@media (min-width: 3840px) {
+  /* Even larger base font for 4K viewing */
+  body {
+    font-size: 24px;
+  }
+  
+  /* Scale up UI elements for 4K */
+  button, .btn, [role="button"], a {
+    min-height: 64px;
+    font-size: 1.25rem;
+  }
+  
+  /* Larger cards for 4K displays */
+  .w-\[10\.6rem\] {
+    width: 14rem;
+  }
+  
+  .h-60 {
+    height: 20rem;
+  }
+  
+  /* Enhanced focus rings for 4K */
+  *:focus, *:focus-visible {
+    outline-width: 4px !important;
+    outline-offset: 6px !important;
+  }
+}
+
+/* ============================================================== */
+/* Focus Navigation Styles (for TV remotes and keyboard nav)      */
+/* ============================================================== */
+
+/* Focus styles for TV navigation */
+.focus-tv:focus,
+.focus-tv:focus-visible {
+  outline: 3px solid #4e9cf6;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 6px rgba(78, 156, 246, 0.2);
+  transform: scale(1.02);
+  transition: all 0.2s ease-out;
+}
+
+/* Hover states that also apply on focus (for TV) */
+@media (min-width: 1920px) {
+  .group:focus-within .group-hover\:opacity-70,
+  .group:focus .group-hover\:opacity-70 {
+    opacity: 0.7;
+  }
+  
+  .hover\:scale-110:focus,
+  .hover\:scale-110:focus-visible {
+    transform: scale(1.1);
+  }
+  
+  .hover\:bg-\[\#70707030\]:focus,
+  .hover\:bg-\[\#70707030\]:focus-visible {
+    background-color: #70707030;
+  }
+}
+
+/* ============================================================== */
+/* Video Player Mobile/TV Enhancements                            */
+/* ============================================================== */
+
+/* Mobile video player - fullscreen by default */
+@media (max-width: 640px) {
+  .vidstack-player-wrapper {
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+  }
+  
+  /* Larger controls for touch */
+  .vidstack-player-wrapper button,
+  .vidstack-player-wrapper [role="button"] {
+    min-width: 48px;
+    min-height: 48px;
+  }
+}
+
+/* TV video player - optimized for large screens */
+@media (min-width: 1920px) {
+  .vidstack-player-wrapper {
+    /* Use more screen real estate on TV */
+    max-width: 90vw;
+    margin: 0 auto;
+  }
+  
+  /* Larger playback controls for TV */
+  .vidstack-player-wrapper .vds-controls {
+    padding: 1rem;
+  }
+  
+  .vidstack-player-wrapper button,
+  .vidstack-player-wrapper [role="button"] {
+    min-width: 56px;
+    min-height: 56px;
+    font-size: 1.1rem;
+  }
+  
+  /* Larger settings menu for TV */
+  .vidstack-player-wrapper .vds-settings-menu {
+    min-width: 320px;
+    font-size: 1.1rem;
+  }
+}
+
+/* ============================================================== */
+/* Header Mobile/TV Responsiveness                                */
+/* ============================================================== */
+
+/* Mobile header - compact mode */
+@media (max-width: 768px) {
+  /* Stack header items vertically if needed */
+  .draggable {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 2.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  /* Centered search on mobile */
+  .draggable .absolute.left-1\/2 {
+    position: relative;
+    left: auto;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 0.5rem;
+    order: 10;
+  }
+  
+  /* Hide some navigation items on small screens */
+  .draggable .flex-shrink-0 .font-space-mono {
+    display: none;
+  }
+}
+
+/* TV header - larger and more accessible */
+@media (min-width: 1920px) {
+  .draggable {
+    height: 3.5rem;
+    padding: 1rem 2rem;
+  }
+  
+  .draggable button,
+  .draggable a {
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* ============================================================== */
+/* Anime Card Grid Responsiveness                                 */
+/* ============================================================== */
+
+/* Mobile card sizes */
+@media (max-width: 480px) {
+  .grid-cols-\[repeat\(auto-fit\,minmax\(190px\,1fr\)\)\] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  /* Smaller cards on mobile */
+  .w-\[10\.6rem\] {
+    width: 100%;
+    max-width: 10rem;
+  }
+}
+
+/* Tablet card sizes */
+@media (min-width: 481px) and (max-width: 768px) {
+  .grid-cols-\[repeat\(auto-fit\,minmax\(190px\,1fr\)\)\] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* TV card sizes - larger cards */
+@media (min-width: 1920px) {
+  .grid-cols-\[repeat\(auto-fit\,minmax\(190px\,1fr\)\)\] {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+}
+
+@media (min-width: 3840px) {
+  .grid-cols-\[repeat\(auto-fit\,minmax\(190px\,1fr\)\)\] {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+}
+
+/* ============================================================== */
+/* Carousel/Banner Responsiveness                                 */
+/* ============================================================== */
+
+/* Mobile carousel - shorter height */
+@media (max-width: 640px) {
+  .h-72.2xl\:h-96 {
+    height: 12rem;
+  }
+  
+  /* Simplify banner content on mobile */
+  .mask {
+    width: 100%;
+  }
+  
+  /* Hide long descriptions on mobile carousel */
+  .line-clamp-\[9\] {
+    display: none;
+  }
+}
+
+/* TV carousel - taller for impact */
+@media (min-width: 1920px) {
+  .h-72.2xl\:h-96 {
+    height: 28rem;
+  }
+}
+
+@media (min-width: 3840px) {
+  .h-72.2xl\:h-96 {
+    height: 36rem;
+  }
+}
+/* -------------------------------------------------------------- */

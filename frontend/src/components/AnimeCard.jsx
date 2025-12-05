@@ -62,7 +62,7 @@ export default function AnimeCard({ data }) {
 
   return (
     <div
-      className="relative my-4 w-fit"
+      className="relative my-2 sm:my-4 w-fit"
       onMouseOver={() => setCard(1)}
       onMouseLeave={() => {
         setCard(0)
@@ -74,58 +74,66 @@ export default function AnimeCard({ data }) {
       {
         <div
           onClick={() => handleClick()}
-          className={`group relative flex w-[10.6rem] animate-fade cursor-pointer flex-col items-center justify-center gap-y-2 transition-all ease-in-out ${hoverCard ? '' : 'hover:scale-110'}`}
+          className={`group relative flex w-full max-w-[8rem] xs:max-w-[9rem] sm:max-w-[10.6rem] animate-fade cursor-pointer flex-col items-center justify-center gap-y-1 sm:gap-y-2 transition-all ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-transparent ${hoverCard ? '' : 'hover:scale-110 focus:scale-110'}`}
+          tabIndex={0}
+          role="button"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              handleClick()
+            }
+          }}
         >
           <div className="relative z-10">
             {imageLoading && (
-              <Skeleton className="duration-400 absolute top-0 z-10 h-60 w-[10.6rem] animate-fade rounded-sm object-cover transition-all ease-in-out"></Skeleton>
+              <Skeleton className="duration-400 absolute top-0 z-10 h-44 xs:h-48 sm:h-60 w-full animate-fade rounded-sm object-cover transition-all ease-in-out"></Skeleton>
             )}
 
             <img
               src={data?.coverImage?.extraLarge}
               alt=""
-              className={`duration-400 z-10 h-60 w-[10.6rem] animate-fade rounded-sm object-cover transition-all ease-in-out ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+              className={`duration-400 z-10 h-44 xs:h-48 sm:h-60 w-full animate-fade rounded-sm object-cover transition-all ease-in-out ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
               onLoad={() => setImageLoading(false)}
             />
           </div>
 
-          <div className="z-20 flex w-full flex-col gap-y-1">
+          <div className="z-20 flex w-full flex-col gap-y-0.5 sm:gap-y-1">
             <div
               title={data?.title?.romaji}
-              className="line-clamp-2 h-11 w-full text-sm font-medium opacity-90"
+              className="line-clamp-2 h-8 sm:h-11 w-full text-xs sm:text-sm font-medium opacity-90"
             >
               {data?.title?.romaji}
             </div>
 
-            <div className="flex justify-between text-xs">
-              <div className="flex items-center gap-x-2">
+            <div className="flex justify-between text-[10px] sm:text-xs">
+              <div className="flex items-center gap-x-1 sm:gap-x-2">
                 <p className="text-nowrap opacity-60">
-                  {date && format(new Date(date), 'MMMM yyyy')}
+                  {date && format(new Date(date), 'MMM yyyy')}
                 </p>
 
                 {status === 'CURRENT' && (
                   <Tooltip content="Watching">
-                    <p className="h-2 w-2 rounded-full bg-blue-500"></p>
+                    <p className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-blue-500"></p>
                   </Tooltip>
                 )}
                 {status === 'PLANNING' && (
                   <Tooltip content="Planning to watch">
-                    <p className="h-2 w-2 rounded-full bg-gray-400"></p>
+                    <p className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-gray-400"></p>
                   </Tooltip>
                 )}
                 {status === 'COMPLETED' && (
                   <Tooltip content="Completed">
-                    <p className="h-2 w-2 rounded-full bg-green-500"></p>
+                    <p className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-green-500"></p>
                   </Tooltip>
                 )}
                 {status === 'DROPPED' && (
                   <Tooltip content="Dropped">
-                    <p className="h-2 w-2 rounded-full bg-red-700"></p>
+                    <p className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-red-700"></p>
                   </Tooltip>
                 )}
                 {status === 'PAUSED' && (
                   <Tooltip content="Paused">
-                    <p className="h-2 w-2 rounded-full bg-orange-500"></p>
+                    <p className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-orange-500"></p>
                   </Tooltip>
                 )}
               </div>
@@ -139,7 +147,7 @@ export default function AnimeCard({ data }) {
             <img
               src={data?.coverImage?.extraLarge}
               alt=""
-              className="absolute top-0 z-0 h-60 w-40 rounded-md object-cover opacity-0 blur-2xl contrast-200 saturate-200 transition-all duration-500 ease-in-out group-hover:opacity-70"
+              className="absolute top-0 z-0 h-44 xs:h-48 sm:h-60 w-32 sm:w-40 rounded-md object-cover opacity-0 blur-2xl contrast-200 saturate-200 transition-all duration-500 ease-in-out group-hover:opacity-70"
             />
           )}
         </div>

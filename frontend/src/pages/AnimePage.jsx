@@ -170,72 +170,74 @@ export default function AnimePage() {
             <div className="animate-fade-down">
               <img
                 src={data?.bannerImage}
-                className="absolute top-7 z-0 h-72 w-full object-cover opacity-70 blur-3xl brightness-75 saturate-150 2xl:h-96"
+                className="absolute top-7 z-0 h-48 sm:h-64 md:h-72 w-full object-cover opacity-70 blur-3xl brightness-75 saturate-150 2xl:h-96 tv:h-[28rem]"
                 alt=""
               />
             </div>
           )}
           <img
             src={data?.bannerImage}
-            className="z-10 h-72 w-full animate-fade-down object-cover brightness-90 transition-all ease-in-out 2xl:h-96"
+            className="z-10 h-48 sm:h-64 md:h-72 w-full animate-fade-down object-cover brightness-90 transition-all ease-in-out 2xl:h-96 tv:h-[28rem]"
             alt=""
           />
         </div>
       )}
-      <div className="z-30 mx-auto animate-fade px-6 py-4 lg:container">
-        <div className="flex justify-between gap-x-7">
+      <div className="z-30 mx-auto animate-fade px-2 sm:px-4 md:px-6 py-2 sm:py-4 lg:container">
+        <div className="flex flex-col sm:flex-row justify-between gap-x-4 md:gap-x-7 gap-y-4">
           <img
             src={data?.coverImage.extraLarge}
             alt=""
-            className={`duration-400 relative ${data?.bannerImage ? 'bottom-[4rem]' : ''} shadow-xl drop-shadow-2xl h-[25rem] w-72 animate-fade-up rounded-md object-cover transition-all ease-in-out`}
+            className={`duration-400 relative ${data?.bannerImage ? 'sm:bottom-[4rem]' : ''} shadow-xl drop-shadow-2xl h-48 w-32 xs:h-56 xs:w-40 sm:h-[20rem] sm:w-56 md:h-[25rem] md:w-72 animate-fade-up rounded-md object-cover transition-all ease-in-out mx-auto sm:mx-0`}
             // className={`duration-400 relative h-96 w-72 animate-fade rounded-md object-cover transition-all ease-in-out`}
           />
           <div className="flex-1 justify-start gap-y-0">
-            <p className="font-space-mono text-xl font-medium tracking-wider">
+            <p className="font-space-mono text-base sm:text-lg md:text-xl font-medium tracking-wider text-center sm:text-left">
               {data?.title.romaji}
             </p>
-            <p className="text mb-2 border-b border-[#545454] pb-2 font-space-mono font-medium tracking-wider opacity-80">
+            <p className="text mb-2 border-b border-[#545454] pb-2 font-space-mono text-xs sm:text-sm font-medium tracking-wider opacity-80 text-center sm:text-left">
               {data?.title.english}
               {data?.title?.native ? ` • ${data?.title?.native}` : ''}
             </p>
             {/* <div className="my-3 h-[1px] w-full bg-[#333]"></div> Divider */}
-            <div className="mb-2 flex w-fit items-center gap-x-2 border-b border-[#545454] pb-2 text-xs text-gray-300">
+            <div className="mb-2 flex flex-wrap w-fit items-center gap-1 sm:gap-x-2 border-b border-[#545454] pb-2 text-[10px] sm:text-xs text-gray-300 mx-auto sm:mx-0">
               <p className="">{data?.format}</p>
-              <div className="h-5 w-[1px] bg-[#333]"></div> {/* Divider */}
-              <p>{`${data?.episodes ? data?.episodes : '?'} episodes`}</p>
-              <div className="h-5 w-[1px] bg-[#333]"></div> {/* Divider */}
-              <p>({data?.status})</p>
-              <div className="h-5 w-[1px] bg-[#333]"></div> {/* Divider */}
-              <p className="text-xs opacity-60">
-                {data && format(new Date(startDate), 'MMMM yyyy')}
+              <div className="h-4 sm:h-5 w-[1px] bg-[#333]"></div> {/* Divider */}
+              <p>{`${data?.episodes ? data?.episodes : '?'} eps`}</p>
+              <div className="h-4 sm:h-5 w-[1px] bg-[#333] hidden xs:block"></div> {/* Divider */}
+              <p className="hidden xs:block">({data?.status})</p>
+              <div className="h-4 sm:h-5 w-[1px] bg-[#333] hidden sm:block"></div> {/* Divider */}
+              <p className="text-[10px] sm:text-xs opacity-60 hidden sm:block">
+                {data && format(new Date(startDate), 'MMM yyyy')}
               </p>
-              <div className="h-5 w-[1px] bg-[#333]"></div> {/* Divider */}
-              <p className="opacity-60">{data?.season}</p>
-              <div className="h-5 w-[1px] bg-[#333]"></div> {/* Divider */}
+              <div className="h-4 sm:h-5 w-[1px] bg-[#333] hidden sm:block"></div> {/* Divider */}
+              <p className="opacity-60 hidden sm:block">{data?.season}</p>
+              <div className="h-4 sm:h-5 w-[1px] bg-[#333]"></div> {/* Divider */}
               {data.averageScore && (
                 <>
                   <div className="flex gap-x-1 tracking-wide opacity-90">
-                    <StarIcon /> {data.averageScore} / 100
+                    <StarIcon className="h-3 w-3 sm:h-4 sm:w-4" /> {data.averageScore}
                   </div>
-                  <div className="h-5 w-[1px] bg-[#333]"></div> {/* Divider */}
+                  <div className="h-4 sm:h-5 w-[1px] bg-[#333]"></div> {/* Divider */}
                 </>
               )}
               <div className="flex gap-x-1 tracking-wide opacity-90">
-                <PersonIcon />
-                {data.popularity.toLocaleString()}
+                <PersonIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                {data.popularity > 999 ? `${(data.popularity / 1000).toFixed(0)}k` : data.popularity.toLocaleString()}
               </div>
             </div>
             {genresString && (
-              <div className="mb-2 flex w-fit gap-x-1 border-b border-[#545454] pb-2 font-space-mono text-xs tracking-wide opacity-90">
+              <div className="mb-2 flex flex-wrap w-fit gap-x-1 border-b border-[#545454] pb-2 font-space-mono text-[10px] sm:text-xs tracking-wide opacity-90 mx-auto sm:mx-0">
                 {genresString}{' '}
-                {data?.airingSchedule?.nodes[0]?.episode
-                  ? ` • Episode ${data?.airingSchedule.nodes[0].episode} : ${format(fromUnixTime(data?.airingSchedule.nodes[0].airingAt), 'dd-LLL-yyyy hh:mm a')}`
-                  : ''}
+                <span className="hidden sm:inline">
+                  {data?.airingSchedule?.nodes[0]?.episode
+                    ? ` • Episode ${data?.airingSchedule.nodes[0].episode} : ${format(fromUnixTime(data?.airingSchedule.nodes[0].airingAt), 'dd-LLL-yyyy hh:mm a')}`
+                    : ''}
+                </span>
               </div>
             )}
 
             <div
-              className={`relative flex ${showFullDescription ? '' : 'max-h-[9.55rem]'} flex-col gap-y-2 overflow-hidden pb-6 font-space-mono text-sm opacity-55 transition-all`}
+              className={`relative flex ${showFullDescription ? '' : 'max-h-[6rem] sm:max-h-[9.55rem]'} flex-col gap-y-2 overflow-hidden pb-6 font-space-mono text-xs sm:text-sm opacity-55 transition-all cursor-pointer`}
               onClick={() => setShowFullDescription(!showFullDescription)}
             >
               {parse(autop(malIdData?.data?.synopsis || data?.description || 'No description'))}
@@ -325,29 +327,35 @@ export default function AnimePage() {
         )}
 
         {true && (
-          <div className="mb-96 mt-12">
-            <div className="flex items-center gap-x-3">
-              <p className="font-space-mono text-lg font-medium opacity-90">Episodes</p>
+          <div className="mb-48 sm:mb-96 mt-6 sm:mt-12">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-x-3 gap-y-2">
+              <p className="font-space-mono text-sm sm:text-lg font-medium opacity-90 w-full sm:w-auto">Episodes</p>
               <Button
                 variant="soft"
                 size={'1'}
                 onClick={() => setDualAudio(!dualAudio)}
                 color={dualAudio ? 'blue' : 'gray'}
+                className="focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                English Dub
+                <span className="hidden xs:inline">English Dub</span>
+                <span className="xs:hidden">Dub</span>
               </Button>
               <Button
                 variant="soft"
                 size={'1'}
                 onClick={() => setHideWatchedEpisodes(!hideWatchedEpisodes)}
                 color={hideWatchedEpisodes ? 'blue' : 'gray'}
+                className="focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                Hide Watched Episodes
+                <span className="hidden sm:inline">Hide Watched</span>
+                <span className="sm:hidden">Hide</span>
               </Button>
               <DropdownMenu.Root className="nodrag" modal={false}>
                 <DropdownMenu.Trigger>
-                  <Button variant="soft" color="gray" size={'1'}>
-                    <div className="flex animate-fade items-center gap-x-2">Quality: {quality}</div>
+                  <Button variant="soft" color="gray" size={'1'} className="focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div className="flex animate-fade items-center gap-x-1 sm:gap-x-2">
+                      <span className="hidden xs:inline">Quality:</span> {quality}
+                    </div>
                     <DropdownMenu.TriggerIcon />
                   </Button>
                 </DropdownMenu.Trigger>
@@ -374,15 +382,17 @@ export default function AnimePage() {
                   </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Root>
-              <Pagination
-                arraySize={animeEpisodes?.length}
-                pageSize={pageSize}
-                setPageSize={setPageSize}
-                pageNo={pageNo}
-                setPageNo={setPageNo}
-                position={'relative'}
-                progress={episodesWatched}
-              />
+              <div className="hidden md:block">
+                <Pagination
+                  arraySize={animeEpisodes?.length}
+                  pageSize={pageSize}
+                  setPageSize={setPageSize}
+                  pageNo={pageNo}
+                  setPageNo={setPageNo}
+                  position={'relative'}
+                  progress={episodesWatched}
+                />
+              </div>
               <CustomSearch
                 anime={data.title}
                 animeId={data.id}
@@ -395,8 +405,20 @@ export default function AnimePage() {
                 animeCoverImage={data?.coverImage?.extraLarge}
               />
             </div>
+            {/* Mobile pagination */}
+            <div className="md:hidden mt-2">
+              <Pagination
+                arraySize={animeEpisodes?.length}
+                pageSize={pageSize}
+                setPageSize={setPageSize}
+                pageNo={pageNo}
+                setPageNo={setPageNo}
+                position={'relative'}
+                progress={episodesWatched}
+              />
+            </div>
             {!isLoadingMappings && (
-              <div className="mt-3 grid grid-cols-1 gap-y-3">
+              <div className="mt-3 grid grid-cols-1 gap-y-2 sm:gap-y-3">
                 <Episode
                   all={true}
                   anime={data.title}
