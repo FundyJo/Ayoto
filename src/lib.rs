@@ -38,6 +38,7 @@ pub fn run() {
   // Initialize Miracast state
   let miracast_state = miracast::MiracastState::default();
 
+  #[allow(unused_mut)]
   let mut builder = tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
