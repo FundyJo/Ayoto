@@ -10,7 +10,8 @@ import {
   GearIcon,
   PersonIcon,
   MixIcon,
-  AvatarIcon
+  AvatarIcon,
+  ArchiveIcon
 } from '@radix-ui/react-icons'
 import Pikacon from '../assets/pikacon.ico'
 import { Button, DropdownMenu } from '@radix-ui/themes'
@@ -206,6 +207,9 @@ export default function Header() {
       <div className="nodrag ml-auto flex items-center justify-center gap-x-4">
         <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/downloads')}>
           <DownloadIcon />
+        </Button>
+        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/offline')} title="Offline Library">
+          <ArchiveIcon />
         </Button>
         <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/plugins')}>
           <MixIcon />
