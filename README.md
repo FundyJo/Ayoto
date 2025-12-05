@@ -197,6 +197,29 @@ npm run build
 
 This builds the frontend to the `dist/` directory.
 
+## Troubleshooting
+
+### Windows: Android Build Symlink Error
+
+If you encounter the following error when running `npm run tauri android dev`:
+
+```
+failed to build Android app: Failed to create a symbolic link...
+Creation symbolic link is not allowed for this system.
+```
+
+This is because Tauri's Android build process creates symbolic links, which requires special permissions on Windows.
+
+**Solution for Windows 10/11:**
+1. Open **Settings** → **Update & Security** → **For developers**
+2. Enable **Developer Mode**
+3. Restart your terminal and try again
+
+For more information, see: [Microsoft Developer Mode Documentation](https://docs.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development)
+
+**Solution for Windows 8.1 or older:**
+You need the `SeCreateSymbolicLinkPrivilege` security policy. See: [Create Symbolic Links Policy](https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/create-symbolic-links)
+
 ## Contributing
 
 Contributions are welcome! Please open an issue for feature requests, bug reports, or any inquiries.
