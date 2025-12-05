@@ -131,23 +131,17 @@ export default function Header() {
   const animepahe = pathname.includes('/animepahe')
 
   return (
-    <div className="draggable sticky top-0 z-50 flex h-auto min-h-[2.75rem] sm:h-11 flex-wrap sm:flex-nowrap items-center border-[#5a5e6750] bg-[#111113] bg-opacity-60 px-2 sm:px-4 pr-[100px] sm:pr-[150px] py-2 sm:py-3 backdrop-blur-md relative gap-y-2">
-      <div className="nodrag flex items-center justify-center gap-x-1 sm:gap-x-2 flex-shrink-0 flex-wrap">
+    <div className="draggable sticky top-0 z-50 flex h-11 items-center border-[#5a5e6750] bg-[#111113] bg-opacity-60 px-2 sm:px-4 pr-[90px] xs:pr-[100px] sm:pr-[150px] py-1 sm:py-3 backdrop-blur-md relative">
+      <div className="nodrag flex items-center justify-center gap-x-1 sm:gap-x-2 flex-shrink-0">
         <Link
-          className="nodrag hover: font-spaceMono flex w-fit cursor-pointer select-none gap-x-2 rounded-sm p-1 text-sm transition-all duration-200 hover:bg-[#70707030] focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="nodrag hover: font-spaceMono flex w-fit cursor-pointer select-none gap-x-2 rounded-sm p-0 xs:p-1 text-sm transition-all duration-200 hover:bg-[#70707030] focus:outline-none focus:ring-2 focus:ring-blue-500"
           to={'/'}
         >
-          <img src={zenshinLogo} alt="" className="w-12 sm:w-16" />
+          <img src={zenshinLogo} alt="" className="w-10 xs:w-12 sm:w-16" />
         </Link>
-        {/* <DividerVerticalIcon width={20} height={20} color="#ffffff40" /> */}
-        {/* <a className="nodrag" href="https://github.com/hitarth-gg" target="_blank" rel="noreferrer">
-          <Button color="gray" variant="ghost" size={'1'}>
-            <GitHubLogoIcon className="my-1" width={17} height={17} />
-          </Button>
-        </a> */}
 
         <DividerVerticalIcon width={20} height={20} color="#ffffff40" className="hidden sm:block" />
-        <div className="flex gap-2 sm:gap-4">
+        <div className="hidden sm:flex gap-2 sm:gap-4">
           <Button color="gray" variant="ghost" size={'1'} onClick={() => navigate(-1)} className="focus:outline-none focus:ring-2 focus:ring-blue-500">
             <ArrowLeftIcon className="my-1" width={16} height={16} />
           </Button>
@@ -156,80 +150,88 @@ export default function Header() {
           </Button>
         </div>
         <DividerVerticalIcon width={20} height={20} color="#ffffff40" className="hidden sm:block" />
-        <Link to="/newreleases" className="hidden xs:block">
+        <Link to="/newreleases" className="hidden sm:block">
           <Button className="nodrag focus:outline-none focus:ring-2 focus:ring-blue-500" color="gray" variant="soft" size={'1'}>
-            {/* <div className="p-1 font-space-mono text-[.8rem]">New Releases</div> */}
             <div className="font-space-mono text-[.7rem] sm:text-[.8rem]">New</div>
           </Button>
         </Link>
-        {/* <DividerVerticalIcon width={20} height={20} color="#ffffff40" /> */}
-        <Button
-          className="nodrag hidden xs:flex focus:outline-none focus:ring-2 focus:ring-blue-500"
-          size="1"
-          color="gray"
-          variant="soft"
-          onClick={() => navigate('/animepahe')}
-        >
-          {/* <DashboardIcon /> */}
-          <img src={Pikacon} alt="pikacon" className="h-4 w-4" />
-        </Button>
+        <div className="hidden sm:block">
+          <Button
+            className="nodrag focus:outline-none focus:ring-2 focus:ring-blue-500"
+            size="1"
+            color="gray"
+            variant="soft"
+            onClick={() => navigate('/animepahe')}
+          >
+            <img src={Pikacon} alt="pikacon" className="h-4 w-4" />
+          </Button>
+        </div>
 
-        {/* <DividerVerticalIcon width={20} height={20} color="#ffffff40" /> */}
-
-        <Button
-          className="nodrag hidden xs:flex focus:outline-none focus:ring-2 focus:ring-blue-500"
-          size="1"
-          color="gray"
-          variant="soft"
-          onClick={() => navigate('/anilist')}
-          style={{
-            padding: '0 .4rem'
-          }}
-        >
-          {/* <DashboardIcon /> */}
-          <AniListLogo style="h-5 w-5" />
-        </Button>
+        <div className="hidden sm:block">
+          <Button
+            className="nodrag focus:outline-none focus:ring-2 focus:ring-blue-500"
+            size="1"
+            color="gray"
+            variant="soft"
+            onClick={() => navigate('/anilist')}
+            style={{
+              padding: '0 .4rem'
+            }}
+          >
+            <AniListLogo style="h-5 w-5" />
+          </Button>
+        </div>
         
         {/* Watchlist Button - visible when logged in */}
         {userProfile && (
-          <Button
-            className="nodrag hidden sm:flex focus:outline-none focus:ring-2 focus:ring-blue-500"
-            size="1"
-            color="blue"
-            variant="soft"
-            onClick={() => navigate('/bookmarks')}
-          >
-            <BookmarkIcon />
-            <span className="font-space-mono text-[.8rem] hidden md:inline">Watchlist</span>
-          </Button>
+          <div className="hidden sm:block">
+            <Button
+              className="nodrag focus:outline-none focus:ring-2 focus:ring-blue-500"
+              size="1"
+              color="blue"
+              variant="soft"
+              onClick={() => navigate('/bookmarks')}
+            >
+              <BookmarkIcon />
+              <span className="font-space-mono text-[.8rem] hidden md:inline">Watchlist</span>
+            </Button>
+          </div>
         )}
       </div>
 
-      {/* Search bar - visible on xs and larger screens */}
-      <div className="nodrag absolute left-1/2 transform -translate-x-1/2 w-1/3 sm:w-2/6 max-w-md z-10 hidden xs:block">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
+      {/* Search bar - visible on sm and larger screens */}
+      <div className="nodrag absolute left-1/2 transform -translate-x-1/2 w-1/3 sm:w-2/6 max-w-md z-10 hidden sm:block">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
       
-      {/* Mobile search toggle button - visible only on screens smaller than xs */}
-      <Button 
-        color="gray" 
-        variant="soft" 
-        size={'1'} 
-        onClick={() => setShowMobileSearch(!showMobileSearch)} 
-        className="xs:hidden ml-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        title="Search"
-      >
-        <MagnifyingGlassIcon />
-      </Button>
+      {/* Mobile search toggle button - visible only on screens smaller than sm */}
+      <div className="sm:hidden ml-auto mr-1">
+        <Button 
+          color="gray" 
+          variant="soft" 
+          size={'1'} 
+          onClick={() => setShowMobileSearch(!showMobileSearch)} 
+          className="focus:outline-none focus:ring-2 focus:ring-blue-500"
+          title="Search"
+        >
+          <MagnifyingGlassIcon />
+        </Button>
+      </div>
       
-      <div className="nodrag ml-auto flex items-center justify-center gap-x-2 sm:gap-x-4">
-        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/downloads')} className="focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <DownloadIcon />
-        </Button>
-        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/offline')} title="Offline Library" className="hidden sm:flex focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <ArchiveIcon />
-        </Button>
-        <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/plugins')} className="hidden sm:flex focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <MixIcon />
-        </Button>
+      <div className="nodrag sm:ml-auto flex items-center justify-center gap-x-1 xs:gap-x-2 sm:gap-x-4">
+        <div className="hidden sm:block">
+          <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/downloads')} className="focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <DownloadIcon />
+          </Button>
+        </div>
+        <div className="hidden sm:block">
+          <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/offline')} title="Offline Library" className="focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <ArchiveIcon />
+          </Button>
+        </div>
+        <div className="hidden sm:block">
+          <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/plugins')} className="focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <MixIcon />
+          </Button>
+        </div>
         <div className="hidden md:block">
           <DownloadMeter />
         </div>
@@ -238,16 +240,16 @@ export default function Header() {
           <DropdownMenu.Root className="nodrag" modal={false}>
             <DropdownMenu.Trigger>
               <Button variant="ghost" color="gray">
-                <div className="flex animate-fade items-center gap-x-2">
+                <div className="flex animate-fade items-center gap-x-1 sm:gap-x-2">
                   {userProfile ? (
                     <img
                       src={userProfile.avatar.large}
                       alt="avatar"
-                      className="h-6 w-6 rounded-full"
+                      className="h-5 w-5 xs:h-6 xs:w-6 rounded-full"
                     />
                   ) : activeProfile ? (
                     <div
-                      className="h-6 w-6 rounded-sm flex items-center justify-center text-xs font-bold"
+                      className="h-5 w-5 xs:h-6 xs:w-6 rounded-sm flex items-center justify-center text-xs font-bold"
                       style={{ backgroundColor: AVATAR_COLORS[activeProfile.avatar]?.bg || '#3b82f6' }}
                     >
                       {activeProfile.name?.charAt(0)?.toUpperCase() || '?'}
@@ -255,11 +257,11 @@ export default function Header() {
                   ) : (
                     <PersonIcon className="my-1" width={16} height={16} />
                   )}
-                  <div className="font-space-mono text-[.8rem]">
+                  <div className="font-space-mono text-[.8rem] hidden xs:block">
                     {userProfile?.name || activeProfile?.name || 'Anonuser'}
                   </div>
                 </div>
-                <DropdownMenu.TriggerIcon className="ml-1" />
+                <DropdownMenu.TriggerIcon className="ml-1 hidden xs:block" />
               </Button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content>
@@ -390,7 +392,7 @@ export default function Header() {
       
       {/* Mobile Search Bar - expandable on small screens */}
       {showMobileSearch && (
-        <div className="xs:hidden w-full absolute top-full left-0 right-0 bg-[#111113] bg-opacity-95 backdrop-blur-md p-2 border-b border-[#5a5e6750] z-50 animate-fade-down animate-duration-200">
+        <div className="sm:hidden w-full absolute top-full left-0 right-0 bg-[#111113] bg-opacity-95 backdrop-blur-md p-2 border-b border-[#5a5e6750] z-50 animate-fade-down animate-duration-200">
           {animepahe ? <AnimePaheSearchBar /> : <SearchBar />}
         </div>
       )}
