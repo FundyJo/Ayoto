@@ -11,7 +11,8 @@ import {
   PersonIcon,
   MixIcon,
   AvatarIcon,
-  ArchiveIcon
+  ArchiveIcon,
+  MagnifyingGlassIcon
 } from '@radix-ui/react-icons'
 import Pikacon from '../assets/pikacon.ico'
 import { Button, DropdownMenu } from '@radix-ui/themes'
@@ -28,6 +29,7 @@ import WindowControls from './WindowControls'
 
 export default function Header() {
   const navigate = useNavigate()
+  const [showMobileSearch, setShowMobileSearch] = useState(false)
   const { setUserId, settings, activeProfile, setActiveProfile } = useZenshinContext()
   const [profiles, setProfiles] = useState([])
 
@@ -203,7 +205,21 @@ export default function Header() {
         )}
       </div>
 
+      {/* Search bar - visible on xs and larger screens */}
       <div className="nodrag absolute left-1/2 transform -translate-x-1/2 w-1/3 sm:w-2/6 max-w-md z-10 hidden xs:block">{animepahe ? <AnimePaheSearchBar /> : <SearchBar />}</div>
+      
+      {/* Mobile search toggle button - visible only on screens smaller than xs */}
+      <Button 
+        color="gray" 
+        variant="soft" 
+        size={'1'} 
+        onClick={() => setShowMobileSearch(!showMobileSearch)} 
+        className="xs:hidden ml-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        title="Search"
+      >
+        <MagnifyingGlassIcon />
+      </Button>
+      
       <div className="nodrag ml-auto flex items-center justify-center gap-x-2 sm:gap-x-4">
         <Button color="gray" variant="soft" size={'1'} onClick={() => navigate('/downloads')} className="focus:outline-none focus:ring-2 focus:ring-blue-500">
           <DownloadIcon />
@@ -371,6 +387,13 @@ export default function Header() {
       
       {/* Window Controls - minimize, maximize, close */}
       <WindowControls />
+      
+      {/* Mobile Search Bar - expandable on small screens */}
+      {showMobileSearch && (
+        <div className="xs:hidden w-full absolute top-full left-0 right-0 bg-[#111113] bg-opacity-95 backdrop-blur-md p-2 border-b border-[#5a5e6750] z-50 animate-fade-down animate-duration-200">
+          {animepahe ? <AnimePaheSearchBar /> : <SearchBar />}
+        </div>
+      )}
     </div>
   )
 }

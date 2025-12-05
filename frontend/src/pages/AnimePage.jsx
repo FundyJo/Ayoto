@@ -222,7 +222,7 @@ export default function AnimePage() {
               )}
               <div className="flex gap-x-1 tracking-wide opacity-90">
                 <PersonIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                {data.popularity > 9999 ? `${(data.popularity / 1000).toFixed(0)}k` : data.popularity.toLocaleString()}
+                {data.popularity > 999 ? `${(data.popularity / 1000).toFixed(0)}k` : data.popularity.toLocaleString()}
               </div>
             </div>
             {genresString && (
