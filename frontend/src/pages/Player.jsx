@@ -25,8 +25,11 @@ export default function Player(query) {
   const { vlcPath, backendPort } = useZenshinContext()
   // receive params from navigation hook
   const loc = useLocation()
-  const { episodeTitle, episodeNumber, animeTitle, bannerImage, discordRpcActivity } =
+  const { episodeTitle, episodeNumber, animeTitle, bannerImage, animeCoverImage, discordRpcActivity } =
     loc.state.state
+  // Get animeId from URL params or state
+  const animeIdFromUrl = useParams().animeId
+  const animeId = loc.state.state?.animeId || animeIdFromUrl
   console.log(loc.state)
 
   function setDiscordRPC() {
@@ -429,7 +432,7 @@ export default function Player(query) {
         </div>
         {files && (
           <div className="mt-8">
-            {files.map((file) => (
+            {files.map((file, index) => (
               <EpisodesPlayer
                 key={file.name}
                 file={file}
@@ -437,6 +440,12 @@ export default function Player(query) {
                 handleStreamVlc={handleStreamVlc}
                 stopEpisodeDownload={stopEpisodeDownload}
                 setCurrentEpisode={setCurrentEpisode}
+                animeId={animeId}
+                animeTitle={animeTitle}
+                animeCoverImage={animeCoverImage}
+                bannerImage={bannerImage}
+                episodeNumber={episodeNumber || index + 1}
+                magnetUri={magnetURI}
               />
             ))}{' '}
           </div>

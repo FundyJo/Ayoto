@@ -1,11 +1,10 @@
-import { ArrowDownIcon, ArrowUpIcon, BarChartIcon } from '@radix-ui/react-icons'
+import { ArrowDownIcon, BarChartIcon } from '@radix-ui/react-icons'
 import { useEffect, useState, useRef } from 'react'
 import formatBytes from '../utils/formatBytes'
 import { Button, Tooltip } from '@radix-ui/themes'
 
 function DownloadMeter() {
   const [message, setMessage] = useState([])
-  const [statusWs, setStatus] = useState('Disconnected')
   const socketRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
   const reconnectDelayRef = useRef(5000) // Start with 5 seconds
@@ -22,7 +21,6 @@ function DownloadMeter() {
 
         socket.onopen = () => {
           if (!isUnmounted) {
-            setStatus('Connected')
             // Reset reconnect delay on successful connection
             reconnectDelayRef.current = 5000
           }
@@ -45,7 +43,6 @@ function DownloadMeter() {
 
         socket.onclose = () => {
           if (!isUnmounted) {
-            setStatus('Disconnected')
             // Exponential backoff for reconnection (max 60 seconds)
             const delay = Math.min(reconnectDelayRef.current, 60000)
             reconnectTimeoutRef.current = setTimeout(connectWebSocket, delay)
@@ -76,15 +73,18 @@ function DownloadMeter() {
   }, [])
 
   let clientDownloadSpeed = message[0]?.clientDownloadSpeed || 0
-  let clientUploadSpeed = message[0]?.clientUploadSpeed || 0
   const [showFullSpeed, setShowFullSpeed] = useState(false)
   const [alwaysShow, setAlwaysShow] = useState(false)
+  
+  // Check if there's an active download
+  const isDownloading = clientDownloadSpeed > 0
+
   return (
     <div className="relative">
-      <Tooltip content="Toggle Torrent Speeds" side="right">
+      <Tooltip content="Torrent Download Speed" side="right">
         <Button
           size={'1'}
-          color="gray"
+          color={isDownloading ? 'blue' : 'gray'}
           variant="soft"
           onMouseOver={() => setShowFullSpeed(true)}
           onMouseLeave={() => setShowFullSpeed(false)}
@@ -93,18 +93,16 @@ function DownloadMeter() {
           <BarChartIcon />
         </Button>
       </Tooltip>
-      {(showFullSpeed || alwaysShow) && (
-        <div className="absolute -left-[6rem] top-10 z-50 rounded-sm bg-[#111113]">
-          <div className="flex w-64 select-none justify-center gap-x-2 text-nowrap px-1 py-2 font-space-mono text-xs">
-            <div className="flex items-center gap-x-1">
-              {formatBytes(clientDownloadSpeed)}/{/* asddasddas */}
-              <ArrowDownIcon />
-            </div>
-
-            <div className="flex items-center gap-x-1">
-              {formatBytes(clientUploadSpeed)}/s
-              <ArrowUpIcon />
-            </div>
+      {(showFullSpeed || alwaysShow || isDownloading) && (
+        <div className="absolute -left-[5rem] top-10 z-50 rounded-sm bg-[#111113]">
+          <div className="flex w-48 select-none items-center justify-center gap-x-2 text-nowrap px-2 py-2 font-space-mono text-xs">
+            <ArrowDownIcon className={isDownloading ? 'animate-pulse text-blue-400' : ''} />
+            <span className={isDownloading ? 'text-blue-400' : ''}>
+              {formatBytes(clientDownloadSpeed)}/s
+            </span>
+            {isDownloading && (
+              <span className="ml-1 h-2 w-2 animate-pulse rounded-full bg-blue-400"></span>
+            )}
           </div>
         </div>
       )}

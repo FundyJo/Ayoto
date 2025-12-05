@@ -16,6 +16,7 @@ import Bookmarks from './pages/Bookmarks'
 import Anilist from './pages/Anilist'
 import Test from './pages/Test'
 import Downloads from './pages/Downloads'
+import OfflineLibrary from './pages/OfflineLibrary'
 import Plugins from './pages/Plugins'
 import PluginAnimePage from './pages/PluginAnimePage'
 import ProfileSelection from './pages/ProfileSelection'
@@ -121,6 +122,11 @@ const router = createHashRouter([
       {
         path: '/downloads',
         element: <Downloads />,
+        errorElement: <ErrorPage />
+      },
+      {
+        path: '/offline',
+        element: <OfflineLibrary />,
         errorElement: <ErrorPage />
       },
       {
